@@ -352,7 +352,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script src="data.enc.js?v=da4a588b"></script>
+<script src="data.enc.js?v=2caaf8cc"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -758,12 +758,8 @@ function mrRender(live) {
     return `<div class="mr-app"><h3>${icon(app)}${esc(app)} ${mrAppRanks[app] ? `<span class="cat">· עדיפות ${mrAppRanks[app]}</span>` : ''}</h3>${run}${q}${rec}</div>`;
   }).join('');
 
-  const apprPend = mrApprovals.items?.filter(i => i.status === 'pending').length || 0;
-  const apprHtml = mrApprovals.items?.length ? `<details class="prio-panel" ${apprPend ? 'open' : ''}>
-    <summary>✅ שולחן האישורים שלך — ${apprPend ? apprPend + ' ממתינים לבדיקתך' : 'אין ממתינים'}</summary>
-    <div style="margin-top:10px">${[...mrApprovals.items]
-      .sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || ((mrAppRanks[a.app] ?? 99) - (mrAppRanks[b.app] ?? 99)))
-      .map(it => `
+  const isArchived = i => i.status !== 'pending';
+  const apprItemHtml = it => `
       <div class="appr-item ${esc(it.status)}" data-aid="${esc(it.id)}">
         <div class="appr-head">${icon(it.app)}<b>${esc(it.title)}</b>
           <span class="appr-status ${it.status === 'approved' ? 'ok' : it.status === 'rejected' ? 'no' : ''}">${it.status === 'approved' ? '✓ אושר על ידך' : it.status === 'rejected' ? '✗ הוחזר לתיקון' : 'ממתין לבדיקה'}</span>
@@ -780,8 +776,24 @@ function mrRender(live) {
           <div class="files"><input type="file" multiple> 📎 אפשר לצרף צילומי מסך ומסמכים — ללא הגבלה (נשמר בארכיון)</div>
           <button class="btn-reject send">שלח משוב ל־ERZA</button>
         </div>` : ''}
-      </div>`).join('')}</div>
+      </div>`;
+
+  const pendItems = (mrApprovals.items || []).filter(i => !isArchived(i))
+    .sort((a, b) => (mrAppRanks[a.app] ?? 99) - (mrAppRanks[b.app] ?? 99));
+  const archItems = (mrApprovals.items || []).filter(isArchived);
+  const archByApp = {};
+  for (const it of archItems) (archByApp[it.app] ??= []).push(it);
+  const archHtml = archItems.length ? `<details class="prio-panel">
+    <summary>🗄️ ארכיון — ${archItems.length} פריטים שטופלו (לפי אפליקציה)</summary>
+    <div style="margin-top:8px">${Object.entries(archByApp)
+      .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
+      .map(([app, items]) => `<details style="margin:6px 0"><summary>${icon(app)}${esc(app)} · ${items.length}</summary>
+        <div style="margin-top:8px">${items.map(apprItemHtml).join('')}</div></details>`).join('')}</div>
   </details>` : '';
+  const apprHtml = (pendItems.length || archItems.length) ? `<details class="prio-panel" ${pendItems.length ? 'open' : ''}>
+    <summary>✅ שולחן האישורים שלך — ${pendItems.length ? pendItems.length + ' ממתינים לבדיקתך' : 'אין ממתינים'}</summary>
+    <div style="margin-top:10px">${pendItems.map(apprItemHtml).join('')}</div>
+  </details>` + archHtml : '';
 
   const inboxHtml = `<div class="inbox">
     <div class="section-sub" style="margin:0 0 6px">✉️ הוראה חופשית ל־ERZA — כתוב מה שתרצה, אני אפצל למשימות ואבצע לפי הכללים</div>
