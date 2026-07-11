@@ -241,11 +241,29 @@ tr.detail td { background: var(--tint); padding: 16px 18px; }
 footer { margin-top: 40px; font-size: 12px; color: var(--muted); text-align: center; }
 footer a { color: var(--muted); }
 
+/* instructions archive */
+.instr-item { border: 1px solid var(--grid); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; font-size: 13px; }
+.instr-item .iid { display: inline-block; background: var(--tint); border-radius: 6px; padding: 1px 8px; font-size: 11.5px; font-weight: 700; color: var(--ink-2); margin-inline-end: 6px; direction: ltr; }
+.instr-item .no { color: var(--red); font-weight: 700; font-size: 12px; }
+.instr-item .yes { color: var(--green); font-weight: 700; font-size: 12px; }
+.instr-item .txt { color: var(--ink-1); margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.instr-item .resp { color: var(--ink-2); border-inline-start: 3px solid var(--blue); padding-inline-start: 8px; margin: 6px 0; overflow-wrap: anywhere; }
+.instr-item .tsk { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+
+/* mobile hardening */
+.mr-task { flex-wrap: wrap; }
+.mr-task select.lvl { max-width: 100%; }
+.mr-run, .appr-fb, .mr-recent { overflow-wrap: anywhere; }
+.mr, .appr-item, .prio-panel { min-width: 0; }
+
 @media (max-width: 760px) {
   .desktop-only { display: none !important; }
   .cards { display: block; }
   h1 { font-size: 19px; }
   .tiles { grid-template-columns: repeat(2, 1fr); }
+  .mr-task .t-title { flex: 1 1 100%; order: -1; }
+  .appr-actions button, .inbox button { width: 100%; }
+  .mr-head .mr-updated { flex: 1 1 100%; order: 5; }
 }
 </style>
 </head>
@@ -352,7 +370,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script src="data.enc.js?v=9b092fad"></script>
+<script src="data.enc.js?v=bf5cf43b"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -641,7 +659,7 @@ function boot(D, locked) {
 /* ---------- machine room (live status + user priorities) ---------- */
 const GH = { owner: 'Erezults', repo: 'ERZA_Orchestrator' };
 const pat = () => localStorage.getItem('erza-pat') || '';
-let mrPrios = {}, mrAppRanks = {}, mrDirty = false, mrLastLive = null, mrApprovals = { items: [] }, mrApprovalsSha = null;
+let mrPrios = {}, mrAppRanks = {}, mrDirty = false, mrLastLive = null, mrApprovals = { items: [] }, mrApprovalsSha = null, mrInstr = { items: [] };
 
 async function gh(pathName, ref, opts = {}) {
   const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${pathName}${ref ? `?ref=${ref}` : ''}`;
@@ -795,10 +813,26 @@ function mrRender(live) {
     <div style="margin-top:10px">${pendItems.map(apprItemHtml).join('')}</div>
   </details>` + archHtml : '';
 
+  const taskName = id => { for (const d of Object.values(live.apps || {})) { const all = [...(d.queued || []), ...(d.recent || []), d.running].filter(Boolean); const f = all.find(t => t.id === id); if (f) return f.title; } return id; };
+  const instrHtml = (mrInstr.items || []).length ? `<details class="prio-panel" style="margin-top:12px">
+    <summary>🗄️ ארכיון ההוראות שלך — ${mrInstr.items.length} (כולל ההתייחסות של ERZA)</summary>
+    <div style="margin-top:8px">${[...mrInstr.items].reverse().map(it => `
+      <div class="instr-item">
+        <span class="iid">${esc(it.id)}</span>
+        ${it.app ? icon(it.app) : ''}
+        ${it.source === 'approval-feedback' ? '<span class="no">✗ לא אושר על ידך</span>' : it.approved ? '<span class="yes">✓ אישרת</span>' : ''}
+        <span class="cat" style="float:left">${esc((it.at || '').slice(0, 10))}</span>
+        <div class="txt">${esc(it.text)}</div>
+        <div class="resp">🤖 ${esc(it.response || 'בטיפול…')}</div>
+        ${(it.tasks || []).length ? `<div class="tsk">📋 משימות שנוצרו: ${it.tasks.map(t => esc(/^T\d+$/.test(t) ? t + ' — ' + taskName(t) : t)).join(' · ')} · סטטוס: ${esc(it.status || '')}</div>` : ''}
+      </div>`).join('')}</div>
+  </details>` : '';
+
   const inboxHtml = `<div class="inbox">
     <div class="section-sub" style="margin:0 0 6px">✉️ הוראה חופשית ל־ERZA — כתוב מה שתרצה, אני אפצל למשימות ואבצע לפי הכללים</div>
     <textarea id="inboxText" placeholder="לדוגמה: תעצור הכל ב-Coin ותתמקד בהגשת Fundiva עוד היום…"></textarea>
     <div class="row"><button id="inboxSend">📨 שלח ל־ERZA</button><span class="ok" id="inboxOk"></span></div>
+    ${instrHtml}
   </div>`;
 
   document.getElementById('mrBody').innerHTML =
@@ -892,6 +926,7 @@ async function mrTick() {
       mrApprovalsSha = meta.sha;
       mrApprovals = JSON.parse(decodeURIComponent(escape(atob(meta.content.replace(/\s/g, '')))));
     } catch { mrApprovals = { items: [] }; }
+    try { mrInstr = await gh('registry/instructions_log.json'); } catch { mrInstr = { items: [] }; }
     mrLastLive = live;
     mrRender(live);
     window.erzaRerender?.();
