@@ -333,7 +333,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script src="data.enc.js?v=c78eaba7"></script>
+<script src="data.enc.js?v=463f42ae"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -519,7 +519,8 @@ function boot(D, locked) {
 
   /* render tables + cards */
   function render() {
-    const vn = natives.filter(match), vw = webs.filter(match), vr = rest.filter(match);
+    const byRank = (a, b) => ((mrAppRanks[a.dir] ?? 99) - (mrAppRanks[b.dir] ?? 99));
+    const vn = natives.filter(match).sort(byRank), vw = webs.filter(match), vr = rest.filter(match);
 
     document.getElementById('nativeBody').innerHTML = vn.map(a => {
       const c = coverage(a);
@@ -581,6 +582,7 @@ function boot(D, locked) {
       (vr.length ? `<div class="section-title desktop-only">🗂️ אחר / Legacy</div>` + vr.map(a => cardHTML(a, `<span>${esc(a.product || '')}</span>`)).join('') : '');
   }
   render();
+  window.erzaRerender = render;
 
   /* skills catalog */
   const implCount = n => apps.filter(a => (a.skills || []).some(s => s.skill === n && s.status === 'implemented')).length;
@@ -620,7 +622,7 @@ function boot(D, locked) {
 /* ---------- machine room (live status + user priorities) ---------- */
 const GH = { owner: 'Erezults', repo: 'ERZA_Orchestrator' };
 const pat = () => localStorage.getItem('erza-pat') || '';
-let mrPrios = {}, mrAppRanks = {}, mrDirty = false;
+let mrPrios = {}, mrAppRanks = {}, mrDirty = false, mrLastLive = null;
 
 async function gh(pathName, ref, opts = {}) {
   const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${pathName}${ref ? `?ref=${ref}` : ''}`;
@@ -641,6 +643,8 @@ async function savePriorities() {
     await gh('registry/user_priorities.json', undefined, { method: 'PUT', body: JSON.stringify(body) });
     mrDirty = false; btn.hidden = true; btn.textContent = '💾 שמור עדיפויות';
     document.getElementById('mrUpdated').textContent = 'עדיפויות נשמרו ✓ — ERZA תקלוט תוך 5 דק\'';
+    if (mrLastLive) mrRender(mrLastLive);   // סידור מיידי לפי הסדר החדש
+    window.erzaRerender?.();
   } catch (e) { btn.textContent = 'שגיאה — נסה שוב'; }
   btn.disabled = false;
 }
@@ -672,7 +676,9 @@ function mrRender(live) {
        </li>`).join('')}</ul></details>`
     : '';
 
-  const appsHtml = Object.entries(live.apps || {}).map(([app, d]) => {
+  const appsHtml = Object.entries(live.apps || {})
+    .sort((a, b) => ((mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99)) || a[0].localeCompare(b[0]))
+    .map(([app, d]) => {
     const run = d.running ? `<div class="mr-run"><span class="pulse"></span><b>${esc(d.running.title)}</b>
       <button class="stopbtn" data-id="${esc(d.running.id)}">⏹ עצור</button><br>
       <span class="cat">חשבון ${esc((live.accounts[d.running.account] || {}).label || d.running.account || '')} ${d.running.lastCommit ? `· checkpoint אחרון: "${esc(d.running.lastCommit.msg)}" לפני ${d.running.lastCommit.minutesAgo} דק'` : `· טרם בוצע checkpoint`}</span></div>` : '';
@@ -772,7 +778,9 @@ async function mrTick() {
       const up = await gh('registry/user_priorities.json');
       mrPrios = up.tasks || {}; mrAppRanks = up.apps || {};
     } catch { /* אין קובץ עדיפויות עדיין */ }
+    mrLastLive = live;
     mrRender(live);
+    window.erzaRerender?.();
   } catch (e) {
     document.getElementById('mrBody').innerHTML = `<div class="mr-setup">${e.status === 404 ? 'עדיין אין סטטוס חי — הדחיפה הראשונה תופיע תוך ~5 דקות.' : e.status === 401 || e.status === 403 ? 'הטוקן לא תקין או חסרות הרשאות — לחץ ⚙️ והדבק טוקן חדש.' : 'שגיאה בשליפת סטטוס (' + esc(String(e.message)) + ')'}</div>`;
   }
