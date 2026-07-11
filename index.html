@@ -98,8 +98,15 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
   border: 1px solid var(--grid); background: var(--page); color: var(--ink-1);
   border-radius: 6px; padding: 3px 6px; font-size: 12px;
 }
-.apprank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin-bottom: 12px; }
-.apprank-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; border: 1px solid var(--grid); border-radius: 8px; padding: 6px 10px; }
+.appicon { width: 22px; height: 22px; border-radius: 5px; vertical-align: -5px; margin-inline-end: 6px; }
+.prio-panel { border: 1px solid var(--grid); border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; }
+.prio-panel summary { cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--ink-1); }
+#appOrder { list-style: none; margin-top: 8px; }
+#appOrder li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; border: 1px solid var(--grid); border-radius: 8px; padding: 7px 10px; margin-bottom: 6px; background: var(--surface-1); cursor: grab; }
+#appOrder li.dragging { opacity: .4; }
+#appOrder .rank-num { width: 22px; height: 22px; border-radius: 50%; background: var(--tint); color: var(--ink-2); font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+#appOrder .nm { flex: 1; }
+#appOrder .mv button { border: 1px solid var(--grid); background: var(--page); color: var(--ink-2); border-radius: 6px; padding: 1px 8px; cursor: pointer; font-size: 12px; margin-inline-start: 4px; }
 .stopbtn { border: 1px solid color-mix(in srgb, var(--red) 40%, transparent); background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--red); border-radius: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
 .inbox { border-top: 1px solid var(--grid); margin-top: 12px; padding-top: 12px; }
 .inbox textarea { width: 100%; min-height: 64px; border: 1px solid var(--grid); background: var(--page); color: var(--ink-1); border-radius: 10px; padding: 9px 12px; font-size: 14px; font-family: inherit; resize: vertical; }
@@ -325,7 +332,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script src="data.enc.js?v=75fedd8c"></script>
+<script src="data.enc.js?v=8b4f22b5"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -516,7 +523,7 @@ function boot(D, locked) {
     document.getElementById('nativeBody').innerHTML = vn.map(a => {
       const c = coverage(a);
       return `<tr class="approw">
-        <td class="appname">${esc(a.displayName || a.name)}<small>${esc(a.purposeHe || a.purpose || '')}</small></td>
+        <td class="appname"><img class="appicon" src="icons/${esc(a.dir)}.png" onerror="this.hidden=true" alt="">${esc(a.displayName || a.name)}<small>${esc(a.purposeHe || a.purpose || '')}</small></td>
         <td>${stageBadge(a)}${a.ascShort ? `<br><span class="cat">${esc(a.ascShort)}</span>` : ''}</td>
         <td class="num" dir="ltr" style="text-align:right" title="${esc(a.version || '')}">${esc(a.versionShort || '—')}</td>
         <td class="num">${fmtDate(a.gitLastCommitDate)}</td>
@@ -556,7 +563,7 @@ function boot(D, locked) {
     const cardHTML = (a, extra) => {
       const c = coverage(a);
       return `<div class="card">
-        <div class="top"><div class="appname">${esc(a.displayName || a.name)}</div>${stageBadge(a)}</div>
+        <div class="top"><div class="appname"><img class="appicon" src="icons/${esc(a.dir)}.png" onerror="this.hidden=true" alt="">${esc(a.displayName || a.name)}</div>${stageBadge(a)}</div>
         <div class="desc">${esc(a.purposeHe || a.purpose || '')}</div>
         <div class="meta">
           ${extra || ''}${a.ascShort ? `<span>${esc(a.ascShort)}</span>` : ''}
@@ -654,14 +661,14 @@ function mrRender(live) {
   const accs = Object.entries(live.accounts || {}).map(([id, a]) =>
     `<span class="mr-acc"><b>${esc(a.label || id)}</b>${a.renewDay ? ` · מתחדש ב־${a.renewDay} לחודש` : ''}<br>${a.exhausted ? '🔴 מוצה עד ' + new Date(a.exhaustedUntil).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : `🟢 סשן ${Math.round(a.sessionPct)}% · Fable ${Math.round(a.fablePct)}%`}</span>`).join('');
 
-  const rankSel = app => {
-    const cur = mrAppRanks[app] ?? '';
-    const n = (live.nativeApps || []).length || 9;
-    return `<select class="apprank" data-app="${esc(app)}"><option value="">— עדיפות —</option>${Array.from({ length: n }, (_, i) => `<option value="${i + 1}" ${cur === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>`;
-  };
-  const ranksHtml = (live.nativeApps || []).length
-    ? `<div class="section-sub" style="margin:4px 0 6px">🎯 עדיפות בין אפליקציות (1 = הכי חשובה)</div>
-       <div class="apprank-grid">${live.nativeApps.map(app => `<div class="apprank-row"><span>${esc(app)}</span>${rankSel(app)}</div>`).join('')}</div>`
+  const icon = app => `<img class="appicon" src="icons/${esc(app)}.png" onerror="this.hidden=true" alt="">`;
+  const orderedApps = [...(live.nativeApps || [])].sort((a, b) => (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99));
+  const ranksHtml = orderedApps.length
+    ? `<details class="prio-panel"><summary>🎯 סדר עדיפויות בין האפליקציות — לחץ לפתיחה וסדר מהחשובה ביותר לנמוכה</summary>
+       <ul id="appOrder">${orderedApps.map((app, i) => `<li draggable="true" data-app="${esc(app)}">
+         <span class="rank-num">${i + 1}</span>${icon(app)}<span class="nm">${esc(app)}</span>
+         <span class="mv"><button class="up" title="העלה">▲</button><button class="dn" title="הורד">▼</button></span>
+       </li>`).join('')}</ul></details>`
     : '';
 
   const appsHtml = Object.entries(live.apps || {}).map(([app, d]) => {
@@ -670,7 +677,7 @@ function mrRender(live) {
       <span class="cat">חשבון ${esc((live.accounts[d.running.account] || {}).label || d.running.account || '')} ${d.running.lastCommit ? `· checkpoint אחרון: "${esc(d.running.lastCommit.msg)}" לפני ${d.running.lastCommit.minutesAgo} דק'` : `· טרם בוצע checkpoint`}</span></div>` : '';
     const q = d.queued.map(mrTaskRow).join('');
     const rec = d.recent.map(r => `<div class="mr-recent">${r.status === 'review' ? '✅' : '⚠️'} ${esc(r.title)}${r.note ? ' — ' + esc(r.note) : ''}</div>`).join('');
-    return `<div class="mr-app"><h3>${esc(app)} ${mrAppRanks[app] ? `<span class="cat">· עדיפות ${mrAppRanks[app]}</span>` : ''}</h3>${run}${q}${rec}</div>`;
+    return `<div class="mr-app"><h3>${icon(app)}${esc(app)} ${mrAppRanks[app] ? `<span class="cat">· עדיפות ${mrAppRanks[app]}</span>` : ''}</h3>${run}${q}${rec}</div>`;
   }).join('');
 
   const inboxHtml = `<div class="inbox">
@@ -715,12 +722,31 @@ function mrRender(live) {
       touch();
     };
   });
-  document.querySelectorAll('#mrBody select.apprank').forEach(sel => {
-    sel.onchange = () => {
-      if (sel.value) mrAppRanks[sel.dataset.app] = +sel.value; else delete mrAppRanks[sel.dataset.app];
+  /* reorderable app priority list (drag + arrows) */
+  const orderUl = document.getElementById('appOrder');
+  if (orderUl) {
+    const applyOrder = () => {
+      [...orderUl.children].forEach((li, i) => {
+        mrAppRanks[li.dataset.app] = i + 1;
+        li.querySelector('.rank-num').textContent = i + 1;
+      });
       touch();
     };
-  });
+    orderUl.querySelectorAll('li').forEach(li => {
+      li.querySelector('.up').onclick = e => { e.preventDefault(); const p = li.previousElementSibling; if (p) { orderUl.insertBefore(li, p); applyOrder(); } };
+      li.querySelector('.dn').onclick = e => { e.preventDefault(); const n = li.nextElementSibling; if (n) { orderUl.insertBefore(n, li); applyOrder(); } };
+      li.addEventListener('dragstart', () => li.classList.add('dragging'));
+      li.addEventListener('dragend', () => { li.classList.remove('dragging'); applyOrder(); });
+    });
+    orderUl.addEventListener('dragover', e => {
+      e.preventDefault();
+      const dragging = orderUl.querySelector('.dragging');
+      if (!dragging) return;
+      const after = [...orderUl.querySelectorAll('li:not(.dragging)')]
+        .find(li => e.clientY < li.getBoundingClientRect().top + li.offsetHeight / 2);
+      after ? orderUl.insertBefore(dragging, after) : orderUl.appendChild(dragging);
+    });
+  }
 }
 
 async function mrTick() {
