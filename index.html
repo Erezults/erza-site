@@ -94,10 +94,18 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
 .mr-task { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); padding: 3px 0; }
 .mr-task .t-title { flex: 1; }
-.mr-task input.prio { width: 44px; border: 1px solid var(--grid); background: var(--page); color: var(--ink-1); border-radius: 6px; padding: 2px 6px; font-size: 12px; text-align: center; }
-.mr-task .star, .mr-task .hold { cursor: pointer; user-select: none; font-size: 15px; opacity: .35; }
-.mr-task .star.on { opacity: 1; }
-.mr-task .hold.on { opacity: 1; }
+.mr-task select.lvl, .mr-app select.apprank, .apprank-row select {
+  border: 1px solid var(--grid); background: var(--page); color: var(--ink-1);
+  border-radius: 6px; padding: 3px 6px; font-size: 12px;
+}
+.apprank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.apprank-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; border: 1px solid var(--grid); border-radius: 8px; padding: 6px 10px; }
+.stopbtn { border: 1px solid color-mix(in srgb, var(--red) 40%, transparent); background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--red); border-radius: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
+.inbox { border-top: 1px solid var(--grid); margin-top: 12px; padding-top: 12px; }
+.inbox textarea { width: 100%; min-height: 64px; border: 1px solid var(--grid); background: var(--page); color: var(--ink-1); border-radius: 10px; padding: 9px 12px; font-size: 14px; font-family: inherit; resize: vertical; }
+.inbox .row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.inbox button { border: none; background: var(--ink-1); color: var(--page); border-radius: 8px; padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.inbox .ok { font-size: 12.5px; color: var(--green); }
 .mr-recent { font-size: 12px; color: var(--muted); margin-top: 4px; }
 .mr-setup { font-size: 13px; color: var(--ink-2); line-height: 1.7; }
 .mr-setup input { width: 100%; max-width: 420px; border: 1px solid var(--grid); background: var(--page); color: var(--ink-1); border-radius: 8px; padding: 7px 10px; font-size: 13px; direction: ltr; }
@@ -317,7 +325,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script src="data.enc.js?v=51ef05ca"></script>
+<script src="data.enc.js?v=75fedd8c"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -604,7 +612,7 @@ function boot(D, locked) {
 /* ---------- machine room (live status + user priorities) ---------- */
 const GH = { owner: 'Erezults', repo: 'ERZA_Orchestrator' };
 const pat = () => localStorage.getItem('erza-pat') || '';
-let mrPrios = {}, mrDirty = false;
+let mrPrios = {}, mrAppRanks = {}, mrDirty = false;
 
 async function gh(pathName, ref, opts = {}) {
   const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${pathName}${ref ? `?ref=${ref}` : ''}`;
@@ -621,7 +629,7 @@ async function savePriorities() {
     let sha;
     try { sha = (await gh('registry/user_priorities.json', undefined, { headers: { Accept: 'application/vnd.github+json' } })).sha; } catch {}
     const body = { message: 'עדכון עדיפויות מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
-      content: btoa(unescape(encodeURIComponent(JSON.stringify({ updatedAt: new Date().toISOString(), tasks: mrPrios }, null, 2)))) };
+      content: btoa(unescape(encodeURIComponent(JSON.stringify({ updatedAt: new Date().toISOString(), tasks: mrPrios, apps: mrAppRanks }, null, 2)))) };
     await gh('registry/user_priorities.json', undefined, { method: 'PUT', body: JSON.stringify(body) });
     mrDirty = false; btn.hidden = true; btn.textContent = '💾 שמור עדיפויות';
     document.getElementById('mrUpdated').textContent = 'עדיפויות נשמרו ✓ — ERZA תקלוט תוך 5 דק\'';
@@ -629,12 +637,12 @@ async function savePriorities() {
   btn.disabled = false;
 }
 
+const lvlOf = p => !p ? '' : p.hold ? 'hold' : (p.star || p.p === 1) ? '1' : p.p === 2 ? '2' : p.p === 3 ? '3' : '';
+const LVLS = [['', '— עדיפות —'], ['1', '🔴 דחוף — בצע ראשון'], ['2', '🟡 רגיל'], ['3', '🟢 נמוך'], ['hold', '⏸ מושהה']];
 function mrTaskRow(t) {
-  const p = mrPrios[t.id] || {};
+  const cur = lvlOf(mrPrios[t.id]);
   return `<div class="mr-task" data-id="${esc(t.id)}">
-    <span class="star ${p.star ? 'on' : ''}" title="בצע ראשון">⭐</span>
-    <input class="prio" type="number" min="1" max="99" placeholder="—" value="${p.p ?? ''}" title="דירוג (1 = הכי דחוף)">
-    <span class="hold ${p.hold ? 'on' : ''}" title="השהה משימה">⏸</span>
+    <select class="lvl">${LVLS.map(([v, l]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${l}</option>`).join('')}</select>
     <span class="t-title">${esc(t.title)}</span>
     ${t.heavy ? '<span title="משימה כבדה">🏗️</span>' : ''}
   </div>`;
@@ -644,22 +652,74 @@ function mrRender(live) {
   const ago = Math.round((Date.now() - Date.parse(live.updatedAt)) / 60e3);
   document.getElementById('mrUpdated').textContent = `עודכן לפני ${ago} דק' · ${live.totals.running} רצים · ${live.totals.queued} בתור · ${live.totals.review + live.totals.done} הסתיימו`;
   const accs = Object.entries(live.accounts || {}).map(([id, a]) =>
-    `<span class="mr-acc"><b>${esc(a.label || id)}</b> ${a.exhausted ? '🔴 מוצה' : `🟢 ${Math.round(a.sessionPct)}% סשן · ${Math.round(a.fablePct)}% Fable`}</span>`).join('');
+    `<span class="mr-acc"><b>${esc(a.label || id)}</b>${a.renewDay ? ` · מתחדש ב־${a.renewDay} לחודש` : ''}<br>${a.exhausted ? '🔴 מוצה עד ' + new Date(a.exhaustedUntil).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : `🟢 סשן ${Math.round(a.sessionPct)}% · Fable ${Math.round(a.fablePct)}%`}</span>`).join('');
+
+  const rankSel = app => {
+    const cur = mrAppRanks[app] ?? '';
+    const n = (live.nativeApps || []).length || 9;
+    return `<select class="apprank" data-app="${esc(app)}"><option value="">— עדיפות —</option>${Array.from({ length: n }, (_, i) => `<option value="${i + 1}" ${cur === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>`;
+  };
+  const ranksHtml = (live.nativeApps || []).length
+    ? `<div class="section-sub" style="margin:4px 0 6px">🎯 עדיפות בין אפליקציות (1 = הכי חשובה)</div>
+       <div class="apprank-grid">${live.nativeApps.map(app => `<div class="apprank-row"><span>${esc(app)}</span>${rankSel(app)}</div>`).join('')}</div>`
+    : '';
+
   const appsHtml = Object.entries(live.apps || {}).map(([app, d]) => {
-    const run = d.running ? `<div class="mr-run"><span class="pulse"></span><b>${esc(d.running.title)}</b> · חשבון ${esc(d.running.account || '')} ${d.running.lastCommit ? `· checkpoint אחרון: "${esc(d.running.lastCommit.msg)}" לפני ${d.running.lastCommit.minutesAgo} דק'` : '· טרם בוצע checkpoint'}</div>` : '';
+    const run = d.running ? `<div class="mr-run"><span class="pulse"></span><b>${esc(d.running.title)}</b>
+      <button class="stopbtn" data-id="${esc(d.running.id)}">⏹ עצור</button><br>
+      <span class="cat">חשבון ${esc((live.accounts[d.running.account] || {}).label || d.running.account || '')} ${d.running.lastCommit ? `· checkpoint אחרון: "${esc(d.running.lastCommit.msg)}" לפני ${d.running.lastCommit.minutesAgo} דק'` : `· טרם בוצע checkpoint`}</span></div>` : '';
     const q = d.queued.map(mrTaskRow).join('');
     const rec = d.recent.map(r => `<div class="mr-recent">${r.status === 'review' ? '✅' : '⚠️'} ${esc(r.title)}${r.note ? ' — ' + esc(r.note) : ''}</div>`).join('');
-    return `<div class="mr-app"><h3>${esc(app)}</h3>${run}${q}${rec}</div>`;
+    return `<div class="mr-app"><h3>${esc(app)} ${mrAppRanks[app] ? `<span class="cat">· עדיפות ${mrAppRanks[app]}</span>` : ''}</h3>${run}${q}${rec}</div>`;
   }).join('');
-  document.getElementById('mrBody').innerHTML =
-    `<div class="mr-accounts">${accs}</div>` + (appsHtml || '<div class="mr-setup">אין פעילות כרגע</div>');
 
-  document.querySelectorAll('#mrBody .mr-task').forEach(row => {
-    const id = row.dataset.id;
-    const touch = () => { mrDirty = true; document.getElementById('mrSaveBtn').hidden = false; };
-    row.querySelector('.star').onclick = e => { const p = mrPrios[id] ??= {}; p.star = !p.star; e.target.classList.toggle('on', p.star); touch(); };
-    row.querySelector('.hold').onclick = e => { const p = mrPrios[id] ??= {}; p.hold = !p.hold; e.target.classList.toggle('on', p.hold); touch(); };
-    row.querySelector('.prio').oninput = e => { const p = mrPrios[id] ??= {}; p.p = e.target.value ? +e.target.value : null; touch(); };
+  const inboxHtml = `<div class="inbox">
+    <div class="section-sub" style="margin:0 0 6px">✉️ הוראה חופשית ל־ERZA — כתוב מה שתרצה, אני אפצל למשימות ואבצע לפי הכללים</div>
+    <textarea id="inboxText" placeholder="לדוגמה: תעצור הכל ב-Coin ותתמקד בהגשת Fundiva עוד היום…"></textarea>
+    <div class="row"><button id="inboxSend">📨 שלח ל־ERZA</button><span class="ok" id="inboxOk"></span></div>
+  </div>`;
+
+  document.getElementById('mrBody').innerHTML =
+    `<div class="mr-accounts">${accs}</div>` + ranksHtml + (appsHtml || '<div class="mr-setup">אין פעילות כרגע</div>') + inboxHtml;
+
+  document.querySelectorAll('#mrBody .stopbtn').forEach(b => {
+    b.onclick = () => {
+      mrPrios[b.dataset.id] = { hold: true };
+      mrDirty = true; document.getElementById('mrSaveBtn').hidden = false;
+      b.textContent = '⏹ ייעצר בשמירה'; b.disabled = true;
+    };
+  });
+  document.getElementById('inboxSend').onclick = async () => {
+    const ta = document.getElementById('inboxText'), ok = document.getElementById('inboxOk');
+    const text = ta.value.trim();
+    if (!text) return;
+    ok.textContent = 'שולח…';
+    try {
+      let sha, msgs = [];
+      try { const cur = await gh('registry/inbox.json', undefined, { headers: { Accept: 'application/vnd.github+json' } });
+        sha = cur.sha; msgs = JSON.parse(decodeURIComponent(escape(atob(cur.content)))).messages || []; } catch {}
+      msgs.push({ id: Date.now(), text, sentAt: new Date().toISOString() });
+      const body = { message: 'הוראה חדשה מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
+        content: btoa(unescape(encodeURIComponent(JSON.stringify({ messages: msgs }, null, 2)))) };
+      await gh('registry/inbox.json', undefined, { method: 'PUT', body: JSON.stringify(body) });
+      ta.value = ''; ok.textContent = 'נקלט ✓ — ERZA תטפל בסבב הקרוב (עד ~10 דק\')';
+    } catch { ok.textContent = 'שגיאה בשליחה — נסה שוב'; }
+  };
+
+  const touch = () => { mrDirty = true; document.getElementById('mrSaveBtn').hidden = false; };
+  document.querySelectorAll('#mrBody .mr-task select.lvl').forEach(sel => {
+    sel.onchange = () => {
+      const id = sel.closest('.mr-task').dataset.id;
+      const v = sel.value;
+      mrPrios[id] = v === '' ? {} : v === 'hold' ? { hold: true } : { p: +v, star: v === '1' };
+      touch();
+    };
+  });
+  document.querySelectorAll('#mrBody select.apprank').forEach(sel => {
+    sel.onchange = () => {
+      if (sel.value) mrAppRanks[sel.dataset.app] = +sel.value; else delete mrAppRanks[sel.dataset.app];
+      touch();
+    };
   });
 }
 
@@ -679,7 +739,7 @@ async function mrTick() {
     const live = await gh('live_status.json', 'live');
     try {
       const up = await gh('registry/user_priorities.json');
-      mrPrios = up.tasks || {};
+      mrPrios = up.tasks || {}; mrAppRanks = up.apps || {};
     } catch { /* אין קובץ עדיפויות עדיין */ }
     mrRender(live);
   } catch (e) {
