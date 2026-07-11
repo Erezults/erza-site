@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>ERZA · לוח בקרה — פורטפוליו ERezult</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎛️</text></svg>">
+<style>
+:root {
+  --surface-1: #fcfcfb; --page: #f9f9f7;
+  --ink-1: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --baseline: #c3c2b7; --ring: rgba(11,11,11,0.10);
+  --blue: #2a78d6; --aqua: #1baf7a; --yellow: #eda100; --green: #008300;
+  --violet: #4a3aa7; --red: #e34948;
+  --tint: rgba(11,11,11,0.045);
+}
+:root[data-theme="dark"] {
+  --surface-1: #1a1a19; --page: #0d0d0d;
+  --ink-1: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --baseline: #383835; --ring: rgba(255,255,255,0.10);
+  --blue: #3987e5; --aqua: #199e70; --yellow: #c98500; --green: #008300;
+  --violet: #9085e9; --red: #e66767;
+  --tint: rgba(255,255,255,0.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-1: #1a1a19; --page: #0d0d0d;
+    --ink-1: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --baseline: #383835; --ring: rgba(255,255,255,0.10);
+    --blue: #3987e5; --aqua: #199e70; --yellow: #c98500; --green: #008300;
+    --violet: #9085e9; --red: #e66767;
+    --tint: rgba(255,255,255,0.06);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--page); color: var(--ink-1);
+  line-height: 1.55; -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1240px; margin: 0 auto; padding: 20px 16px 64px; }
+
+/* ---------- lock screen ---------- */
+#lock {
+  position: fixed; inset: 0; background: var(--page); z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+#lock[hidden] { display: none; }
+.lockcard {
+  background: var(--surface-1); border: 1px solid var(--ring); border-radius: 16px;
+  padding: 32px 28px; max-width: 360px; width: 100%; text-align: center;
+}
+.lockcard .logo { font-size: 40px; margin-bottom: 8px; }
+.lockcard h2 { font-size: 18px; margin-bottom: 4px; }
+.lockcard p { font-size: 13px; color: var(--ink-2); margin-bottom: 18px; }
+.lockcard input[type="password"] {
+  width: 100%; border: 1px solid var(--grid); background: var(--page); color: var(--ink-1);
+  border-radius: 10px; padding: 10px 12px; font-size: 16px; direction: ltr; text-align: center;
+}
+.lockcard .remember { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; color: var(--ink-2); margin: 12px 0; }
+.lockcard button {
+  width: 100%; border: none; background: var(--ink-1); color: var(--page);
+  border-radius: 10px; padding: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.lockcard button:disabled { opacity: .6; cursor: wait; }
+.lockerr { color: var(--red); font-size: 13px; min-height: 20px; margin-top: 10px; }
+
+/* ---------- header ---------- */
+header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 8px 0 18px; }
+.logo { font-size: 30px; }
+h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.2px; }
+h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2); }
+.hdr-spacer { flex: 1; }
+.updated { font-size: 12px; color: var(--muted); text-align: left; }
+#themeBtn, #lockBtn {
+  border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-2);
+  border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 14px;
+}
+
+/* ---------- stat tiles ---------- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.tile { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; padding: 12px 14px; }
+.tile .v { font-size: 26px; font-weight: 700; line-height: 1.2; }
+.tile .l { font-size: 12px; color: var(--ink-2); }
+
+/* ---------- stage bar ---------- */
+.stagebar-wrap { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; padding: 12px 14px; margin-bottom: 18px; }
+.stagebar-title { font-size: 12px; color: var(--ink-2); margin-bottom: 8px; }
+.stagebar { display: flex; gap: 2px; height: 22px; border-radius: 6px; overflow: hidden; }
+.stagebar > div { min-width: 6px; }
+.stagebar-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: 12px; color: var(--ink-2); }
+.stagebar-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.dot { width: 9px; height: 9px; border-radius: 3px; display: inline-block; flex: none; }
+
+/* ---------- filters ---------- */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.chip {
+  border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-2);
+  border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; user-select: none;
+}
+.chip.on { background: var(--ink-1); color: var(--page); border-color: var(--ink-1); font-weight: 600; }
+#search {
+  border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-1);
+  border-radius: 8px; padding: 6px 12px; font-size: 14px; min-width: 180px; flex: 1; max-width: 300px;
+}
+#search::placeholder { color: var(--muted); }
+
+/* ---------- badges ---------- */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px; border-radius: 999px;
+  padding: 2px 10px; font-size: 12px; font-weight: 600; white-space: nowrap;
+  background: color-mix(in srgb, var(--bc) 13%, transparent); color: var(--bc);
+  border: 1px solid color-mix(in srgb, var(--bc) 30%, transparent);
+}
+.badge.sm { padding: 1px 7px; font-size: 11px; }
+.cat { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.sitelink { font-size: 12.5px; color: var(--blue); text-decoration: none; direction: ltr; display: inline-block; }
+.sitelink:hover { text-decoration: underline; }
+
+/* ---------- tables ---------- */
+.section-title { font-size: 17px; font-weight: 700; margin: 26px 0 4px; }
+.section-sub { font-size: 13px; color: var(--ink-2); margin: 0 0 12px; }
+.tablecard { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; overflow: hidden; }
+.scrollx { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th {
+  text-align: right; font-size: 12px; color: var(--muted); font-weight: 600;
+  padding: 10px 14px; border-bottom: 1px solid var(--grid); white-space: nowrap;
+}
+td { padding: 10px 14px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr.approw { cursor: pointer; }
+tbody tr.approw:hover { background: var(--tint); }
+.appname { font-weight: 650; }
+.appname small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-weight: 400; color: var(--ink-2); font-size: 12px; max-width: 320px; min-width: 180px; }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cover { display: flex; align-items: center; gap: 8px; min-width: 110px; }
+.cover .track { flex: 1; height: 6px; border-radius: 3px; background: var(--grid); overflow: hidden; }
+.cover .fill { height: 100%; border-radius: 3px; background: var(--blue); }
+.cover .t { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------- detail row ---------- */
+tr.detail td { background: var(--tint); padding: 16px 18px; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+.detail-grid h4 { font-size: 12.5px; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+.detail-grid ul { padding-inline-start: 18px; font-size: 13px; color: var(--ink-2); }
+.detail-grid li { margin-bottom: 3px; }
+.kv { font-size: 13px; color: var(--ink-2); }
+.kv b { color: var(--ink-1); font-weight: 600; }
+.skilltag { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; border: 1px solid var(--grid); border-radius: 6px; padding: 2px 8px; margin: 0 0 4px 4px; color: var(--ink-2); background: var(--surface-1); }
+
+/* ---------- cards (mobile) ---------- */
+.cards { display: none; }
+.cards .section-title { margin-top: 20px; }
+.card { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+.card .top { display: flex; align-items: flex-start; gap: 8px; justify-content: space-between; }
+.card .desc { font-size: 13px; color: var(--ink-2); margin: 6px 0 8px; }
+.card .meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+.card details { margin-top: 10px; }
+.card summary { font-size: 13px; color: var(--blue); cursor: pointer; }
+.card .detail-grid { margin-top: 10px; grid-template-columns: 1fr; }
+
+/* ---------- skills ---------- */
+.skillgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.skillcard { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; padding: 14px; }
+.skillcard h3 { font-size: 14px; font-weight: 650; margin-bottom: 4px; direction: ltr; text-align: right; }
+.skillcard p { font-size: 12.5px; color: var(--ink-2); margin-bottom: 8px; }
+.skillcard .n { font-size: 12px; color: var(--muted); }
+
+/* ---------- matrix ---------- */
+.matrix th.rot { height: 150px; padding: 6px 4px; vertical-align: bottom; }
+.matrix th.rot > div { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; direction: ltr; text-align: start; color: var(--ink-2); white-space: nowrap; }
+.matrix td { text-align: center; padding: 6px 4px; font-size: 13px; }
+.matrix td.appcol, .matrix th.appcol { text-align: right; white-space: nowrap; font-weight: 600; font-size: 12.5px; position: sticky; right: 0; background: var(--surface-1); }
+.m-i { color: var(--good, #0ca30c); color: var(--green); font-weight: 700; }
+.m-p { color: var(--yellow); font-weight: 700; }
+.m-a { color: var(--muted); }
+.m-n { color: var(--grid); }
+.legendline { font-size: 12px; color: var(--ink-2); margin: 8px 2px 0; }
+
+footer { margin-top: 40px; font-size: 12px; color: var(--muted); text-align: center; }
+footer a { color: var(--muted); }
+
+@media (max-width: 760px) {
+  .desktop-only { display: none !important; }
+  .cards { display: block; }
+  h1 { font-size: 19px; }
+  .tiles { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div id="lock" hidden>
+  <form class="lockcard" id="lockForm">
+    <div class="logo">🎛️</div>
+    <h2>ERZA · לוח בקרה</h2>
+    <p>לוח הבקרה מוגן בסיסמה. הנתונים מוצפנים (AES-256).</p>
+    <input type="password" id="pw" placeholder="••••••••" autocomplete="current-password" autofocus>
+    <label class="remember"><input type="checkbox" id="rememberMe" checked> זכור במכשיר הזה</label>
+    <button type="submit" id="unlockBtn">כניסה</button>
+    <div class="lockerr" id="lockErr"></div>
+  </form>
+</div>
+
+<div class="wrap" id="main" hidden>
+  <header>
+    <div class="logo">🎛️</div>
+    <h1>ERZA · לוח בקרה<small>פורטפוליו האפליקציות של ERezult</small></h1>
+    <div class="hdr-spacer"></div>
+    <div class="updated" id="updated"></div>
+    <button id="themeBtn" title="מצב תצוגה">◐</button>
+    <button id="lockBtn" title="נעילה" hidden>🔒</button>
+  </header>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="stagebar-wrap">
+    <div class="stagebar-title">אפליקציות הנייטיב לפי שלב</div>
+    <div class="stagebar" id="stagebar"></div>
+    <div class="stagebar-legend" id="stagelegend"></div>
+  </div>
+
+  <div class="filters" id="filters">
+    <input id="search" type="search" placeholder="חיפוש…">
+  </div>
+
+  <div class="section-title desktop-only">📱 אפליקציות נייטיב</div>
+  <div class="section-sub desktop-only">המוצרים העיקריים · אתר השיווק של כל אפליקציה משויך אליה</div>
+  <div class="tablecard desktop-only">
+    <div class="scrollx">
+      <table>
+        <thead><tr>
+          <th>אפליקציה</th><th>שלב</th><th>גרסה</th><th>עדכון אחרון</th>
+          <th>אתר שיווק</th><th>כיסוי סקילים</th><th>נותרו</th>
+        </tr></thead>
+        <tbody id="nativeBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-title desktop-only" id="webTitle">🌐 פרויקטי ווב עצמאיים</div>
+  <div class="section-sub desktop-only">פרויקטים שאינם אתרי שיווק של אפליקציית נייטיב</div>
+  <div class="tablecard desktop-only">
+    <div class="scrollx">
+      <table>
+        <thead><tr>
+          <th>פרויקט</th><th>מוצר</th><th>שלב</th><th>גרסה</th><th>עדכון אחרון</th><th>קישור</th><th>נותרו</th>
+        </tr></thead>
+        <tbody id="webBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-title desktop-only">🗂️ אחר / Legacy</div>
+  <div class="tablecard desktop-only">
+    <div class="scrollx">
+      <table>
+        <thead><tr>
+          <th>פרויקט</th><th>מוצר</th><th>סוג</th><th>שלב</th><th>עדכון אחרון</th><th>נותרו</th>
+        </tr></thead>
+        <tbody id="restBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="section-title">🛠️ קטלוג הסקילים</div>
+  <div class="section-sub">סקילים לשימוש חוזר בין אפליקציות — הדרך היחידה המותרת לשיתוף ידע בין פרויקטים</div>
+  <div class="skillgrid" id="skillsGrid"></div>
+
+  <div class="section-title">🧩 מטריצת הטמעה — אפליקציות נייטיב × סקילים</div>
+  <div class="tablecard">
+    <div class="scrollx">
+      <table class="matrix" id="matrixTable"></table>
+    </div>
+  </div>
+  <div class="legendline">✓ הוטמע &nbsp;·&nbsp; ◐ חלקי &nbsp;·&nbsp; ✗ לא הוטמע &nbsp;·&nbsp; — לא רלוונטי</div>
+
+  <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
+</div>
+
+<script src="data.js"></script>
+<script src="data.enc.js"></script>
+<script>
+/* ---------- constants ---------- */
+const STAGES = {
+  'Live':               { he: 'באוויר (Live)', c: 'var(--green)' },
+  'Ready for App Store':{ he: 'מוכן לסטור', c: 'var(--aqua)' },
+  'Testing':            { he: 'בבדיקות', c: 'var(--yellow)' },
+  'Active Dev':         { he: 'בפיתוח פעיל', c: 'var(--blue)' },
+  'Maintenance':        { he: 'תחזוקה', c: 'var(--violet)' },
+  'Planning':           { he: 'בתכנון', c: 'var(--muted)' },
+  'Legacy':             { he: 'ישן (Legacy)', c: 'var(--muted)' },
+  'Archived':           { he: 'בארכיון', c: 'var(--muted)' },
+  'Unknown':            { he: 'לא ידוע', c: 'var(--muted)' },
+};
+const CATS = { 'native-app': 'אפליקציה נייטיב', 'web-app': 'ווב', legacy: 'Legacy', tooling: 'כלי עזר', docs: 'תיעוד', config: 'קונפיגורציה', unknown: '—' };
+const MSYM = { implemented: ['✓','m-i','הוטמע'], partial: ['◐','m-p','חלקי'], absent: ['✗','m-a','לא הוטמע'], 'n/a': ['—','m-n','לא רלוונטי'] };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDate = d => { if (!d) return '—'; const m = String(d).match(/\d{4}-\d{2}-\d{2}/); return m ? m[0] : String(d).slice(0, 10); };
+const stageBadge = (a, sm) => { const s = STAGES[a.stage] || STAGES.Unknown;
+  return `<span class="badge${sm ? ' sm' : ''}" style="--bc:${s.c}">${esc(s.he)}</span>`; };
+
+/* ---------- theme ---------- */
+const themeBtn = document.getElementById('themeBtn');
+const savedTheme = localStorage.getItem('erza-theme');
+if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+themeBtn.onclick = () => {
+  const cur = document.documentElement.dataset.theme ||
+    (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('erza-theme', next);
+};
+
+/* ---------- crypto (lock) ---------- */
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function decryptWithBits(bits) {
+  const E = window.ERZA_ENC;
+  const key = await crypto.subtle.importKey('raw', bits, 'AES-GCM', false, ['decrypt']);
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(E.iv) }, key, b64(E.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function deriveBits(pw) {
+  const E = window.ERZA_ENC;
+  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveBits']);
+  return crypto.subtle.deriveBits({ name: 'PBKDF2', salt: b64(E.salt), iterations: E.iter, hash: 'SHA-256' }, km, 256);
+}
+async function tryStoredKey() {
+  const k = localStorage.getItem('erza-k');
+  if (!k) return null;
+  try { return await decryptWithBits(b64(k).buffer); }
+  catch { localStorage.removeItem('erza-k'); return null; }
+}
+function showLock() {
+  document.getElementById('lock').hidden = false;
+  document.getElementById('pw').focus();
+  document.getElementById('lockForm').onsubmit = async e => {
+    e.preventDefault();
+    const btn = document.getElementById('unlockBtn'), err = document.getElementById('lockErr');
+    btn.disabled = true; err.textContent = '';
+    try {
+      const bits = await deriveBits(document.getElementById('pw').value);
+      const data = await decryptWithBits(bits);
+      if (document.getElementById('rememberMe').checked)
+        localStorage.setItem('erza-k', btoa(String.fromCharCode(...new Uint8Array(bits))));
+      document.getElementById('lock').hidden = true;
+      boot(data, true);
+    } catch {
+      err.textContent = 'סיסמה שגויה — נסה שוב';
+      document.getElementById('pw').select();
+    }
+    btn.disabled = false;
+  };
+}
+
+/* ---------- boot ---------- */
+async function init() {
+  if (window.ERZA_DATA) return boot(window.ERZA_DATA, false);
+  if (window.ERZA_ENC) {
+    const cached = await tryStoredKey();
+    if (cached) return boot(cached, true);
+    return showLock();
+  }
+  document.getElementById('main').hidden = false;
+  document.getElementById('tiles').innerHTML = '<div class="tile"><div class="l">אין נתונים — הרץ build + encrypt</div></div>';
+}
+
+function boot(D, locked) {
+  document.getElementById('main').hidden = false;
+  if (locked) {
+    const lb = document.getElementById('lockBtn');
+    lb.hidden = false;
+    lb.onclick = () => { localStorage.removeItem('erza-k'); location.reload(); };
+  }
+  const apps = D.apps || [];
+  const byDir = Object.fromEntries(apps.map(a => [a.dir, a]));
+  const natives = apps.filter(a => a.role === 'native');
+  const webs = apps.filter(a => a.role === 'web');
+  const rest = apps.filter(a => !['native', 'web', 'marketing-site'].includes(a.role));
+
+  document.getElementById('updated').textContent = D.generatedAt ? `עודכן: ${fmtDate(D.generatedAt)}` : '';
+  document.getElementById('footDate').textContent = fmtDate(D.generatedAt);
+
+  const coverage = a => {
+    const rel = (a.skills || []).filter(s => s.status !== 'n/a');
+    const done = rel.filter(s => s.status === 'implemented').length + 0.5 * rel.filter(s => s.status === 'partial').length;
+    return { pct: rel.length ? Math.round(100 * done / rel.length) : 0, total: rel.length };
+  };
+
+  /* tiles */
+  const nLive = natives.filter(a => ['Live', 'Maintenance'].includes(a.stage)).length;
+  const nStore = natives.filter(a => ['Ready for App Store', 'Testing'].includes(a.stage)).length;
+  document.getElementById('tiles').innerHTML = [
+    [natives.length, 'אפליקציות נייטיב'],
+    [nLive, 'באוויר / תחזוקה'],
+    [nStore, 'בדרך לסטור'],
+    [webs.length, 'פרויקטי ווב'],
+    [(D.skillsCatalog?.skills || []).length, 'סקילים בקטלוג'],
+  ].map(([v, l]) => `<div class="tile"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+
+  /* stage bar (natives only) */
+  const counts = Object.keys(STAGES).map(s => [s, natives.filter(a => a.stage === s).length]).filter(([, n]) => n > 0);
+  document.getElementById('stagebar').innerHTML = counts.map(([s, n]) =>
+    `<div style="flex:${n};background:${STAGES[s].c}" title="${esc(STAGES[s].he)}: ${n}"></div>`).join('');
+  document.getElementById('stagelegend').innerHTML = counts.map(([s, n]) =>
+    `<span><i class="dot" style="background:${STAGES[s].c}"></i>${esc(STAGES[s].he)} · ${n}</span>`).join('');
+
+  /* filters */
+  let fStage = 'all', fText = '';
+  const fDiv = document.getElementById('filters');
+  [['all', 'הכל'], ...Object.entries(STAGES).filter(([k]) => apps.some(a => a.stage === k)).map(([k, v]) => [k, v.he])]
+    .forEach(([k, label]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip' + (k === 'all' ? ' on' : ''); b.textContent = label; b.dataset.stage = k;
+      b.onclick = () => { fStage = k; fDiv.querySelectorAll('[data-stage]').forEach(x => x.classList.toggle('on', x === b)); render(); };
+      fDiv.appendChild(b);
+    });
+  document.getElementById('search').oninput = e => { fText = e.target.value.trim().toLowerCase(); render(); };
+  const match = a =>
+    (fStage === 'all' || a.stage === fStage) &&
+    (!fText || [a.name, a.displayName, a.product, a.purpose, a.purposeHe, a.marketingSite].join(' ').toLowerCase().includes(fText));
+
+  /* site cell for a native app */
+  const siteCell = a => {
+    if (!a.marketingSite) return '<span class="cat">—</span>';
+    const s = byDir[a.marketingSite] || {};
+    const label = (a.marketingSiteUrl || '').replace('https://', '') || a.marketingSite;
+    const link = a.marketingSiteUrl
+      ? `<a class="sitelink" href="${esc(a.marketingSiteUrl)}" target="_blank" rel="noopener">${esc(label)}</a>`
+      : `<span class="cat" dir="ltr">${esc(label)}</span>`;
+    return `${link}<br>${stageBadge(s, true)}`;
+  };
+
+  /* detail block */
+  const detailHTML = a => {
+    const feats = (a.featuresDone || []).map(f => `<li>${esc(f)}</li>`).join('') || '<li>—</li>';
+    const rem = (a.remaining || []).map(f => `<li>${esc(f)}</li>`).join('') || '<li>—</li>';
+    const sk = (a.skills || []).filter(s => s.status !== 'n/a')
+      .map(s => { const [sym, cls] = MSYM[s.status] || MSYM.absent;
+        return `<span class="skilltag" title="${esc(s.evidence || '')}"><span class="${cls}">${sym}</span> ${esc(s.skill)}</span>`; }).join('') || '—';
+    const site = a.marketingSite ? byDir[a.marketingSite] : null;
+    return `<div class="detail-grid">
+      <div><h4>מה כבר פותח</h4><ul>${feats}</ul></div>
+      <div><h4>מה נותר לפיתוח</h4><ul>${rem}</ul></div>
+      <div><h4>סקילים</h4><div style="direction:ltr;text-align:right">${sk}</div>
+        <h4 style="margin-top:10px">פרטים</h4>
+        <div class="kv">
+          ${a.version ? `<div><b>גרסה מלאה:</b> <span dir="ltr">${esc(a.version)}</span></div>` : ''}
+          ${a.bundleId ? `<div><b>Bundle:</b> <span dir="ltr">${esc(a.bundleId)}</span></div>` : ''}
+          ${a.gitBranch ? `<div><b>Branch:</b> <span dir="ltr">${esc(a.gitBranch)}</span></div>` : ''}
+          ${a.appStoreStatus ? `<div><b>App Store:</b> ${esc(a.appStoreStatus)}</div>` : ''}
+          ${(a.relatedApps || []).length ? `<div><b>קשור ל:</b> <span dir="ltr">${esc(a.relatedApps.join(', '))}</span></div>` : ''}
+        </div>
+        ${site ? `<h4 style="margin-top:10px">אתר שיווק — ${esc(site.displayName || site.name)}</h4>
+        <div class="kv">
+          <div><b>שלב:</b> ${esc((STAGES[site.stage] || {}).he || site.stage)} · <b>עודכן:</b> ${fmtDate(site.gitLastCommitDate)}</div>
+          ${(site.remaining || []).length ? `<div><b>נותרו באתר:</b> ${site.remaining.length} משימות</div>` : ''}
+          ${a.marketingSiteUrl ? `<div><a class="sitelink" href="${esc(a.marketingSiteUrl)}" target="_blank" rel="noopener">${esc(a.marketingSiteUrl)}</a></div>` : ''}
+        </div>` : ''}
+      </div>
+    </div>`;
+  };
+
+  /* render tables + cards */
+  function render() {
+    const vn = natives.filter(match), vw = webs.filter(match), vr = rest.filter(match);
+
+    document.getElementById('nativeBody').innerHTML = vn.map(a => {
+      const c = coverage(a);
+      return `<tr class="approw">
+        <td class="appname">${esc(a.displayName || a.name)}<small>${esc(a.purposeHe || a.purpose || '')}</small></td>
+        <td>${stageBadge(a)}</td>
+        <td class="num" dir="ltr" style="text-align:right" title="${esc(a.version || '')}">${esc(a.versionShort || '—')}</td>
+        <td class="num">${fmtDate(a.gitLastCommitDate)}</td>
+        <td>${siteCell(a)}</td>
+        <td><div class="cover"><div class="track"><div class="fill" style="width:${c.pct}%"></div></div><span class="t">${c.pct}%</span></div></td>
+        <td class="num">${(a.remaining || []).length}</td>
+      </tr>
+      <tr class="detail" hidden><td colspan="7">${detailHTML(a)}</td></tr>`;
+    }).join('');
+
+    document.getElementById('webBody').innerHTML = vw.map(a => `<tr class="approw">
+        <td class="appname">${esc(a.displayName || a.name)}<small>${esc(a.purposeHe || a.purpose || '')}</small></td>
+        <td class="cat">${esc(a.product || '—')}</td>
+        <td>${stageBadge(a)}</td>
+        <td class="num" dir="ltr" style="text-align:right" title="${esc(a.version || '')}">${esc(a.versionShort || '—')}</td>
+        <td class="num">${fmtDate(a.gitLastCommitDate)}</td>
+        <td>${a.siteUrl ? `<a class="sitelink" href="${esc(a.siteUrl)}" target="_blank" rel="noopener">${esc(a.siteUrl.replace('https://', ''))}</a>` : '<span class="cat">—</span>'}</td>
+        <td class="num">${(a.remaining || []).length}</td>
+      </tr>
+      <tr class="detail" hidden><td colspan="7">${detailHTML(a)}</td></tr>`).join('');
+
+    document.getElementById('restBody').innerHTML = vr.map(a => `<tr class="approw">
+        <td class="appname">${esc(a.displayName || a.name)}<small>${esc(a.purposeHe || a.purpose || '')}</small></td>
+        <td class="cat">${esc(a.product || '—')}</td>
+        <td class="cat">${esc(CATS[a.category] || a.category)}</td>
+        <td>${stageBadge(a)}</td>
+        <td class="num">${fmtDate(a.gitLastCommitDate)}</td>
+        <td class="num">${(a.remaining || []).length}</td>
+      </tr>
+      <tr class="detail" hidden><td colspan="6">${detailHTML(a)}</td></tr>`).join('');
+
+    document.querySelectorAll('tr.approw').forEach(tr => {
+      tr.onclick = () => { const d = tr.nextElementSibling; if (d) d.hidden = !d.hidden; };
+    });
+
+    /* mobile cards, grouped by section */
+    const cardHTML = (a, extra) => {
+      const c = coverage(a);
+      return `<div class="card">
+        <div class="top"><div class="appname">${esc(a.displayName || a.name)}</div>${stageBadge(a)}</div>
+        <div class="desc">${esc(a.purposeHe || a.purpose || '')}</div>
+        <div class="meta">
+          ${extra || ''}
+          <span dir="ltr">${esc(a.versionShort || '')}</span><span>עודכן ${fmtDate(a.gitLastCommitDate)}</span>
+          ${c.total ? `<span>סקילים ${c.pct}%</span>` : ''}<span>נותרו ${(a.remaining || []).length}</span>
+        </div>
+        ${a.role === 'native' && a.marketingSiteUrl ? `<div class="meta" style="margin-top:6px"><a class="sitelink" href="${esc(a.marketingSiteUrl)}" target="_blank" rel="noopener">🌐 ${esc(a.marketingSiteUrl.replace('https://', ''))}</a></div>` : ''}
+        <details><summary>פירוט מלא</summary>${detailHTML(a)}</details>
+      </div>`;
+    };
+    document.getElementById('cards').innerHTML =
+      `<div class="section-title desktop-only">📱 אפליקציות נייטיב</div>` + vn.map(a => cardHTML(a)).join('') +
+      (vw.length ? `<div class="section-title">🌐 פרויקטי ווב עצמאיים</div>` + vw.map(a => cardHTML(a, `<span>${esc(a.product || '')}</span>`)).join('') : '') +
+      (vr.length ? `<div class="section-title desktop-only">🗂️ אחר / Legacy</div>` + vr.map(a => cardHTML(a, `<span>${esc(a.product || '')}</span>`)).join('') : '');
+  }
+  render();
+
+  /* skills catalog */
+  const implCount = n => apps.filter(a => (a.skills || []).some(s => s.skill === n && s.status === 'implemented')).length;
+  const partCount = n => apps.filter(a => (a.skills || []).some(s => s.skill === n && s.status === 'partial')).length;
+  document.getElementById('skillsGrid').innerHTML = (D.skillsCatalog?.skills || []).map(s => {
+    const n = implCount(s.name), p = partCount(s.name);
+    return `<div class="skillcard">
+      <h3>${esc(s.name)}</h3>
+      <p>${esc(s.descriptionHe || s.description)}</p>
+      <div class="n">הוטמע ב־<b>${n}</b> אפליקציות${p ? ` · חלקי ב־${p}` : ''}</div>
+    </div>`;
+  }).join('') + (D.skillsCatalog?.runbooks || []).map(r =>
+    `<div class="skillcard"><h3>📖 ${esc(r.name)}</h3><p>${esc(r.description)}</p><div class="n">Runbook</div></div>`).join('');
+
+  /* matrix (natives only) */
+  const skillNames = (D.skillsCatalog?.skills || []).map(s => s.name)
+    .filter(n => natives.some(a => (a.skills || []).some(s => s.skill === n && s.status !== 'n/a')));
+  if (skillNames.length && natives.length) {
+    document.getElementById('matrixTable').innerHTML =
+      '<thead><tr><th class="appcol">אפליקציה</th>' +
+      skillNames.map(n => `<th class="rot"><div>${esc(n)}</div></th>`).join('') + '</tr></thead><tbody>' +
+      natives.map(a => {
+        const cells = skillNames.map(n => {
+          const st = (a.skills || []).find(s => s.skill === n)?.status || 'absent';
+          const [sym, cls, he] = MSYM[st] || MSYM.absent;
+          return `<td class="${cls}" title="${esc(a.name)} · ${esc(n)}: ${he}">${sym}</td>`;
+        }).join('');
+        return `<tr><td class="appcol">${esc(a.displayName || a.name)}</td>${cells}</tr>`;
+      }).join('') + '</tbody>';
+  } else {
+    document.getElementById('matrixTable').outerHTML = '<div style="padding:14px;font-size:13px;color:var(--muted)">אין נתונים להצגה</div>';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
