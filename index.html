@@ -98,7 +98,8 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
   border: 1px solid var(--grid); background: var(--page); color: var(--ink-1);
   border-radius: 6px; padding: 3px 6px; font-size: 12px;
 }
-.appicon { width: 22px; height: 22px; border-radius: 5px; vertical-align: -5px; margin-inline-end: 6px; }
+.appicon { width: 32px; height: 32px; border-radius: 8px; vertical-align: -9px; margin-inline-end: 8px; }
+#appOrder .appicon { width: 40px; height: 40px; border-radius: 10px; vertical-align: middle; }
 .prio-panel { border: 1px solid var(--grid); border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; }
 .prio-panel summary { cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--ink-1); }
 #appOrder { list-style: none; margin-top: 8px; }
@@ -332,7 +333,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script src="data.enc.js?v=8b4f22b5"></script>
+<script src="data.enc.js?v=e176f779"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -735,7 +736,11 @@ function mrRender(live) {
     orderUl.querySelectorAll('li').forEach(li => {
       li.querySelector('.up').onclick = e => { e.preventDefault(); const p = li.previousElementSibling; if (p) { orderUl.insertBefore(li, p); applyOrder(); } };
       li.querySelector('.dn').onclick = e => { e.preventDefault(); const n = li.nextElementSibling; if (n) { orderUl.insertBefore(n, li); applyOrder(); } };
-      li.addEventListener('dragstart', () => li.classList.add('dragging'));
+      li.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', li.dataset.app); // חובה בספארי כדי שהגרירה תתחיל
+        e.dataTransfer.effectAllowed = 'move';
+        li.classList.add('dragging');
+      });
       li.addEventListener('dragend', () => { li.classList.remove('dragging'); applyOrder(); });
     });
     orderUl.addEventListener('dragover', e => {
