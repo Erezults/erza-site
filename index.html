@@ -78,6 +78,30 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
   border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 14px;
 }
 
+/* ---------- machine room ---------- */
+.mr { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
+.mr-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.mr-updated { font-size: 12px; color: var(--muted); }
+#patBtn { border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-2); border-radius: 8px; padding: 5px 9px; cursor: pointer; font-size: 13px; }
+.mr-save { border: none; background: var(--blue); color: #fff; border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.mr-accounts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.mr-acc { font-size: 12px; border: 1px solid var(--grid); border-radius: 8px; padding: 4px 10px; color: var(--ink-2); }
+.mr-acc b { color: var(--ink-1); }
+.mr-app { border-top: 1px solid var(--grid); padding: 10px 2px; }
+.mr-app h3 { font-size: 14px; margin-bottom: 6px; }
+.mr-run { font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+.mr-run .pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-inline-end: 6px; animation: pulse 1.6s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
+.mr-task { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); padding: 3px 0; }
+.mr-task .t-title { flex: 1; }
+.mr-task input.prio { width: 44px; border: 1px solid var(--grid); background: var(--page); color: var(--ink-1); border-radius: 6px; padding: 2px 6px; font-size: 12px; text-align: center; }
+.mr-task .star, .mr-task .hold { cursor: pointer; user-select: none; font-size: 15px; opacity: .35; }
+.mr-task .star.on { opacity: 1; }
+.mr-task .hold.on { opacity: 1; }
+.mr-recent { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.mr-setup { font-size: 13px; color: var(--ink-2); line-height: 1.7; }
+.mr-setup input { width: 100%; max-width: 420px; border: 1px solid var(--grid); background: var(--page); color: var(--ink-1); border-radius: 8px; padding: 7px 10px; font-size: 13px; direction: ltr; }
+
 /* ---------- stat tiles ---------- */
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
 .tile { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; padding: 12px 14px; }
@@ -214,6 +238,17 @@ footer a { color: var(--muted); }
     <button id="lockBtn" title="נעילה" hidden>🔒</button>
   </header>
 
+  <div id="machineRoom" class="mr" hidden>
+    <div class="mr-head">
+      <div class="section-title" style="margin:0">🏭 חדר מכונות — סטטוס חי</div>
+      <span class="mr-updated" id="mrUpdated"></span>
+      <div class="hdr-spacer"></div>
+      <button id="mrSaveBtn" class="mr-save" hidden>💾 שמור עדיפויות</button>
+      <button id="patBtn" title="הגדרת טוקן GitHub">⚙️</button>
+    </div>
+    <div id="mrBody"></div>
+  </div>
+
   <div class="tiles" id="tiles"></div>
 
   <div class="stagebar-wrap">
@@ -282,7 +317,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script src="data.enc.js?v=d828182c"></script>
+<script src="data.enc.js?v=51ef05ca"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -562,6 +597,104 @@ function boot(D, locked) {
   } else {
     document.getElementById('matrixTable').outerHTML = '<div style="padding:14px;font-size:13px;color:var(--muted)">אין נתונים להצגה</div>';
   }
+
+  mrInit();
+}
+
+/* ---------- machine room (live status + user priorities) ---------- */
+const GH = { owner: 'Erezults', repo: 'ERZA_Orchestrator' };
+const pat = () => localStorage.getItem('erza-pat') || '';
+let mrPrios = {}, mrDirty = false;
+
+async function gh(pathName, ref, opts = {}) {
+  const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${pathName}${ref ? `?ref=${ref}` : ''}`;
+  const r = await fetch(url, { cache: 'no-store', ...opts,
+    headers: { Authorization: 'Bearer ' + pat(), Accept: opts.method ? 'application/vnd.github+json' : 'application/vnd.github.raw+json', ...(opts.headers || {}) } });
+  if (!r.ok) { const e = new Error('GH ' + r.status); e.status = r.status; throw e; }
+  return r.status === 204 ? null : r.json();
+}
+
+async function savePriorities() {
+  const btn = document.getElementById('mrSaveBtn');
+  btn.disabled = true; btn.textContent = 'שומר…';
+  try {
+    let sha;
+    try { sha = (await gh('registry/user_priorities.json', undefined, { headers: { Accept: 'application/vnd.github+json' } })).sha; } catch {}
+    const body = { message: 'עדכון עדיפויות מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
+      content: btoa(unescape(encodeURIComponent(JSON.stringify({ updatedAt: new Date().toISOString(), tasks: mrPrios }, null, 2)))) };
+    await gh('registry/user_priorities.json', undefined, { method: 'PUT', body: JSON.stringify(body) });
+    mrDirty = false; btn.hidden = true; btn.textContent = '💾 שמור עדיפויות';
+    document.getElementById('mrUpdated').textContent = 'עדיפויות נשמרו ✓ — ERZA תקלוט תוך 5 דק\'';
+  } catch (e) { btn.textContent = 'שגיאה — נסה שוב'; }
+  btn.disabled = false;
+}
+
+function mrTaskRow(t) {
+  const p = mrPrios[t.id] || {};
+  return `<div class="mr-task" data-id="${esc(t.id)}">
+    <span class="star ${p.star ? 'on' : ''}" title="בצע ראשון">⭐</span>
+    <input class="prio" type="number" min="1" max="99" placeholder="—" value="${p.p ?? ''}" title="דירוג (1 = הכי דחוף)">
+    <span class="hold ${p.hold ? 'on' : ''}" title="השהה משימה">⏸</span>
+    <span class="t-title">${esc(t.title)}</span>
+    ${t.heavy ? '<span title="משימה כבדה">🏗️</span>' : ''}
+  </div>`;
+}
+
+function mrRender(live) {
+  const ago = Math.round((Date.now() - Date.parse(live.updatedAt)) / 60e3);
+  document.getElementById('mrUpdated').textContent = `עודכן לפני ${ago} דק' · ${live.totals.running} רצים · ${live.totals.queued} בתור · ${live.totals.review + live.totals.done} הסתיימו`;
+  const accs = Object.entries(live.accounts || {}).map(([id, a]) =>
+    `<span class="mr-acc"><b>${esc(a.label || id)}</b> ${a.exhausted ? '🔴 מוצה' : `🟢 ${Math.round(a.sessionPct)}% סשן · ${Math.round(a.fablePct)}% Fable`}</span>`).join('');
+  const appsHtml = Object.entries(live.apps || {}).map(([app, d]) => {
+    const run = d.running ? `<div class="mr-run"><span class="pulse"></span><b>${esc(d.running.title)}</b> · חשבון ${esc(d.running.account || '')} ${d.running.lastCommit ? `· checkpoint אחרון: "${esc(d.running.lastCommit.msg)}" לפני ${d.running.lastCommit.minutesAgo} דק'` : '· טרם בוצע checkpoint'}</div>` : '';
+    const q = d.queued.map(mrTaskRow).join('');
+    const rec = d.recent.map(r => `<div class="mr-recent">${r.status === 'review' ? '✅' : '⚠️'} ${esc(r.title)}${r.note ? ' — ' + esc(r.note) : ''}</div>`).join('');
+    return `<div class="mr-app"><h3>${esc(app)}</h3>${run}${q}${rec}</div>`;
+  }).join('');
+  document.getElementById('mrBody').innerHTML =
+    `<div class="mr-accounts">${accs}</div>` + (appsHtml || '<div class="mr-setup">אין פעילות כרגע</div>');
+
+  document.querySelectorAll('#mrBody .mr-task').forEach(row => {
+    const id = row.dataset.id;
+    const touch = () => { mrDirty = true; document.getElementById('mrSaveBtn').hidden = false; };
+    row.querySelector('.star').onclick = e => { const p = mrPrios[id] ??= {}; p.star = !p.star; e.target.classList.toggle('on', p.star); touch(); };
+    row.querySelector('.hold').onclick = e => { const p = mrPrios[id] ??= {}; p.hold = !p.hold; e.target.classList.toggle('on', p.hold); touch(); };
+    row.querySelector('.prio').oninput = e => { const p = mrPrios[id] ??= {}; p.p = e.target.value ? +e.target.value : null; touch(); };
+  });
+}
+
+async function mrTick() {
+  const box = document.getElementById('machineRoom');
+  box.hidden = false;
+  if (!pat()) {
+    document.getElementById('mrBody').innerHTML = `<div class="mr-setup">
+      כדי לראות סטטוס חי ולקבוע עדיפויות, צריך טוקן GitHub (חד־פעמי, נשמר רק במכשיר הזה):<br>
+      1. github.com ← Settings ← Developer settings ← Fine-grained tokens ← Generate new token<br>
+      2. Repository access: רק <b>ERZA_Orchestrator</b> · Permissions: <b>Contents → Read and write</b><br>
+      3. לחץ על ⚙️ למעלה והדבק את הטוקן.</div>`;
+    return;
+  }
+  if (mrDirty) return; // אל תדרוס עריכות שלא נשמרו
+  try {
+    const live = await gh('live_status.json', 'live');
+    try {
+      const up = await gh('registry/user_priorities.json');
+      mrPrios = up.tasks || {};
+    } catch { /* אין קובץ עדיפויות עדיין */ }
+    mrRender(live);
+  } catch (e) {
+    document.getElementById('mrBody').innerHTML = `<div class="mr-setup">${e.status === 404 ? 'עדיין אין סטטוס חי — הדחיפה הראשונה תופיע תוך ~5 דקות.' : e.status === 401 || e.status === 403 ? 'הטוקן לא תקין או חסרות הרשאות — לחץ ⚙️ והדבק טוקן חדש.' : 'שגיאה בשליפת סטטוס (' + esc(String(e.message)) + ')'}</div>`;
+  }
+}
+
+function mrInit() {
+  document.getElementById('patBtn').onclick = () => {
+    const v = prompt('הדבק GitHub Fine-grained token (Contents: Read&Write על ERZA_Orchestrator):', pat());
+    if (v !== null) { localStorage.setItem('erza-pat', v.trim()); mrDirty = false; mrTick(); }
+  };
+  document.getElementById('mrSaveBtn').onclick = savePriorities;
+  mrTick();
+  setInterval(mrTick, 60e3);
 }
 
 init();
