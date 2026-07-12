@@ -236,8 +236,8 @@ tr.detail td { background: var(--tint); padding: 16px 18px; }
 .skillcard .n { font-size: 12px; color: var(--muted); }
 
 /* ---------- matrix ---------- */
-.matrix th.rot { height: 150px; padding: 6px 4px; vertical-align: bottom; }
-.matrix th.rot > div { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; direction: ltr; text-align: start; color: var(--ink-2); white-space: nowrap; }
+.matrix th.rot { height: 130px; padding: 0; vertical-align: bottom; position: relative; width: 30px; min-width: 30px; }
+.matrix th.rot > div { transform: rotate(-45deg); transform-origin: bottom left; position: absolute; bottom: 6px; left: 50%; width: 150px; font-size: 11px; direction: ltr; text-align: left; color: var(--ink-2); white-space: nowrap; }
 .matrix td { text-align: center; padding: 6px 4px; font-size: 13px; }
 .matrix td.appcol, .matrix th.appcol { text-align: right; white-space: nowrap; font-weight: 600; font-size: 12.5px; position: sticky; right: 0; background: var(--surface-1); }
 .m-i { color: var(--good, #0ca30c); color: var(--green); font-weight: 700; }
@@ -384,7 +384,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='0775bfd4'</script>
-<script src="data.enc.js?v=08c345c7"></script>
+<script src="data.enc.js?v=1a9fba78"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
