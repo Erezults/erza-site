@@ -178,6 +178,8 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
   border: 1px solid color-mix(in srgb, var(--bc) 30%, transparent);
 }
 .badge.sm { padding: 1px 7px; font-size: 11px; }
+.mdl { display: inline-block; font-size: 10.5px; font-weight: 700; border-radius: 5px; padding: 1px 6px; white-space: nowrap;
+  background: color-mix(in srgb, var(--bc) 15%, transparent); color: var(--bc); border: 1px solid color-mix(in srgb, var(--bc) 35%, transparent); }
 .cat { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
 .sitelink { font-size: 12.5px; color: var(--blue); text-decoration: none; direction: ltr; display: inline-block; }
 .sitelink:hover { text-decoration: underline; }
@@ -379,7 +381,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script src="data.enc.js?v=dc846ca2"></script>
+<script src="data.enc.js?v=dee73849"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -695,6 +697,8 @@ async function savePriorities() {
   btn.disabled = false;
 }
 
+const modelBadge = m => { if (!m) return ''; const c = { Opus: 'var(--violet)', Fable: 'var(--aqua)', Sonnet: 'var(--blue)', Haiku: 'var(--muted)' }[m] || 'var(--muted)';
+  return `<span class="mdl" style="--bc:${c}">${esc(m)}</span>`; };
 const lvlOf = p => !p ? '' : p.hold ? 'hold' : (p.star || p.p === 1) ? '1' : p.p === 2 ? '2' : p.p === 3 ? '3' : '';
 const LVLS = [['', '— עדיפות —'], ['1', '🔴 דחוף — בצע ראשון'], ['2', '🟡 רגיל'], ['3', '🟢 נמוך'], ['hold', '⏸ מושהה']];
 async function saveApprovals() {
@@ -753,6 +757,7 @@ function mrTaskRow(t) {
   const cur = lvlOf(mrPrios[t.id]);
   return `<div class="mr-task" data-id="${esc(t.id)}">
     <select class="lvl">${LVLS.map(([v, l]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${l}</option>`).join('')}</select>
+    ${modelBadge(t.model)}${t.isVerify ? '<span class="mdl" style="--bc:var(--violet)" title="משימת אימות">✓ אימות</span>' : ''}
     <span class="t-title">${esc(t.title)}</span>
     ${t.heavy ? '<span title="משימה כבדה">🏗️</span>' : ''}
   </div>`;
@@ -790,7 +795,7 @@ function mrRender(live) {
   // פתוח תמיד: מה שרץ עכשיו, פר אפליקציה
   const runningHtml = sortedApps.filter(([, d]) => d.running).map(([app, d]) =>
     `<div class="mr-app"><h3>${icon(app)}${esc(app)}</h3>
-     <div class="mr-run"><span class="pulse"></span><b>${esc(d.running.title)}</b>
+     <div class="mr-run"><span class="pulse"></span>${modelBadge(d.running.model)} <b>${esc(d.running.title)}</b>
       <button class="stopbtn" data-id="${esc(d.running.id)}">⏹ עצור</button><br>
       <span class="cat">חשבון ${esc((live.accounts[d.running.account] || {}).label || d.running.account || '')} ${d.running.lastCommit ? `· checkpoint אחרון: "${esc(d.running.lastCommit.msg)}" לפני ${d.running.lastCommit.minutesAgo} דק'` : `· טרם בוצע checkpoint`}</span></div></div>`).join('')
     || '<div class="mr-setup">אין משימות רצות כרגע</div>';
