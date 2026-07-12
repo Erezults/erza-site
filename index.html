@@ -384,7 +384,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='0775bfd4'</script>
-<script src="data.enc.js?v=56f1f554"></script>
+<script src="data.enc.js?v=6a832388"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -861,7 +861,12 @@ function mrRender(live) {
           ? `<span class="mdl" style="--bc:var(--green)">✓ נדחף ${esc(it.push.channel)} · ${esc(it.push.version)}</span>`
           : `<span class="mdl" style="--bc:var(--yellow)" title="הקוד מוכן אך טרם נדחף OTA — הגרסה לא עלתה">⏳ טרם נדחף (הגרסה לא עלתה)</span>`}</div>
         <h5>מה בוצע</h5><ul>${(it.done || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>
-        <h5>מה לבדוק כדי לאשר</h5><ul>${(it.check || []).map(c => `<li>${esc(c)}</li>`).join('')}</ul>
+        ${(it.check || []).length ? `<h5>מה לבדוק כדי לאשר</h5><ul>${it.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
+        ${(it.decisions || []).length ? `<h5>🗳️ החלטות בתוך הרשומה — סמן ליד כל אחת</h5>
+          ${it.decisions.map(d => `<div class="mr-task" data-key="${esc(d.key)}">
+            <select class="decsel">${DEC.map(([v, l]) => `<option value="${v}" ${v === (d.chosen || '') ? 'selected' : ''}>${l}</option>`).join('')}</select>
+            <span class="t-title">${esc(d.text)}</span></div>`).join('')}
+          <button class="btn-approve savedec" style="margin-top:6px">💾 שמור החלטות</button>` : ''}
         ${(it.feedback || []).map(f => `<div class="appr-fb">🗒️ ${esc(f.text)}${(f.files || []).length ? `<div class="att">${f.files.map(p => `<a href="#" data-file="${esc(p)}">📎 ${esc(p.split('/').pop())}</a>`).join('')}</div>` : ''}</div>`).join('')}
         ${it.status === 'pending' ? `<div class="appr-actions">
           <button class="btn-approve">✓ בדקתי — מאושר</button>
