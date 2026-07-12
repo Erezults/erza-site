@@ -178,6 +178,7 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
   border: 1px solid color-mix(in srgb, var(--bc) 30%, transparent);
 }
 .badge.sm { padding: 1px 7px; font-size: 11px; }
+.refid { display: inline-block; font-size: 10.5px; font-weight: 700; font-family: ui-monospace, monospace; letter-spacing: .3px; border-radius: 5px; padding: 1px 6px; white-space: nowrap; background: var(--ink-1); color: var(--page); direction: ltr; }
 .mdl { display: inline-block; font-size: 10.5px; font-weight: 700; border-radius: 5px; padding: 1px 6px; white-space: nowrap;
   background: color-mix(in srgb, var(--bc) 15%, transparent); color: var(--bc); border: 1px solid color-mix(in srgb, var(--bc) 35%, transparent); }
 .cat { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
@@ -383,7 +384,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='0775bfd4'</script>
-<script src="data.enc.js?v=b31e50c2"></script>
+<script src="data.enc.js?v=17248839"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -761,7 +762,7 @@ function mrTaskRow(t) {
   const cur = lvlOf(mrPrios[t.id]);
   return `<div class="mr-task" data-id="${esc(t.id)}">
     <select class="lvl">${LVLS.map(([v, l]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${l}</option>`).join('')}</select>
-    ${modelBadge(t.model)}${t.isVerify ? '<span class="mdl" style="--bc:var(--violet)" title="משימת אימות">✓ אימות</span>' : ''}
+    <span class="refid">${esc(t.refId || t.id)}</span>${modelBadge(t.model)}${t.isVerify ? '<span class="mdl" style="--bc:var(--violet)" title="משימת אימות">✓ אימות</span>' : ''}
     <span class="t-title">${esc(t.title)}</span>
     ${t.heavy ? '<span title="משימה כבדה">🏗️</span>' : ''}
   </div>`;
@@ -778,8 +779,15 @@ function mrRender(live) {
     if (wl[id]) tags.push(`⚙️ ${wl[id]} workers`);
     return tags.length ? ` · ${tags.join(' · ')}` : '';
   };
+  const fableLabel = a => {
+    if (a.fableStatus === 'fable-spent') return '🔴 Fable מוצה (שבועי, חוזר שישי)';
+    if (a.fableStatus === 'monthly-blocked') return '⛔ חסום חודשי';
+    if (a.fableStatus === 'session-capped') return '🟠 session מלא' + (a.fableUntil ? ' · חוזר ' + new Date(a.fableUntil).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '');
+    if (a.fableStatus === 'capped') return '🔴 חסום' + (a.fableUntil ? ' עד ' + new Date(a.fableUntil).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '');
+    return '🟢 פנוי לעבודה';
+  };
   const accs = Object.entries(live.accounts || {}).map(([id, a]) =>
-    `<span class="mr-acc"><b>${esc(a.label || id)}</b>${a.renewDay ? ` · מתחדש ${a.renewDay}/חודש` : ''}${roleTag(id)}<br>${a.exhausted ? '🔴 מוצה עד ' + new Date(a.exhaustedUntil).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : `${a.fablePct >= 95 ? '🔴' : a.fablePct >= 75 ? '🟡' : '🟢'} סשן ${Math.round(a.sessionPct)}% · Fable ${Math.round(a.fablePct)}%`}</span>`).join('');
+    `<span class="mr-acc"><b>${esc(a.label || id)}</b>${a.renewDay ? ` · מתחדש ${a.renewDay}/חודש` : ''}${roleTag(id)}<br>${fableLabel(a)}${a.fablePctEst != null ? ` <span class="cat" title="הערכה מקומית בלבד — לא הנתון האמיתי מהשרת">(אומדן מקומי ${Math.round(a.fablePctEst)}%)</span>` : ''}</span>`).join('');
   const r = live.resource;
   const erzaLine = `<div class="mr-erzaline">🧠 <b>ERZA (סשן אינטראקטיבי)</b> על: <b>${esc(live.erza?.session?.label || '—')}</b>${live.erza?.brain?.label ? ` · 🤖 המוח האוטונומי על: <b>${esc(live.erza.brain.label)}</b>` : ''}${r ? ` · 💻 עומס ${r.perCore5}/ליבה (${r.state}) · זיכרון ${r.memFreePct}% פנוי · ${r.claudeProcs} תהליכים` : ''}</div>`;
 
@@ -799,7 +807,7 @@ function mrRender(live) {
   // פתוח תמיד: מה שרץ עכשיו, פר אפליקציה
   const runningHtml = sortedApps.filter(([, d]) => d.running).map(([app, d]) =>
     `<div class="mr-app"><h3>${icon(app)}${esc(app)}</h3>
-     <div class="mr-run"><span class="pulse"></span>${modelBadge(d.running.model)} <b>${esc(d.running.title)}</b>
+     <div class="mr-run"><span class="pulse"></span><span class="refid">${esc(d.running.refId || d.running.id)}</span> ${modelBadge(d.running.model)} <b>${esc(d.running.title)}</b>
       <button class="stopbtn" data-id="${esc(d.running.id)}">⏹ עצור</button><br>
       ${d.running.version ? `<span class="cat" dir="ltr">📦 Prod ${esc(d.running.version.prod)}${d.running.version.onStore ? '(store)' : '(prep)'} · Dev ${esc(d.running.version.dev || '—')}</span> · ` : ''}<span class="cat">חשבון ${esc((live.accounts[d.running.account] || {}).label || d.running.account || '')} ${d.running.lastCommit ? `· checkpoint: "${esc(d.running.lastCommit.msg)}" לפני ${d.running.lastCommit.minutesAgo} דק'` : `· טרם בוצע checkpoint`}</span></div></div>`).join('')
     || '<div class="mr-setup">אין משימות רצות כרגע</div>';
@@ -817,7 +825,7 @@ function mrRender(live) {
   const isArchived = i => i.status !== 'pending';
   const apprItemHtml = it => `
       <div class="appr-item ${esc(it.status)}" data-aid="${esc(it.id)}">
-        <div class="appr-head">${icon(it.app)}<b>${esc(it.title)}</b>
+        <div class="appr-head">${icon(it.app)}<span class="refid">${esc(it.refId || it.id)}</span><b>${esc(it.title)}</b>
           ${(() => { const v = it.version || (mrLastLive?.versions || {})[it.app]; return v ? `<span class="mdl" style="--bc:var(--blue)" dir="ltr" title="גרסה רלוונטית">📦 ${it.otaChannel === 'prod' ? 'prod' : it.otaChannel === 'dev' ? 'dev' : ''} ${esc(it.otaVersion || v.prodDisplay || v.prod || '')}${!it.otaVersion && v.dev ? ' / dev ' + esc(v.dev) : ''}</span>` : ''; })()}
           <span class="appr-status ${it.status === 'approved' ? 'ok' : it.status === 'rejected' ? 'no' : ''}">${it.status === 'approved' ? '✓ אושר על ידך' : it.status === 'rejected' ? '✗ הוחזר לתיקון' : 'ממתין לבדיקה'}</span>
         </div>
