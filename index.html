@@ -383,7 +383,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='0775bfd4'</script>
-<script src="data.enc.js?v=f746365a"></script>
+<script src="data.enc.js?v=96bba3dc"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -578,7 +578,7 @@ function boot(D, locked) {
         <td class="appname"><img class="appicon" src="icons/${esc(a.dir)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">${esc(a.displayName || a.name)}<small>${esc(a.purposeHe || a.purpose || '')}</small></td>
         <td>${stageBadge(a)}${a.ascShort ? `<br><span class="cat">${esc(a.ascShort)}</span>` : ''}</td>
         <td class="num" dir="ltr" style="text-align:right">${a.versions ? esc(a.versions.prod) + (a.versions.onStore ? ' <span class="cat">בסטור</span>' : ' <span class="cat">מוכן</span>') : esc(a.versionShort || '—')}</td>
-        <td class="num" dir="ltr" style="text-align:right">${a.versions?.dev ? esc(a.versions.dev) : '—'}</td>
+        <td class="num" dir="ltr" style="text-align:right">${a.versions?.dev ? esc(a.versions.dev) + (a.versions.devIsSource ? ` <span class="cat" title="גרסת המקור (הבילד הבא); ייתכן שהמותקן ישן יותר">קוד</span>` : ` <span class="cat" title="מותקן/חי${a.versions.deployedSha ? ' · ' + a.versions.deployedSha : ''}">חי</span>`) : '—'}</td>
         <td class="num">${fmtDate(a.gitLastCommitDate)}</td>
         <td>${siteCell(a)}</td>
         <td><div class="cover"><div class="track"><div class="fill" style="width:${c.pct}%"></div></div><span class="t">${c.pct}%</span></div></td>
