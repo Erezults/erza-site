@@ -306,6 +306,7 @@ footer a { color: var(--muted); }
     <div class="mr-head">
       <div class="section-title" style="margin:0">🏭 חדר מכונות — סטטוס חי</div>
       <span class="mr-updated" id="mrUpdated"></span>
+      <span class="mr-updated" id="refreshCounter" style="opacity:.75"></span>
       <div class="hdr-spacer"></div>
       <button id="mrSaveBtn" class="mr-save" hidden>💾 שמור עדיפויות</button>
       <button id="patBtn" title="הגדרת טוקן GitHub">⚙️</button>
@@ -381,7 +382,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script src="data.enc.js?v=ecf9a067"></script>
+<script src="data.enc.js?v=76e5362b"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -941,7 +942,29 @@ function mrRender(live) {
   }
 }
 
+// true if the user is mid-interaction — never refresh over them
+function userBusy() {
+  const el = document.activeElement;
+  if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.tagName === 'SELECT')) return true;
+  if (mrDirty) return true;
+  const inbox = document.getElementById('inboxText');
+  if (inbox && inbox.value.trim()) return true;
+  for (const ta of document.querySelectorAll('.appr-form textarea')) if (ta.value.trim()) return true;
+  return false;
+}
+
+const REFRESH_SECS = 120;
+let refreshLeft = REFRESH_SECS;
+function tickCountdown() {
+  const el = document.getElementById('refreshCounter');
+  if (userBusy()) { refreshLeft = REFRESH_SECS; if (el) el.textContent = '⏸ ההקלדה מוגנת — לא ירונן עד שתסיים'; return; }
+  refreshLeft--;
+  if (el) el.textContent = refreshLeft > 0 ? `רענון אוטומטי בעוד ${refreshLeft} שנ׳` : 'מרענן…';
+  if (refreshLeft <= 0) { refreshLeft = REFRESH_SECS; mrTick(); }
+}
+
 async function mrTick() {
+  if (userBusy()) return; // guard: never rebuild while typing
   const box = document.getElementById('machineRoom');
   box.hidden = false;
   if (!pat()) {
@@ -980,7 +1003,7 @@ function mrInit() {
   };
   document.getElementById('mrSaveBtn').onclick = savePriorities;
   mrTick();
-  setInterval(mrTick, 60e3);
+  setInterval(tickCountdown, 1000);   // 1s countdown; refreshes only every REFRESH_SECS and never while typing
 }
 
 init();
