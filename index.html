@@ -384,7 +384,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='0775bfd4'</script>
-<script src="data.enc.js?v=23d03120"></script>
+<script src="data.enc.js?v=07313423"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -723,7 +723,23 @@ async function uploadFile(aid, file) {
 }
 
 function bindApprovals() {
-  document.querySelectorAll('.appr-item').forEach(el => {
+  document.querySelectorAll('.appr-item[data-decision]').forEach(el => {
+    const it = mrApprovals.items.find(x => x.id === el.dataset.aid);
+    if (!it) return;
+    el.querySelector('.savedec').onclick = async e => {
+      e.target.disabled = true; e.target.textContent = 'שומר…';
+      el.querySelectorAll('.mr-task[data-key]').forEach(row => {
+        const d = (it.decisions || []).find(x => x.key === row.dataset.key);
+        if (d) d.chosen = row.querySelector('.decsel').value || null;
+      });
+      const allDecided = (it.decisions || []).every(d => d.chosen);
+      if (allDecided) it.status = 'decisions-made';
+      it.decidedAt = new Date().toISOString();
+      try { await saveApprovals(); mrRender(mrLastLive); }
+      catch { e.target.textContent = 'שגיאה — נסה שוב'; e.target.disabled = false; }
+    };
+  });
+  document.querySelectorAll('.appr-item:not([data-decision])').forEach(el => {
     const it = mrApprovals.items.find(x => x.id === el.dataset.aid);
     if (!it) return;
     el.querySelectorAll('[data-file]').forEach(a => a.onclick = async e => {
@@ -822,8 +838,20 @@ function mrRender(live) {
        ${d.recent.map(r => `<div class="mr-recent">${r.status === 'review' ? '✅' : '⚠️'} ${esc(r.title)}${r.note ? ' — ' + esc(r.note) : ''}</div>`).join('')}
       </div>`).join('')}</div></details>` : '';
 
-  const isArchived = i => i.status !== 'pending';
-  const apprItemHtml = it => `
+  const isArchived = i => !['pending', 'decision-pending'].includes(i.status);
+  const DEC = [['', '— טרם —'], ['yes', '✅ ליישום'], ['no', '⏭ דלג']];
+  const decItemHtml = it => `
+    <div class="appr-item" data-aid="${esc(it.id)}" data-decision="1">
+      <div class="appr-head">${icon(it.app)}<span class="refid">${esc(it.refId || it.id)}</span><b>${esc(it.title)}</b>
+        <span class="appr-status" style="color:var(--yellow)">🗳️ נדרשות החלטות</span></div>
+      ${it.intro ? `<div class="mr-run">${esc(it.intro)}</div>` : ''}
+      ${(it.decisions || []).map(d => `<div class="mr-task" data-key="${esc(d.key)}">
+        <select class="decsel">${DEC.map(([v, l]) => `<option value="${v}" ${v === (d.chosen || '') ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        <span class="t-title">${esc(d.text)}</span></div>`).join('')}
+      ${(it.check || []).length ? `<h5>לבדיקה נפרדת</h5><ul>${it.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
+      <div class="appr-actions"><button class="btn-approve savedec">💾 שמור החלטות</button></div>
+    </div>`;
+  const apprItemHtml = it => it.type === 'decision' ? decItemHtml(it) : `
       <div class="appr-item ${esc(it.status)}" data-aid="${esc(it.id)}">
         <div class="appr-head">${icon(it.app)}<span class="refid">${esc(it.refId || it.id)}</span><b>${esc(it.title)}</b>
           ${(() => { const v = it.version || (mrLastLive?.versions || {})[it.app]; return v ? `<span class="mdl" style="--bc:var(--blue)" dir="ltr" title="גרסה רלוונטית">📦 ${it.otaChannel === 'prod' ? 'prod' : it.otaChannel === 'dev' ? 'dev' : ''} ${esc(it.otaVersion || v.prodDisplay || v.prod || '')}${!it.otaVersion && v.dev ? ' / dev ' + esc(v.dev) : ''}</span>` : ''; })()}
@@ -846,8 +874,8 @@ function mrRender(live) {
         </div>` : ''}
       </div>`;
 
-  const pendItems = (mrApprovals.items || []).filter(i => i.status === 'pending')
-    .sort((a, b) => (mrAppRanks[a.app] ?? 99) - (mrAppRanks[b.app] ?? 99));
+  const pendItems = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending'].includes(i.status))
+    .sort((a, b) => (a.type === 'decision' ? -1 : 0) - (b.type === 'decision' ? -1 : 0) || (mrAppRanks[a.app] ?? 99) - (mrAppRanks[b.app] ?? 99));
   const awaitItems = (mrApprovals.items || []).filter(i => i.status === 'awaiting-deploy');
   const awaitByApp = {};
   for (const it of awaitItems) (awaitByApp[it.app] ??= []).push(it);
