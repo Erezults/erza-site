@@ -384,7 +384,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='0775bfd4'</script>
-<script src="data.enc.js?v=6a832388"></script>
+<script src="data.enc.js?v=ea7f3be5"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -742,6 +742,17 @@ function bindApprovals() {
   document.querySelectorAll('.appr-item:not([data-decision])').forEach(el => {
     const it = mrApprovals.items.find(x => x.id === el.dataset.aid);
     if (!it) return;
+    // normal items may ALSO carry per-record decisions (extracted from check lists)
+    const savedecBtn = el.querySelector('.savedec');
+    if (savedecBtn && (it.decisions || []).length) savedecBtn.onclick = async e => {
+      e.target.disabled = true; e.target.textContent = 'שומר…';
+      el.querySelectorAll('.mr-task[data-key]').forEach(row => {
+        const d = it.decisions.find(x => x.key === row.dataset.key);
+        if (d) d.chosen = row.querySelector('.decsel').value || null;
+      });
+      try { await saveApprovals(); document.getElementById('mrUpdated').textContent = 'החלטות נשמרו ✓'; e.target.textContent = '✓ נשמר'; }
+      catch { e.target.textContent = 'שגיאה'; e.target.disabled = false; }
+    };
     el.querySelectorAll('[data-file]').forEach(a => a.onclick = async e => {
       e.preventDefault();
       try {
