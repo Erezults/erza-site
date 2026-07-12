@@ -382,7 +382,8 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script src="data.enc.js?v=077b0ca7"></script>
+<script>window.ERZA_ICONV='0775bfd4'</script>
+<script src="data.enc.js?v=900a6e13"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -574,7 +575,7 @@ function boot(D, locked) {
     document.getElementById('nativeBody').innerHTML = vn.map(a => {
       const c = coverage(a);
       return `<tr class="approw">
-        <td class="appname"><img class="appicon" src="icons/${esc(a.dir)}.png" onerror="this.hidden=true" alt="">${esc(a.displayName || a.name)}<small>${esc(a.purposeHe || a.purpose || '')}</small></td>
+        <td class="appname"><img class="appicon" src="icons/${esc(a.dir)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">${esc(a.displayName || a.name)}<small>${esc(a.purposeHe || a.purpose || '')}</small></td>
         <td>${stageBadge(a)}${a.ascShort ? `<br><span class="cat">${esc(a.ascShort)}</span>` : ''}</td>
         <td class="num" dir="ltr" style="text-align:right">${a.versions ? esc(a.versions.prod) + (a.versions.onStore ? ' <span class="cat">בסטור</span>' : ' <span class="cat">מוכן</span>') : esc(a.versionShort || '—')}</td>
         <td class="num" dir="ltr" style="text-align:right">${a.versions?.dev ? esc(a.versions.dev) : '—'}</td>
@@ -615,7 +616,7 @@ function boot(D, locked) {
     const cardHTML = (a, extra) => {
       const c = coverage(a);
       return `<div class="card">
-        <div class="top"><div class="appname"><img class="appicon" src="icons/${esc(a.dir)}.png" onerror="this.hidden=true" alt="">${esc(a.displayName || a.name)}</div>${stageBadge(a)}</div>
+        <div class="top"><div class="appname"><img class="appicon" src="icons/${esc(a.dir)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">${esc(a.displayName || a.name)}</div>${stageBadge(a)}</div>
         <div class="desc">${esc(a.purposeHe || a.purpose || '')}</div>
         <div class="meta">
           ${extra || ''}${a.ascShort ? `<span>${esc(a.ascShort)}</span>` : ''}
@@ -670,6 +671,7 @@ function boot(D, locked) {
 }
 
 /* ---------- machine room (live status + user priorities) ---------- */
+const ICONV = (window.ERZA_ICONV || '1');
 const GH = { owner: 'Erezults', repo: 'ERZA_Orchestrator' };
 const pat = () => localStorage.getItem('erza-pat') || '';
 let mrPrios = {}, mrAppRanks = {}, mrDirty = false, mrLastLive = null, mrApprovals = { items: [] }, mrApprovalsSha = null, mrInstr = { items: [] };
@@ -781,7 +783,7 @@ function mrRender(live) {
   const r = live.resource;
   const erzaLine = `<div class="mr-erzaline">🧠 <b>ERZA (סשן אינטראקטיבי)</b> על: <b>${esc(live.erza?.session?.label || '—')}</b>${live.erza?.brain?.label ? ` · 🤖 המוח האוטונומי על: <b>${esc(live.erza.brain.label)}</b>` : ''}${r ? ` · 💻 עומס ${r.perCore5}/ליבה (${r.state}) · זיכרון ${r.memFreePct}% פנוי · ${r.claudeProcs} תהליכים` : ''}</div>`;
 
-  const icon = app => `<img class="appicon" src="icons/${esc(app)}.png" onerror="this.hidden=true" alt="">`;
+  const icon = app => `<img class="appicon" src="icons/${esc(app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
   const orderedApps = [...(live.nativeApps || [])].sort((a, b) => (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99));
   const ranksHtml = orderedApps.length
     ? `<details class="prio-panel"><summary>🎯 סדר עדיפויות בין האפליקציות — לחץ לפתיחה וסדר מהחשובה ביותר לנמוכה</summary>
