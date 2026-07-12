@@ -384,7 +384,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='0775bfd4'</script>
-<script src="data.enc.js?v=d1ac711f"></script>
+<script src="data.enc.js?v=78a2e620"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -895,7 +895,7 @@ function mrRender(live) {
   </details>` : `<details class="prio-panel"><summary>📤 היסטוריית דחיפות OTA/Build — עדיין ריק (טרם נדחפו גרסאות)</summary>
     <div class="mr-setup" style="margin-top:8px">אף OTA/בילד לא בוצע עדיין. כל הפיקסים קיימים כ-commit מקומי בלבד — הגרסאות לא עלו. משימות ה-OTA בתור יבצעו דחיפה ל-dev וירשמו כאן את הגרסה המדויקת שנוצרה.</div></details>`;
 
-  const inboxHtml = `<div class="inbox">`.replace('<div class="inbox">', relHtml + '<div class="inbox">');
+  const inboxHtml = `<div class="inbox">
     <div class="section-sub" style="margin:0 0 6px">✉️ הוראה חופשית ל־ERZA — כתוב מה שתרצה, אני אפצל למשימות ואבצע לפי הכללים</div>
     <textarea id="inboxText" placeholder="לדוגמה: תעצור הכל ב-Coin ותתמקד בהגשת Fundiva עוד היום…"></textarea>
     <div class="row"><button id="inboxSend">📨 שלח ל־ERZA</button><span class="ok" id="inboxOk"></span></div>
@@ -906,7 +906,7 @@ function mrRender(live) {
     erzaLine +
     `<div class="mr-accounts">${accs}</div>` +
     `<div class="section-sub" style="margin:2px 0 4px">▶️ מבוצע כעת — פר אפליקציה</div>` + runningHtml +
-    inboxHtml +
+    inboxHtml + relHtml +
     queuePanel + ranksHtml + apprHtml;
   bindApprovals();
 
