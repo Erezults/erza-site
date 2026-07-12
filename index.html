@@ -87,6 +87,8 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .mr-updated { font-size: 12px; color: var(--muted); }
 #patBtn { border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-2); border-radius: 8px; padding: 5px 9px; cursor: pointer; font-size: 13px; }
 .mr-save { border: none; background: var(--blue); color: #fff; border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.mr-erzaline { font-size: 12.5px; color: var(--ink-2); background: var(--tint); border-radius: 8px; padding: 7px 10px; margin-bottom: 10px; overflow-wrap: anywhere; }
+.mr-erzaline b { color: var(--ink-1); }
 .mr-accounts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .mr-acc { font-size: 12px; border: 1px solid var(--grid); border-radius: 8px; padding: 4px 10px; color: var(--ink-2); }
 .mr-acc b { color: var(--ink-1); }
@@ -377,7 +379,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script src="data.enc.js?v=46553e11"></script>
+<script src="data.enc.js?v=825fb39a"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -759,8 +761,18 @@ function mrTaskRow(t) {
 function mrRender(live) {
   const ago = Math.round((Date.now() - Date.parse(live.updatedAt)) / 60e3);
   document.getElementById('mrUpdated').textContent = `עודכן לפני ${ago} דק' · ${live.totals.running} רצים · ${live.totals.queued} בתור · ${live.totals.review + live.totals.done} הסתיימו`;
+  const wl = live.erza?.workerLoad || {};
+  const roleTag = id => {
+    const tags = [];
+    if (live.erza?.session?.account === id) tags.push('🧠 סשן ERZA');
+    if (live.erza?.brain?.account === id) tags.push('🤖 מוח');
+    if (wl[id]) tags.push(`⚙️ ${wl[id]} workers`);
+    return tags.length ? ` · ${tags.join(' · ')}` : '';
+  };
   const accs = Object.entries(live.accounts || {}).map(([id, a]) =>
-    `<span class="mr-acc"><b>${esc(a.label || id)}</b>${a.renewDay ? ` · מתחדש ב־${a.renewDay} לחודש` : ''}<br>${a.exhausted ? '🔴 מוצה עד ' + new Date(a.exhaustedUntil).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : `🟢 סשן ${Math.round(a.sessionPct)}% · Fable ${Math.round(a.fablePct)}%`}</span>`).join('');
+    `<span class="mr-acc"><b>${esc(a.label || id)}</b>${a.renewDay ? ` · מתחדש ${a.renewDay}/חודש` : ''}${roleTag(id)}<br>${a.exhausted ? '🔴 מוצה עד ' + new Date(a.exhaustedUntil).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : `${a.fablePct >= 95 ? '🔴' : a.fablePct >= 75 ? '🟡' : '🟢'} סשן ${Math.round(a.sessionPct)}% · Fable ${Math.round(a.fablePct)}%`}</span>`).join('');
+  const r = live.resource;
+  const erzaLine = `<div class="mr-erzaline">🧠 <b>ERZA (סשן אינטראקטיבי)</b> על: <b>${esc(live.erza?.session?.label || '—')}</b>${live.erza?.brain?.label ? ` · 🤖 המוח האוטונומי על: <b>${esc(live.erza.brain.label)}</b>` : ''}${r ? ` · 💻 עומס ${r.perCore5}/ליבה (${r.state}) · זיכרון ${r.memFreePct}% פנוי · ${r.claudeProcs} תהליכים` : ''}</div>`;
 
   const icon = app => `<img class="appicon" src="icons/${esc(app)}.png" onerror="this.hidden=true" alt="">`;
   const orderedApps = [...(live.nativeApps || [])].sort((a, b) => (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99));
@@ -853,6 +865,7 @@ function mrRender(live) {
   </div>`;
 
   document.getElementById('mrBody').innerHTML =
+    erzaLine +
     `<div class="mr-accounts">${accs}</div>` +
     `<div class="section-sub" style="margin:2px 0 4px">▶️ מבוצע כעת — פר אפליקציה</div>` + runningHtml +
     inboxHtml +
