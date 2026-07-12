@@ -384,7 +384,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='0775bfd4'</script>
-<script src="data.enc.js?v=dc333dc2"></script>
+<script src="data.enc.js?v=d1ac711f"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -829,6 +829,9 @@ function mrRender(live) {
           ${(() => { const v = it.version || (mrLastLive?.versions || {})[it.app]; return v ? `<span class="mdl" style="--bc:var(--blue)" dir="ltr" title="גרסה רלוונטית">📦 ${it.otaChannel === 'prod' ? 'prod' : it.otaChannel === 'dev' ? 'dev' : ''} ${esc(it.otaVersion || v.prodDisplay || v.prod || '')}${!it.otaVersion && v.dev ? ' / dev ' + esc(v.dev) : ''}</span>` : ''; })()}
           <span class="appr-status ${it.status === 'approved' ? 'ok' : it.status === 'rejected' ? 'no' : ''}">${it.status === 'approved' ? '✓ אושר על ידך' : it.status === 'rejected' ? '✗ הוחזר לתיקון' : 'ממתין לבדיקה'}</span>
         </div>
+        <div class="pushrow">${it.push?.status === 'pushed'
+          ? `<span class="mdl" style="--bc:var(--green)">✓ נדחף ${esc(it.push.channel)} · ${esc(it.push.version)}</span>`
+          : `<span class="mdl" style="--bc:var(--yellow)" title="הקוד מוכן אך טרם נדחף OTA — הגרסה לא עלתה">⏳ טרם נדחף (הגרסה לא עלתה)</span>`}</div>
         <h5>מה בוצע</h5><ul>${(it.done || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>
         <h5>מה לבדוק כדי לאשר</h5><ul>${(it.check || []).map(c => `<li>${esc(c)}</li>`).join('')}</ul>
         ${(it.feedback || []).map(f => `<div class="appr-fb">🗒️ ${esc(f.text)}${(f.files || []).length ? `<div class="att">${f.files.map(p => `<a href="#" data-file="${esc(p)}">📎 ${esc(p.split('/').pop())}</a>`).join('')}</div>` : ''}</div>`).join('')}
@@ -875,7 +878,24 @@ function mrRender(live) {
       </div>`).join('')}</div>
   </details>` : '';
 
-  const inboxHtml = `<div class="inbox">
+  const rels = live.releases || [];
+  const relByApp = {};
+  for (const r of rels) (relByApp[r.app] ??= []).push(r);
+  const relHtml = rels.length ? `<details class="prio-panel">
+    <summary>📤 היסטוריית דחיפות OTA/Build — ${rels.length} (לפי אפליקציה, מהחדש לישן)</summary>
+    <div style="margin-top:8px">${Object.entries(relByApp)
+      .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
+      .map(([app, list]) => `<div class="mr-app"><h3>${icon(app)}${esc(app)}</h3>
+        ${[...list].reverse().map(r => `<div class="mr-recent" dir="ltr" style="text-align:right">
+          <span class="mdl" style="--bc:${r.channel === 'prod' ? 'var(--red)' : 'var(--blue)'}">${esc(r.channel)}</span>
+          <b>${esc(r.version)}</b>${r.sha ? ` · ${esc(r.sha)}` : ''} · ${esc((r.at || '').slice(0, 10))}
+          ${(r.refIds || []).length ? ` · <span class="cat">${esc(r.refIds.join(', '))}</span>` : ''}
+          ${r.prodRisk ? ` · <span class="cat">סיכון: ${esc(r.prodRisk)}</span>` : ''}</div>`).join('')}
+      </div>`).join('')}</div>
+  </details>` : `<details class="prio-panel"><summary>📤 היסטוריית דחיפות OTA/Build — עדיין ריק (טרם נדחפו גרסאות)</summary>
+    <div class="mr-setup" style="margin-top:8px">אף OTA/בילד לא בוצע עדיין. כל הפיקסים קיימים כ-commit מקומי בלבד — הגרסאות לא עלו. משימות ה-OTA בתור יבצעו דחיפה ל-dev וירשמו כאן את הגרסה המדויקת שנוצרה.</div></details>`;
+
+  const inboxHtml = `<div class="inbox">`.replace('<div class="inbox">', relHtml + '<div class="inbox">');
     <div class="section-sub" style="margin:0 0 6px">✉️ הוראה חופשית ל־ERZA — כתוב מה שתרצה, אני אפצל למשימות ואבצע לפי הכללים</div>
     <textarea id="inboxText" placeholder="לדוגמה: תעצור הכל ב-Coin ותתמקד בהגשת Fundiva עוד היום…"></textarea>
     <div class="row"><button id="inboxSend">📨 שלח ל־ERZA</button><span class="ok" id="inboxOk"></span></div>
