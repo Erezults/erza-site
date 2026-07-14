@@ -394,7 +394,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=76fee94b"></script>
+<script src="data.enc.js?v=bb7e49c4"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -879,7 +879,10 @@ function mrRender(live) {
     // An OTA-test item is testable ONLY once its OTA is confirmed live. Action/decision
     // items (rejections, migrations, no-remote…) don't need an OTA to be decided.
     const otaLive = !!(it.push && ['pushed', 'published'].includes(it.push.status));
-    const needsOta = it.type === 'dev-ota-review';
+    // Any item tied to an OTA channel needs its OTA live before it can be tested — not just
+    // dev-ota-review rows. A task-review for an app code change carries otaChannel:'dev' and
+    // must show the OTA state, never "פריט החלטה (לא דורש OTA)".
+    const needsOta = it.type === 'dev-ota-review' || it.type === 'task-review' || !!it.otaChannel;
     const blocked = needsOta && !otaLive;   // OTA not live yet → cannot approve/test
     return `
       <div class="appr-item ${esc(it.status)}" data-aid="${esc(it.id)}">
