@@ -425,7 +425,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=3677587e"></script>
+<script src="data.enc.js?v=3d85ccc9"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -913,7 +913,7 @@ function mrRender(live) {
     const isBuild = String(it.type || '').startsWith('build');
     const isMig = it.type === 'migration';
     // item 6 — DEV/PROD channel pill (from build/OTA channel); item 7 — iOS/macOS platform pill.
-    const chanPill = () => { const ch = it.buildChannel || it.otaChannel || it.channel;
+    const chanPill = () => { const ch = it.buildChannel || it.otaChannel || it.channel || (it.app && it.app !== 'multi' && it.app !== 'general' ? 'dev' : null);
       return ch === 'prod' ? '<span class="chan-pill chan-prod" title="שינוי ל-PROD — האפליקציה החיה בסטור">PROD</span>'
         : ch === 'dev' ? '<span class="chan-pill chan-dev" title="שינוי ל-DEV — בדיקות בלבד">DEV</span>' : ''; };
     const platPill = () => { const p = it.platform || (isBuild ? 'ios' : 'both');
@@ -924,7 +924,10 @@ function mrRender(live) {
     const blocked = needsOta && !otaLive;   // OTA not live yet → cannot approve/test
     return `
       <div class="appr-item ${esc(it.status)}${isBuild ? ' build' : ''}${isMig ? ' mig' : ''}" data-aid="${esc(it.id)}">
-        <div class="appr-head">${(() => { const ch = it.buildChannel || it.otaChannel;
+        <div class="appr-head">${(() => {
+          // EVERY app row shows a dev/prod ribbon on its icon (Erez). Explicit channel first;
+          // rows with no channel default to dev — everything reviewable passes dev first (rule 0.5).
+          const ch = it.buildChannel || it.otaChannel || it.channel || (it.app && it.app !== 'multi' && it.app !== 'general' ? 'dev' : null);
           return (ch === 'dev' || ch === 'prod')
             ? `<span class="icon-wrap">${icon(it.app)}<span class="icon-tag ${ch}">${ch === 'prod' ? 'PROD' : 'DEV'}</span></span>`
             : icon(it.app); })()}<span class="refid">${esc(it.refId || it.id)}</span><b>${esc(it.title)}</b>${chanPill()}${platPill()}
