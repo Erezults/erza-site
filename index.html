@@ -384,7 +384,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='0775bfd4'</script>
-<script src="data.enc.js?v=fff36c2d"></script>
+<script src="data.enc.js?v=8199e00c"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -763,7 +763,9 @@ function bindApprovals() {
     });
     if (it.status !== 'pending') return;
     const form = el.querySelector('.appr-form');
-    el.querySelector('.btn-approve').onclick = async e => {
+    const approveBtn = el.querySelector('.btn-approve');
+    if (!approveBtn || !form) return;   // blocked items (OTA not live yet) render no approve/reject/form controls
+    approveBtn.onclick = async e => {
       e.target.disabled = true; e.target.textContent = 'שומר…';
       it.status = 'approved'; it.decidedAt = new Date().toISOString();
       try { await saveApprovals(); mrRender(mrLastLive); } catch { e.target.textContent = 'שגיאה — נסה שוב'; e.target.disabled = false; it.status = 'pending'; }
