@@ -221,6 +221,9 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
   font-size: 7px; font-weight: 900; letter-spacing: .5px; border-radius: 4px; padding: 0 1px; color: #fff; pointer-events: none; }
 .icon-tag.dev { background: var(--red); }
 .icon-tag.prod { background: var(--green); }
+/* migration approval — dedicated purple button; approving runs the migration then auto-OTA */
+.btn-mig { background: #8e44ad; color: #fff; border-color: #8e44ad !important; }
+.appr-item.mig { box-shadow: inset 3px 0 0 #8e44ad; }
 /* item 1 — orchestrator version badge at the top of the screen */
 #orchVer { font-size:11.5px; font-weight:800; color:var(--blue); direction:ltr; cursor:help;
   border:1px solid color-mix(in srgb, var(--blue) 40%, transparent); background: color-mix(in srgb, var(--blue) 12%, transparent);
@@ -422,7 +425,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=c32909c2"></script>
+<script src="data.enc.js?v=4a4b02c4"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -908,18 +911,19 @@ function mrRender(live) {
     // items (rejections, migrations, no-remote…) don't need an OTA to be decided.
     const otaLive = !!(it.push && ['pushed', 'published'].includes(it.push.status));
     const isBuild = String(it.type || '').startsWith('build');
+    const isMig = it.type === 'migration';
     // item 6 — DEV/PROD channel pill (from build/OTA channel); item 7 — iOS/macOS platform pill.
-    const chanPill = () => { const ch = it.buildChannel || it.otaChannel;
+    const chanPill = () => { const ch = it.buildChannel || it.otaChannel || it.channel;
       return ch === 'prod' ? '<span class="chan-pill chan-prod" title="שינוי ל-PROD — האפליקציה החיה בסטור">PROD</span>'
         : ch === 'dev' ? '<span class="chan-pill chan-dev" title="שינוי ל-DEV — בדיקות בלבד">DEV</span>' : ''; };
     const platPill = () => { const p = it.platform || (isBuild ? 'ios' : 'both');
       const t = p === 'ios' ? 'iOS' : p === 'mac' ? 'macOS' : 'iOS + macOS';
       return `<span class="plat-pill" title="פלטפורמה">${t}</span>`; };
     // A build is NOT an OTA — never gate it on OTA. Otherwise any OTA-tied item needs its OTA live.
-    const needsOta = !isBuild && (it.type === 'dev-ota-review' || it.type === 'task-review' || !!it.otaChannel);
+    const needsOta = !isBuild && !isMig && (it.type === 'dev-ota-review' || it.type === 'task-review' || !!it.otaChannel);
     const blocked = needsOta && !otaLive;   // OTA not live yet → cannot approve/test
     return `
-      <div class="appr-item ${esc(it.status)}${isBuild ? ' build' : ''}" data-aid="${esc(it.id)}">
+      <div class="appr-item ${esc(it.status)}${isBuild ? ' build' : ''}${isMig ? ' mig' : ''}" data-aid="${esc(it.id)}">
         <div class="appr-head">${(() => { const ch = it.buildChannel || it.otaChannel;
           return (ch === 'dev' || ch === 'prod')
             ? `<span class="icon-wrap">${icon(it.app)}<span class="icon-tag ${ch}">${ch === 'prod' ? 'PROD' : 'DEV'}</span></span>`
@@ -932,7 +936,9 @@ function mrRender(live) {
           : otaLive
           ? `<span class="mdl" style="--bc:var(--green)">✓ נדחף ${esc(it.push.channel || 'dev')}${it.push.version ? ' · ' + esc(it.push.version) : ''}</span>`
           : needsOta
-            ? `<span class="mdl" style="--bc:var(--yellow)" title="ה-OTA עדיין לא פורסם">⏳ ה-OTA עדיין לא פורסם — לא ניתן לבדוק עדיין</span>`
+            ? (it.gate === "migration"
+              ? `<span class="mdl" style="--bc:var(--red)" title="הקוד מוכן אך דורש מיגרציית DB לפני OTA">🔒 ממתין לאישור המיגרציה שלך (פריט ההחלטה 🔐) — ואז ה-OTA נדחף אוטומטית</span>`
+              : `<span class="mdl" style="--bc:var(--yellow)" title="ה-OTA עדיין לא פורסם">⏳ ה-OTA עדיין לא פורסם — לא ניתן לבדוק עדיין</span>`)
             : `<span class="mdl" style="--bc:var(--blue)">🗳️ פריט החלטה (לא דורש OTA)</span>`}</div>
         <h5>מה בוצע</h5><ul>${(it.done || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>
         ${(it.check || []).length ? `<h5>מה לבדוק כדי לאשר</h5><ul>${it.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
@@ -943,7 +949,9 @@ function mrRender(live) {
           <button class="btn-approve savedec" style="margin-top:6px">💾 שמור החלטות</button>` : ''}
         ${(it.feedback || []).map(f => `<div class="appr-fb">🗒️ ${esc(f.text)}${(f.files || []).length ? `<div class="att">${f.files.map(p => `<a href="#" data-file="${esc(p)}">📎 ${esc(p.split('/').pop())}</a>`).join('')}</div>` : ''}</div>`).join('')}
         ${it.status === 'pending' ? (blocked
-          ? `<div class="appr-blocked" style="margin-top:8px;color:var(--yellow);font-size:13px;font-weight:600">⏳ עוד אי אפשר לבדוק — ה-OTA מתפרסם כעת. השורה תיפתח לאישור אוטומטית ברגע שהגרסה תעלה ל-dev.</div>`
+          ? (it.gate === "migration"
+            ? `<div class="appr-blocked" style="margin-top:8px;color:var(--red);font-size:13px;font-weight:600">🔒 התיקון מוכן אך כולל מיגרציית DB — אשר את שורת האפליקציה בפריט ההחלטה 🔐 (A-SA-MIG-GATE), ו-ERZA תריץ את המיגרציה ותדחוף את ה-OTA אוטומטית.</div>`
+            : `<div class="appr-blocked" style="margin-top:8px;color:var(--yellow);font-size:13px;font-weight:600">⏳ עוד אי אפשר לבדוק — ה-OTA מתפרסם כעת. השורה תיפתח לאישור אוטומטית ברגע שהגרסה תעלה ל-dev.</div>`)
           : `<div class="appr-actions">
           <button class="btn-approve${isBuild ? ' btn-build' : ''}">${isBuild ? '🔨 אשר בניית בילד' : '✓ בדקתי — מאושר'}</button>
           <button class="btn-reject">✗ לא מאושר — יש לי הערות</button>
@@ -1029,7 +1037,7 @@ function mrRender(live) {
     erzaLine +
     `<div class="mr-accounts">${accs}</div>` +
     apprHtml +
-    `<div class="section-sub" style="margin:2px 0 4px">▶️ מבוצע כעת — פר אפליקציה</div>` + runningHtml +
+    `<details class="prio-panel" style="--panel-accent:#d63384" open><summary>▶️ מבוצע כעת — פר אפליקציה</summary><div style="margin-top:8px">` + runningHtml + `</div></details>` +
     queuePanel + ranksHtml + inboxHtml +
     `<div class="section-sub" style="margin:18px 0 4px;opacity:.7">🗄️ ארכיונים והיסטוריה</div>` +
     relHtml + archHtml + instrHtml;
