@@ -214,6 +214,13 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 /* item 5 — build-approval button is a SOLID amber fill so a build is unmistakable vs a test-approval */
 .btn-build { background: var(--yellow); color:#1a1400; border-color: var(--yellow) !important; }
 .appr-item.build { box-shadow: inset 3px 0 0 var(--yellow); }
+/* item 6 — dev/prod ribbon ON the app icon itself (dev app vs prod app, visually unmistakable) */
+.icon-wrap { position: relative; display: inline-block; margin-inline-end: 8px; }
+.icon-wrap .appicon { margin-inline-end: 0; }
+.icon-tag { position: absolute; bottom: -4px; inset-inline-start: 0; width: 32px; text-align: center;
+  font-size: 7px; font-weight: 900; letter-spacing: .5px; border-radius: 4px; padding: 0 1px; color: #fff; pointer-events: none; }
+.icon-tag.dev { background: var(--blue); }
+.icon-tag.prod { background: var(--red); }
 /* item 1 — orchestrator version badge at the top of the screen */
 #orchVer { font-size:11.5px; font-weight:800; color:var(--blue); direction:ltr; cursor:help;
   border:1px solid color-mix(in srgb, var(--blue) 40%, transparent); background: color-mix(in srgb, var(--blue) 12%, transparent);
@@ -327,6 +334,7 @@ footer a { color: var(--muted); }
   <header>
     <div class="logo">🎛️</div>
     <h1>ERZA · לוח בקרה<small>פורטפוליו האפליקציות של ERezult</small></h1>
+    <span id="orchVer" hidden></span>
     <div class="hdr-spacer"></div>
     <div class="updated" id="updated"></div>
     <button id="themeBtn" title="מצב תצוגה">◐</button>
@@ -414,7 +422,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=feea1a26"></script>
+<script src="data.enc.js?v=a686716c"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -853,7 +861,7 @@ function mrRender(live) {
   const icon = app => `<img class="appicon" src="icons/${esc(app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
   const orderedApps = [...(live.nativeApps || [])].sort((a, b) => (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99));
   const ranksHtml = orderedApps.length
-    ? `<details class="prio-panel"><summary>🎯 סדר עדיפויות בין האפליקציות — לחץ לפתיחה וסדר מהחשובה ביותר לנמוכה</summary>
+    ? `<details class="prio-panel" style="--panel-accent:var(--aqua)"><summary>🎯 סדר עדיפויות בין האפליקציות — לחץ לפתיחה וסדר מהחשובה ביותר לנמוכה</summary>
        <ul id="appOrder">${orderedApps.map((app, i) => `<li draggable="true" data-app="${esc(app)}">
          <span class="rank-num">${i + 1}</span>${icon(app)}<span class="nm">${esc(app)}</span>
          <span class="mv"><button class="up" title="העלה">▲</button><button class="dn" title="הורד">▼</button></span>
@@ -912,7 +920,10 @@ function mrRender(live) {
     const blocked = needsOta && !otaLive;   // OTA not live yet → cannot approve/test
     return `
       <div class="appr-item ${esc(it.status)}${isBuild ? ' build' : ''}" data-aid="${esc(it.id)}">
-        <div class="appr-head">${icon(it.app)}<span class="refid">${esc(it.refId || it.id)}</span><b>${esc(it.title)}</b>${chanPill()}${platPill()}
+        <div class="appr-head">${(() => { const ch = it.buildChannel || it.otaChannel;
+          return (ch === 'dev' || ch === 'prod')
+            ? `<span class="icon-wrap">${icon(it.app)}<span class="icon-tag ${ch}">${ch === 'prod' ? 'PROD' : 'DEV'}</span></span>`
+            : icon(it.app); })()}<span class="refid">${esc(it.refId || it.id)}</span><b>${esc(it.title)}</b>${chanPill()}${platPill()}
           ${(() => { const v = it.version || (mrLastLive?.versions || {})[it.app]; return v ? `<span class="mdl" style="--bc:var(--blue)" dir="ltr" title="גרסה רלוונטית">📦 ${it.otaChannel === 'prod' ? 'prod' : it.otaChannel === 'dev' ? 'dev' : ''} ${esc(it.otaVersion || v.prodDisplay || v.prod || '')}${!it.otaVersion && v.dev ? ' / dev ' + esc(v.dev) : ''}</span>` : ''; })()}
           <span class="appr-status ${it.status === 'approved' ? 'ok' : it.status === 'rejected' ? 'no' : ''}">${it.status === 'approved' ? '✓ אושר על ידך' : it.status === 'rejected' ? '✗ הוחזר לתיקון' : 'ממתין לבדיקה'}</span>
         </div>
@@ -950,7 +961,7 @@ function mrRender(live) {
   const awaitItems = (mrApprovals.items || []).filter(i => i.status === 'awaiting-deploy');
   const awaitByApp = {};
   for (const it of awaitItems) (awaitByApp[it.app] ??= []).push(it);
-  const awaitHtml = awaitItems.length ? `<details class="prio-panel">
+  const awaitHtml = awaitItems.length ? `<details class="prio-panel" style="--panel-accent:var(--yellow)">
     <summary>⏳ ממתין לדחיפת OTA — ${awaitItems.length} תיקונים מוכנים (commit מקומי) שהגרסה עוד לא עלתה עליהם. לא ניתן לבדוק עד שיידחפו ל-dev</summary>
     <div style="margin-top:8px">${Object.entries(awaitByApp)
       .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
@@ -961,7 +972,7 @@ function mrRender(live) {
   const archItems = (mrApprovals.items || []).filter(isArchived);
   const archByApp = {};
   for (const it of archItems) (archByApp[it.app] ??= []).push(it);
-  const archHtml = archItems.length ? `<details class="prio-panel">
+  const archHtml = archItems.length ? `<details class="prio-panel" style="--panel-accent:var(--muted)">
     <summary>🗄️ ארכיון — ${archItems.length} פריטים שטופלו (לפי אפליקציה)</summary>
     <div style="margin-top:8px">${Object.entries(archByApp)
       .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
@@ -971,10 +982,10 @@ function mrRender(live) {
   const apprHtml = `<details class="prio-panel" style="--panel-accent:var(--green)" ${pendItems.length ? 'open' : ''}>
     <summary>✅ לבדיקתך — ${pendItems.length ? pendItems.length + ' נדחפו ל-dev ומוכנים לבדיקה' : 'אין כרגע (שום דבר לא נדחף ל-dev עדיין)'}</summary>
     <div style="margin-top:10px">${pendItems.length ? pendItems.map(apprItemHtml).join('') : '<div class="mr-setup">שורות יופיעו כאן רק אחרי שהתיקון נדחף ל-dev והגרסה עלתה — אז אפשר לבדוק על האפליקציה.</div>'}</div>
-  </details>` + awaitHtml + archHtml;
+  </details>` + awaitHtml;
 
   const taskName = id => { for (const d of Object.values(live.apps || {})) { const all = [...(d.queued || []), ...(d.recent || []), d.running].filter(Boolean); const f = all.find(t => t.id === id); if (f) return f.title; } return id; };
-  const instrHtml = (mrInstr.items || []).length ? `<details class="prio-panel" style="margin-top:12px">
+  const instrHtml = (mrInstr.items || []).length ? `<details class="prio-panel" style="margin-top:12px;--panel-accent:#8e44ad">
     <summary>🗄️ ארכיון ההוראות שלך — ${mrInstr.items.length} (כולל ההתייחסות של ERZA)</summary>
     <div style="margin-top:8px">${[...mrInstr.items].reverse().map(it => `
       <div class="instr-item">
@@ -991,7 +1002,7 @@ function mrRender(live) {
   const rels = live.releases || [];
   const relByApp = {};
   for (const r of rels) (relByApp[r.app] ??= []).push(r);
-  const relHtml = rels.length ? `<details class="prio-panel">
+  const relHtml = rels.length ? `<details class="prio-panel" style="--panel-accent:#d2691e">
     <summary>📤 היסטוריית דחיפות OTA/Build — ${rels.length} (לפי אפליקציה, מהחדש לישן)</summary>
     <div style="margin-top:8px">${Object.entries(relByApp)
       .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
@@ -1002,7 +1013,7 @@ function mrRender(live) {
           ${(r.refIds || []).length ? ` · <span class="cat">${esc(r.refIds.join(', '))}</span>` : ''}
           ${r.prodRisk ? ` · <span class="cat">סיכון: ${esc(r.prodRisk)}</span>` : ''}</div>`).join('')}
       </div>`).join('')}</div>
-  </details>` : `<details class="prio-panel"><summary>📤 היסטוריית דחיפות OTA/Build — עדיין ריק (טרם נדחפו גרסאות)</summary>
+  </details>` : `<details class="prio-panel" style="--panel-accent:#d2691e"><summary>📤 היסטוריית דחיפות OTA/Build — עדיין ריק (טרם נדחפו גרסאות)</summary>
     <div class="mr-setup" style="margin-top:8px">אף OTA/בילד לא בוצע עדיין. כל הפיקסים קיימים כ-commit מקומי בלבד — הגרסאות לא עלו. משימות ה-OTA בתור יבצעו דחיפה ל-dev וירשמו כאן את הגרסה המדויקת שנוצרה.</div></details>`;
 
   const inboxHtml = `<div class="inbox">
@@ -1010,15 +1021,18 @@ function mrRender(live) {
     <textarea id="inboxText" placeholder="לדוגמה: תעצור הכל ב-Coin ותתמקד בהגשת Fundiva עוד היום…"></textarea>
     <div class="files" style="margin-top:6px"><input type="file" id="inboxFiles" multiple> 📎 אפשר לצרף מדיה/קבצים להוראה (נשמר בארכיון ומצורף להוראה)</div>
     <div class="row"><button id="inboxSend">📨 שלח ל־ERZA</button><span class="ok" id="inboxOk"></span></div>
-    ${instrHtml}
   </div>`;
 
+  // Section order (Erez 2026-07-14): review-desk FIRST, then live work, then controls;
+  // low-importance archives (push history, decided items, instruction archive) at the BOTTOM.
   document.getElementById('mrBody').innerHTML =
     erzaLine +
     `<div class="mr-accounts">${accs}</div>` +
+    apprHtml +
     `<div class="section-sub" style="margin:2px 0 4px">▶️ מבוצע כעת — פר אפליקציה</div>` + runningHtml +
-    inboxHtml + relHtml +
-    queuePanel + ranksHtml + apprHtml;
+    queuePanel + ranksHtml + inboxHtml +
+    `<div class="section-sub" style="margin:18px 0 4px;opacity:.7">🗄️ ארכיונים והיסטוריה</div>` +
+    relHtml + archHtml + instrHtml;
   bindApprovals();
 
   document.querySelectorAll('#mrBody .stopbtn').forEach(b => {
@@ -1146,6 +1160,14 @@ async function mrTick() {
   if (mrDirty) return; // אל תדרוס עריכות שלא נשמרו
   try {
     const live = await gh('live_status.json', 'live');
+    try { // orchestrator version — bumped on every change to how ERZA works (bump-version.mjs)
+      const ov = await gh('registry/orchestrator_version.json');
+      const el = document.getElementById('orchVer');
+      el.textContent = '⚙️ ERZA v' + ov.version;
+      el.title = 'עדכון אחרון: ' + (ov.updatedAt || '').slice(0, 16).replace('T', ' ') + '\n' + (ov.note || '') +
+        '\n\nהיסטוריה:\n' + (ov.changelog || []).slice(0, 6).map(c => c.v + ' (' + c.at + ') — ' + c.what).join('\n');
+      el.hidden = false;
+    } catch { /* אין קובץ גרסה עדיין */ }
     try {
       const up = await gh('registry/user_priorities.json');
       mrPrios = up.tasks || {}; mrAppRanks = up.apps || {};
