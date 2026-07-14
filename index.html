@@ -5,7 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>ERZA · לוח בקרה — פורטפוליו ERezult</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎛️</text></svg>">
+<!-- ERZA app icon + PWA (Add to Dock / Home Screen shows the ERZA conductor icon) -->
+<link rel="icon" type="image/png" sizes="192x192" href="icons/erza-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/erza-512.png">
+<link rel="apple-touch-icon" href="icons/erza-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#f5f5f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ERZA">
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
 <style>
 :root {
   --surface-1: #fcfcfb; --page: #f9f9f7;
@@ -383,8 +393,8 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_ICONV='0775bfd4'</script>
-<script src="data.enc.js?v=e5c90aae"></script>
+<script>window.ERZA_ICONV='fd2ffb26'</script>
+<script src="data.enc.js?v=b88ae952"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
