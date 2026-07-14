@@ -414,7 +414,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=4282fc69"></script>
+<script src="data.enc.js?v=feea1a26"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -873,7 +873,7 @@ function mrRender(live) {
 
   // מכווץ: תור המשימות + תוצאות אחרונות פר אפליקציה
   const queuedTotal = sortedApps.reduce((n, [, d]) => n + d.queued.length, 0);
-  const queuePanel = queuedTotal ? `<details class="prio-panel">
+  const queuePanel = queuedTotal ? `<details class="prio-panel" style="--panel-accent:var(--blue)">
     <summary>🗂️ תור המשימות לפי אפליקציה — ${queuedTotal} ממתינות (כאן קובעים עדיפות/עצירה לכל משימה)</summary>
     <div style="margin-top:8px">${sortedApps.filter(([, d]) => d.queued.length || d.recent.length).map(([app, d]) =>
       `<div class="mr-app"><h3>${icon(app)}${esc(app)} ${mrAppRanks[app] ? `<span class="cat">· עדיפות ${mrAppRanks[app]}</span>` : ''}</h3>
@@ -968,7 +968,7 @@ function mrRender(live) {
       .map(([app, items]) => `<details style="margin:6px 0"><summary>${icon(app)}${esc(app)} · ${items.length}</summary>
         <div style="margin-top:8px">${items.map(apprItemHtml).join('')}</div></details>`).join('')}</div>
   </details>` : '';
-  const apprHtml = `<details class="prio-panel" ${pendItems.length ? 'open' : ''}>
+  const apprHtml = `<details class="prio-panel" style="--panel-accent:var(--green)" ${pendItems.length ? 'open' : ''}>
     <summary>✅ לבדיקתך — ${pendItems.length ? pendItems.length + ' נדחפו ל-dev ומוכנים לבדיקה' : 'אין כרגע (שום דבר לא נדחף ל-dev עדיין)'}</summary>
     <div style="margin-top:10px">${pendItems.length ? pendItems.map(apprItemHtml).join('') : '<div class="mr-setup">שורות יופיעו כאן רק אחרי שהתיקון נדחף ל-dev והגרסה עלתה — אז אפשר לבדוק על האפליקציה.</div>'}</div>
   </details>` + awaitHtml + archHtml;
