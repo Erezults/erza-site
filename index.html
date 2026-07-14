@@ -15,7 +15,32 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="ERZA">
-<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
+// Pull-to-refresh: drag down ≥70px from the very top → reload (also picks up new deploys).
+(function(){
+  var startY=0,startX=0,pulling=false,armed=false,THRESH=70,el=null;
+  function disc(){ if(el)return el; el=document.createElement('div'); el.id='ptr';
+    el.innerHTML='<div class="disc">↓</div>'; document.body.appendChild(el); return el; }
+  document.addEventListener('touchstart',function(e){
+    if((document.scrollingElement||document.documentElement).scrollTop>0)return;
+    startY=e.touches[0].clientY; startX=e.touches[0].clientX; pulling=true; armed=false;
+  },{passive:true});
+  document.addEventListener('touchmove',function(e){
+    if(!pulling)return;
+    var dy=e.touches[0].clientY-startY, dx=Math.abs(e.touches[0].clientX-startX);
+    if(dy<12||dx>Math.abs(dy))return;
+    var d=disc(), pull=Math.min(dy,130);
+    d.style.transform='translateY('+(pull+16)+'px)';
+    armed=dy>=THRESH;
+    d.querySelector('.disc').textContent=armed?'⟳':'↓';
+  },{passive:true});
+  document.addEventListener('touchend',function(){
+    if(!pulling)return; pulling=false;
+    if(armed&&el){ el.classList.add('spin'); el.style.transform='translateY(72px)';
+      el.querySelector('.disc').textContent='⟳'; setTimeout(function(){location.reload();},150); }
+    else if(el){ el.style.transform=''; }
+  });
+})();</script>
 <style>
 :root {
   --surface-1: #fcfcfb; --page: #f9f9f7;
@@ -242,6 +267,15 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 /* migration approval — dedicated purple button; approving runs the migration then auto-OTA */
 .btn-mig { background: #8e44ad; color: #fff; border-color: #8e44ad !important; }
 .appr-item.mig { box-shadow: inset 3px 0 0 #8e44ad; }
+/* pull-to-refresh — swipe down from the top reloads (PWA has no browser refresh) */
+html, body { overscroll-behavior-y: contain; }
+#ptr { position: fixed; top: -56px; inset-inline: 0; display: flex; justify-content: center; z-index: 9999;
+  transition: transform .15s ease-out; pointer-events: none; }
+#ptr .disc { width: 40px; height: 40px; border-radius: 50%; background: var(--surface-1);
+  border: 1px solid var(--grid); box-shadow: 0 2px 10px rgba(0,0,0,.18);
+  display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--blue); }
+#ptr.spin .disc { animation: ptrspin .8s linear infinite; }
+@keyframes ptrspin { to { transform: rotate(360deg); } }
 /* item 1 — orchestrator version badge at the top of the screen */
 #orchVer { font-size:11.5px; font-weight:800; color:var(--blue); direction:ltr; cursor:help;
   border:1px solid color-mix(in srgb, var(--blue) 40%, transparent); background: color-mix(in srgb, var(--blue) 12%, transparent);
@@ -442,9 +476,9 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.2.3'</script>
+<script>window.ERZA_DEPLOY_VER='1.2.4'</script>
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=65bdf3ac"></script>
+<script src="data.enc.js?v=b880d7fc"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
