@@ -170,6 +170,8 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 #mrBody .cat, #mrBody .refid { overflow-wrap: anywhere; word-break: break-word; }
 .prio-panel, .appr-item, .mr-app, #machineRoom { max-width: 100%; overflow-x: clip; }
 .mr-task { flex-wrap: wrap; }
+/* pushrow badges are full sentences — they always wrap (the version pill stays short) */
+.pushrow .mdl, .appr-tags .mdl { white-space: normal; line-height: 1.45; }
 @media (max-width: 640px) {
   .mdl { white-space: normal; line-height: 1.45; }
 }
@@ -476,9 +478,9 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.2.4'</script>
+<script>window.ERZA_DEPLOY_VER='1.2.5'</script>
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=fe504129"></script>
+<script src="data.enc.js?v=6bffddaa"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
