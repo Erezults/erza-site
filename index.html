@@ -425,7 +425,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=4a4b02c4"></script>
+<script src="data.enc.js?v=ee8d5fc1"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -931,13 +931,15 @@ function mrRender(live) {
           ${(() => { const v = it.version || (mrLastLive?.versions || {})[it.app]; return v ? `<span class="mdl" style="--bc:var(--blue)" dir="ltr" title="גרסה רלוונטית">📦 ${it.otaChannel === 'prod' ? 'prod' : it.otaChannel === 'dev' ? 'dev' : ''} ${esc(it.otaVersion || v.prodDisplay || v.prod || '')}${!it.otaVersion && v.dev ? ' / dev ' + esc(v.dev) : ''}</span>` : ''; })()}
           <span class="appr-status ${it.status === 'approved' ? 'ok' : it.status === 'rejected' ? 'no' : ''}">${it.status === 'approved' ? '✓ אושר על ידך' : it.status === 'rejected' ? '✗ הוחזר לתיקון' : 'ממתין לבדיקה'}</span>
         </div>
-        <div class="pushrow">${isBuild
+        <div class="pushrow">${isMig
+          ? `<span class="mdl" style="--bc:#8e44ad">🗄️ מיגרציית DB ממתינה לאישורך — אישור ⇒ ERZA מריצה את המיגרציה ודוחפת את ה-OTA אוטומטית</span>`
+          : isBuild
           ? `<span class="mdl" style="--bc:var(--yellow)">🔨 דרוש בילד ${it.buildChannel === 'prod' ? 'PROD' : 'DEV'} — אשר לבנייה</span>`
           : otaLive
           ? `<span class="mdl" style="--bc:var(--green)">✓ נדחף ${esc(it.push.channel || 'dev')}${it.push.version ? ' · ' + esc(it.push.version) : ''}</span>`
           : needsOta
             ? (it.gate === "migration"
-              ? `<span class="mdl" style="--bc:var(--red)" title="הקוד מוכן אך דורש מיגרציית DB לפני OTA">🔒 ממתין לאישור המיגרציה שלך (פריט ההחלטה 🔐) — ואז ה-OTA נדחף אוטומטית</span>`
+              ? `<span class="mdl" style="--bc:var(--red)" title="הקוד מוכן אך דורש מיגרציית DB לפני OTA">🔒 ממתין לאישור המיגרציה שלך (השורה הסגולה 🗄️ של האפליקציה) — אישור שם ⇒ ה-OTA נדחף אוטומטית</span>`
               : `<span class="mdl" style="--bc:var(--yellow)" title="ה-OTA עדיין לא פורסם">⏳ ה-OTA עדיין לא פורסם — לא ניתן לבדוק עדיין</span>`)
             : `<span class="mdl" style="--bc:var(--blue)">🗳️ פריט החלטה (לא דורש OTA)</span>`}</div>
         <h5>מה בוצע</h5><ul>${(it.done || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>
@@ -950,10 +952,10 @@ function mrRender(live) {
         ${(it.feedback || []).map(f => `<div class="appr-fb">🗒️ ${esc(f.text)}${(f.files || []).length ? `<div class="att">${f.files.map(p => `<a href="#" data-file="${esc(p)}">📎 ${esc(p.split('/').pop())}</a>`).join('')}</div>` : ''}</div>`).join('')}
         ${it.status === 'pending' ? (blocked
           ? (it.gate === "migration"
-            ? `<div class="appr-blocked" style="margin-top:8px;color:var(--red);font-size:13px;font-weight:600">🔒 התיקון מוכן אך כולל מיגרציית DB — אשר את שורת האפליקציה בפריט ההחלטה 🔐 (A-SA-MIG-GATE), ו-ERZA תריץ את המיגרציה ותדחוף את ה-OTA אוטומטית.</div>`
+            ? `<div class="appr-blocked" style="margin-top:8px;color:var(--red);font-size:13px;font-weight:600">🔒 התיקון מוכן אך כולל מיגרציית DB — אשר את השורה הסגולה 🗄️ של האפליקציה (כפתור אישור-מיגרציה ייעודי), ו-ERZA תריץ את המיגרציה ותדחוף את ה-OTA אוטומטית.</div>`
             : `<div class="appr-blocked" style="margin-top:8px;color:var(--yellow);font-size:13px;font-weight:600">⏳ עוד אי אפשר לבדוק — ה-OTA מתפרסם כעת. השורה תיפתח לאישור אוטומטית ברגע שהגרסה תעלה ל-dev.</div>`)
           : `<div class="appr-actions">
-          <button class="btn-approve${isBuild ? ' btn-build' : ''}">${isBuild ? '🔨 אשר בניית בילד' : '✓ בדקתי — מאושר'}</button>
+          <button class="btn-approve${isBuild ? ' btn-build' : isMig ? ' btn-mig' : ''}">${isBuild ? '🔨 אשר בניית בילד' : isMig ? '🗄️ אשר מיגרציה ⇒ OTA אוטומטי' : '✓ בדקתי — מאושר'}</button>
           <button class="btn-reject">✗ לא מאושר — יש לי הערות</button>
         </div>
         <div class="appr-form" hidden>
