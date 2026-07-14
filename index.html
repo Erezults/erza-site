@@ -384,7 +384,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='0775bfd4'</script>
-<script src="data.enc.js?v=c708e8f5"></script>
+<script src="data.enc.js?v=6a52a638"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -775,7 +775,7 @@ function bindApprovals() {
       e.target.disabled = true; e.target.textContent = 'מעלה ושומר…';
       try {
         const files = [];
-        for (const f of form.querySelector('input[type=file]').files) files.push(await uploadFile(it.id, f));
+        for (const f of form.querySelector('input[type=file]').files) files.push(await uploadFile('archive/feedback/' + it.id, f));
         it.feedback = it.feedback || [];
         it.feedback.push({ at: new Date().toISOString(), text, files });
         it.status = 'rejected'; it.decidedAt = new Date().toISOString();
@@ -862,15 +862,24 @@ function mrRender(live) {
       ${(it.check || []).length ? `<h5>לבדיקה נפרדת</h5><ul>${it.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
       <div class="appr-actions"><button class="btn-approve savedec">💾 שמור החלטות</button></div>
     </div>`;
-  const apprItemHtml = it => it.type === 'decision' ? decItemHtml(it) : `
+  const apprItemHtml = it => {
+    if (it.type === 'decision') return decItemHtml(it);
+    // An OTA-test item is testable ONLY once its OTA is confirmed live. Action/decision
+    // items (rejections, migrations, no-remote…) don't need an OTA to be decided.
+    const otaLive = !!(it.push && ['pushed', 'published'].includes(it.push.status));
+    const needsOta = it.type === 'dev-ota-review';
+    const blocked = needsOta && !otaLive;   // OTA not live yet → cannot approve/test
+    return `
       <div class="appr-item ${esc(it.status)}" data-aid="${esc(it.id)}">
         <div class="appr-head">${icon(it.app)}<span class="refid">${esc(it.refId || it.id)}</span><b>${esc(it.title)}</b>
           ${(() => { const v = it.version || (mrLastLive?.versions || {})[it.app]; return v ? `<span class="mdl" style="--bc:var(--blue)" dir="ltr" title="גרסה רלוונטית">📦 ${it.otaChannel === 'prod' ? 'prod' : it.otaChannel === 'dev' ? 'dev' : ''} ${esc(it.otaVersion || v.prodDisplay || v.prod || '')}${!it.otaVersion && v.dev ? ' / dev ' + esc(v.dev) : ''}</span>` : ''; })()}
           <span class="appr-status ${it.status === 'approved' ? 'ok' : it.status === 'rejected' ? 'no' : ''}">${it.status === 'approved' ? '✓ אושר על ידך' : it.status === 'rejected' ? '✗ הוחזר לתיקון' : 'ממתין לבדיקה'}</span>
         </div>
-        <div class="pushrow">${it.push?.status === 'pushed'
-          ? `<span class="mdl" style="--bc:var(--green)">✓ נדחף ${esc(it.push.channel)} · ${esc(it.push.version)}</span>`
-          : `<span class="mdl" style="--bc:var(--yellow)" title="הקוד מוכן אך טרם נדחף OTA — הגרסה לא עלתה">⏳ טרם נדחף (הגרסה לא עלתה)</span>`}</div>
+        <div class="pushrow">${otaLive
+          ? `<span class="mdl" style="--bc:var(--green)">✓ נדחף ${esc(it.push.channel || 'dev')}${it.push.version ? ' · ' + esc(it.push.version) : ''}</span>`
+          : needsOta
+            ? `<span class="mdl" style="--bc:var(--yellow)" title="ה-OTA עדיין לא פורסם">⏳ ה-OTA עדיין לא פורסם — לא ניתן לבדוק עדיין</span>`
+            : `<span class="mdl" style="--bc:var(--blue)">🗳️ פריט החלטה (לא דורש OTA)</span>`}</div>
         <h5>מה בוצע</h5><ul>${(it.done || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>
         ${(it.check || []).length ? `<h5>מה לבדוק כדי לאשר</h5><ul>${it.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
         ${(it.decisions || []).length ? `<h5>🗳️ החלטות בתוך הרשומה — סמן ליד כל אחת</h5>
@@ -879,7 +888,9 @@ function mrRender(live) {
             <span class="t-title">${esc(d.text)}</span></div>`).join('')}
           <button class="btn-approve savedec" style="margin-top:6px">💾 שמור החלטות</button>` : ''}
         ${(it.feedback || []).map(f => `<div class="appr-fb">🗒️ ${esc(f.text)}${(f.files || []).length ? `<div class="att">${f.files.map(p => `<a href="#" data-file="${esc(p)}">📎 ${esc(p.split('/').pop())}</a>`).join('')}</div>` : ''}</div>`).join('')}
-        ${it.status === 'pending' ? `<div class="appr-actions">
+        ${it.status === 'pending' ? (blocked
+          ? `<div class="appr-blocked" style="margin-top:8px;color:var(--yellow);font-size:13px;font-weight:600">⏳ עוד אי אפשר לבדוק — ה-OTA מתפרסם כעת. השורה תיפתח לאישור אוטומטית ברגע שהגרסה תעלה ל-dev.</div>`
+          : `<div class="appr-actions">
           <button class="btn-approve">✓ בדקתי — מאושר</button>
           <button class="btn-reject">✗ לא מאושר — יש לי הערות</button>
         </div>
@@ -887,8 +898,9 @@ function mrRender(live) {
           <textarea placeholder="כתוב כאן בחופשיות מה לא בוצע כמו שצריך, באגים, שיפורים — ללא הגבלת אורך…"></textarea>
           <div class="files"><input type="file" multiple> 📎 אפשר לצרף צילומי מסך ומסמכים — ללא הגבלה (נשמר בארכיון)</div>
           <button class="btn-reject send">שלח משוב ל־ERZA</button>
-        </div>` : ''}
+        </div>`) : ''}
       </div>`;
+    };
 
   const pendItems = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending'].includes(i.status))
     .sort((a, b) => (a.type === 'decision' ? -1 : 0) - (b.type === 'decision' ? -1 : 0) || (mrAppRanks[a.app] ?? 99) - (mrAppRanks[b.app] ?? 99));
@@ -953,6 +965,7 @@ function mrRender(live) {
   const inboxHtml = `<div class="inbox">
     <div class="section-sub" style="margin:0 0 6px">✉️ הוראה חופשית ל־ERZA — כתוב מה שתרצה, אני אפצל למשימות ואבצע לפי הכללים</div>
     <textarea id="inboxText" placeholder="לדוגמה: תעצור הכל ב-Coin ותתמקד בהגשת Fundiva עוד היום…"></textarea>
+    <div class="files" style="margin-top:6px"><input type="file" id="inboxFiles" multiple> 📎 אפשר לצרף מדיה/קבצים להוראה (נשמר בארכיון ומצורף להוראה)</div>
     <div class="row"><button id="inboxSend">📨 שלח ל־ERZA</button><span class="ok" id="inboxOk"></span></div>
     ${instrHtml}
   </div>`;
@@ -974,18 +987,23 @@ function mrRender(live) {
   });
   document.getElementById('inboxSend').onclick = async () => {
     const ta = document.getElementById('inboxText'), ok = document.getElementById('inboxOk');
+    const fi = document.getElementById('inboxFiles');
     const text = ta.value.trim();
-    if (!text) return;
+    if (!text && !(fi && fi.files.length)) return;
     ok.textContent = 'שולח…';
     try {
+      const msgId = Date.now();
+      const files = [];
+      if (fi && fi.files.length) { ok.textContent = 'מעלה קבצים…';
+        for (const f of fi.files) files.push(await uploadFile('archive/inbox-files/' + msgId, f)); }
       let sha, msgs = [];
       try { const cur = await gh('registry/inbox.json', undefined, { headers: { Accept: 'application/vnd.github+json' } });
         sha = cur.sha; msgs = JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\s/g, ''))))).messages || []; } catch {}
-      msgs.push({ id: Date.now(), text, sentAt: new Date().toISOString() });
+      msgs.push({ id: msgId, text, files, sentAt: new Date().toISOString() });
       const body = { message: 'הוראה חדשה מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
         content: btoa(unescape(encodeURIComponent(JSON.stringify({ messages: msgs }, null, 2)))) };
       await gh('registry/inbox.json', undefined, { method: 'PUT', body: JSON.stringify(body) });
-      ta.value = ''; ok.textContent = 'נקלט ✓ — ERZA תטפל בסבב הקרוב (עד ~10 דק\')';
+      ta.value = ''; if (fi) fi.value = ''; ok.textContent = 'נקלט ✓' + (files.length ? ` (${files.length} קבצים)` : '') + ' — ERZA תטפל בסבב הקרוב';
     } catch { ok.textContent = 'שגיאה בשליחה — נסה שוב'; }
   };
 
