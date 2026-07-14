@@ -128,8 +128,20 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .appr-item { border: 1px solid var(--grid); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; background: var(--surface-1); }
 .appr-item.approved { border-color: color-mix(in srgb, var(--green) 45%, transparent); }
 .appr-item.rejected { border-color: color-mix(in srgb, var(--red) 45%, transparent); }
-.appr-head { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
-.appr-head b { flex: 1; font-size: 14px; }
+/* Title is a full-width row of its own; all pills/labels live on a SEPARATE row below
+   (Erez, mobile fix): a squeezed flex title was wrapping one-word-per-line. */
+.appr-head { display: block; }
+.appr-head b { font-size: 14px; }
+.appr-title { display: flex; align-items: flex-start; gap: 8px; width: 100%; }
+.appr-title b { flex: 1; min-width: 0; overflow-wrap: break-word; }
+.appr-title .refid { flex-shrink: 0; }
+.appr-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 7px; }
+/* never let long unbroken tokens (paths, ids, versions) push past the viewport */
+.appr-item { min-width: 0; max-width: 100%; }
+.appr-item ul li, .appr-fb, .mr-recent, .appr-blocked { overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .mdl { white-space: normal; line-height: 1.45; }
+}
 .appr-item ul { padding-inline-start: 20px; font-size: 13px; color: var(--ink-2); margin: 6px 0; }
 .appr-item h5 { font-size: 12px; color: var(--muted); margin: 8px 0 2px; }
 .appr-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
@@ -425,7 +437,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=a6410339"></script>
+<script src="data.enc.js?v=cf65073e"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -924,15 +936,17 @@ function mrRender(live) {
     const blocked = needsOta && !otaLive;   // OTA not live yet → cannot approve/test
     return `
       <div class="appr-item ${esc(it.status)}${isBuild ? ' build' : ''}${isMig ? ' mig' : ''}" data-aid="${esc(it.id)}">
-        <div class="appr-head">${(() => {
+        <div class="appr-head">
+          <div class="appr-title">${(() => {
           // EVERY app row shows a dev/prod ribbon on its icon (Erez). Explicit channel first;
           // rows with no channel default to dev — everything reviewable passes dev first (rule 0.5).
           const ch = it.buildChannel || it.otaChannel || it.channel || (it.app && it.app !== 'multi' && it.app !== 'general' ? 'dev' : null);
           return (ch === 'dev' || ch === 'prod')
             ? `<span class="icon-wrap">${icon(it.app)}<span class="icon-tag ${ch}">${ch === 'prod' ? 'PROD' : 'DEV'}</span></span>`
-            : icon(it.app); })()}<span class="refid">${esc(it.refId || it.id)}</span><b>${esc(it.title)}</b>${chanPill()}${platPill()}
+            : icon(it.app); })()}<span class="refid">${esc(it.refId || it.id)}</span><b>${esc(it.title)}</b></div>
+          <div class="appr-tags">${chanPill()}${platPill()}
           ${(() => { const v = it.version || (mrLastLive?.versions || {})[it.app]; return v ? `<span class="mdl" style="--bc:var(--blue)" dir="ltr" title="גרסה רלוונטית">📦 ${it.otaChannel === 'prod' ? 'prod' : it.otaChannel === 'dev' ? 'dev' : ''} ${esc(it.otaVersion || v.prodDisplay || v.prod || '')}${!it.otaVersion && v.dev ? ' / dev ' + esc(v.dev) : ''}</span>` : ''; })()}
-          <span class="appr-status ${it.status === 'approved' ? 'ok' : it.status === 'rejected' ? 'no' : ''}">${it.status === 'approved' ? '✓ אושר על ידך' : it.status === 'rejected' ? '✗ הוחזר לתיקון' : 'ממתין לבדיקה'}</span>
+          <span class="appr-status ${it.status === 'approved' ? 'ok' : it.status === 'rejected' ? 'no' : ''}">${it.status === 'approved' ? '✓ אושר על ידך' : it.status === 'rejected' ? '✗ הוחזר לתיקון' : 'ממתין לבדיקה'}</span></div>
         </div>
         <div class="pushrow">${isMig
           ? `<span class="mdl" style="--bc:#8e44ad">🗄️ מיגרציית DB ממתינה לאישורך — אישור ⇒ ERZA מריצה את המיגרציה ודוחפת את ה-OTA אוטומטית</span>`
@@ -969,8 +983,11 @@ function mrRender(live) {
       </div>`;
     };
 
+  // Order: decisions first, then ACTION GATES (migration/build — Erez's click unblocks work),
+  // then regular test rows by app priority. Gates were getting buried below 20+ rows on mobile.
+  const pendRank = i => i.type === 'decision' ? 0 : (i.type === 'migration' || String(i.type || '').startsWith('build')) ? 1 : 2;
   const pendItems = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending'].includes(i.status))
-    .sort((a, b) => (a.type === 'decision' ? -1 : 0) - (b.type === 'decision' ? -1 : 0) || (mrAppRanks[a.app] ?? 99) - (mrAppRanks[b.app] ?? 99));
+    .sort((a, b) => pendRank(a) - pendRank(b) || (mrAppRanks[a.app] ?? 99) - (mrAppRanks[b.app] ?? 99));
   const awaitItems = (mrApprovals.items || []).filter(i => i.status === 'awaiting-deploy');
   const awaitByApp = {};
   for (const it of awaitItems) (awaitByApp[it.app] ??= []).push(it);
