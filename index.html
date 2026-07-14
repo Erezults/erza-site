@@ -384,7 +384,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='0775bfd4'</script>
-<script src="data.enc.js?v=2c3529ac"></script>
+<script src="data.enc.js?v=c708e8f5"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -713,12 +713,12 @@ async function saveApprovals() {
   mrApprovalsSha = r.content?.sha || mrApprovalsSha;
 }
 
-async function uploadFile(aid, file) {
+async function uploadFile(dir, file) {
   const buf = await file.arrayBuffer();
   let bin = ''; const bytes = new Uint8Array(buf);
   for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
-  const path_ = `archive/feedback/${aid}/${Date.now()}-${file.name.replace(/[^\w.\-א-ת]/g, '_')}`;
-  await gh(path_, undefined, { method: 'PUT', body: JSON.stringify({ message: `קובץ משוב ${aid}`, branch: 'main', content: btoa(bin) }) });
+  const path_ = `${dir}/${Date.now()}-${file.name.replace(/[^\w.\-א-ת]/g, '_')}`;
+  await gh(path_, undefined, { method: 'PUT', body: JSON.stringify({ message: `העלאת קובץ מהדשבורד`, branch: 'main', content: btoa(bin) }) });
   return path_;
 }
 
