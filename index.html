@@ -394,7 +394,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=d2bc7924"></script>
+<script src="data.enc.js?v=e9a8b65f"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1009,22 +1009,28 @@ function mrRender(live) {
       if (fi && fi.files.length) { ok.textContent = 'מעלה קבצים…';
         for (const f of fi.files) files.push(await uploadFile('archive/inbox-files/' + msgId, f)); }
       let sha, msgs = [];
-      try {
-        const cur = await gh('registry/inbox.json', undefined, { headers: { Accept: 'application/vnd.github+json' } });
-        sha = cur.sha;
-        const raw = decodeURIComponent(escape(atob(cur.content.replace(/\s/g, ''))));
-        // Robust parse: tolerate a corrupted inbox (e.g. leftover git-conflict markers) so a
-        // new send can NEVER wipe existing messages or fail silently. Strip any markers, then
-        // parse; if still broken, regex-extract every {id,text} so nothing is lost — the PUT
-        // below then rewrites a clean, complete file (self-heals the corruption client-side).
-        const clean = raw.replace(/^(<<<<<<<|=======|>>>>>>>).*$/gm, '');
-        try { const o = JSON.parse(clean); msgs = Array.isArray(o.messages) ? o.messages : []; }
-        catch {
-          const seen = new Map(), re = /"id"\s*:\s*(\d+)\s*,\s*"text"\s*:\s*"((?:[^"\\]|\\.)*)"/g; let m;
-          while ((m = re.exec(clean))) if (!seen.has(m[1])) { try { seen.set(m[1], { id: +m[1], text: JSON.parse('"' + m[2] + '"') }); } catch {} }
-          msgs = [...seen.values()];
+      {
+        const cur = await gh('registry/inbox.json', undefined, { headers: { Accept: 'application/vnd.github+json' } })
+          .catch(e => { if (e && e.status === 404) return null; throw e; }); // real fetch error → surface (outer catch), don't wipe
+        if (cur) {
+          sha = cur.sha;
+          const raw = decodeURIComponent(escape(atob(cur.content.replace(/\s/g, ''))));
+          // Robust parse: tolerate a corrupted inbox (e.g. leftover git-conflict markers) so a
+          // new send can NEVER wipe existing messages. Strip any markers, then parse; if still
+          // broken, regex-extract every {id,text} so nothing is lost — the PUT below then
+          // rewrites a clean, complete file (self-heals the corruption client-side too).
+          const clean = raw.replace(/^(<<<<<<<|=======|>>>>>>>).*$/gm, '');
+          try { const o = JSON.parse(clean); msgs = Array.isArray(o.messages) ? o.messages : []; }
+          catch {
+            const seen = new Map(), re = /"id"\s*:\s*(\d+)\s*,\s*"text"\s*:\s*"((?:[^"\\]|\\.)*)"/g; let m;
+            while ((m = re.exec(clean))) if (!seen.has(m[1])) { try { seen.set(m[1], { id: +m[1], text: JSON.parse('"' + m[2] + '"') }); } catch {} }
+            msgs = [...seen.values()];
+          }
+          // Safety net: the file clearly held messages but we recovered none → refuse to
+          // overwrite (would wipe). Surface the error instead of silently losing data.
+          if (msgs.length === 0 && /"text"\s*:/.test(clean)) throw new Error('inbox unreadable — refusing to overwrite to avoid data loss');
         }
-      } catch (e) { if (e && e.status && e.status !== 404) throw e; } // real fetch failure → surface it (don't wipe)
+      }
       msgs.push({ id: msgId, text, files, sentAt: new Date().toISOString() });
       const body = { message: 'הוראה חדשה מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
         content: btoa(unescape(encodeURIComponent(JSON.stringify({ messages: msgs }, null, 2)))) };
