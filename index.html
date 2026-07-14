@@ -198,6 +198,26 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 /* ---------- tables ---------- */
 .section-title { font-size: 17px; font-weight: 700; margin: 26px 0 4px; }
 .section-sub { font-size: 13px; color: var(--ink-2); margin: 0 0 12px; }
+
+/* ---- ERZA dashboard additions ---- */
+/* item 3 — every open panel is shaded in its OWN accent colour so it's clear which field is open */
+.prio-panel { --panel-accent: var(--muted); transition: background .12s, border-color .12s; }
+.prio-panel[open] { border-color: color-mix(in srgb, var(--panel-accent) 55%, var(--grid));
+  box-shadow: inset 3px 0 0 var(--panel-accent); background: color-mix(in srgb, var(--panel-accent) 8%, transparent); }
+.prio-panel[open] > summary { color: var(--panel-accent); }
+/* items 6 & 7 — dev/prod channel pill + iOS/macOS platform pill in the row title */
+.chan-pill, .plat-pill { display:inline-block; font-size:10px; font-weight:800; border-radius:5px; padding:1px 6px;
+  margin-inline-start:6px; letter-spacing:.3px; vertical-align:1px; white-space:nowrap; }
+.chan-dev  { background: color-mix(in srgb, var(--blue) 16%, transparent); color: var(--blue); border:1px solid color-mix(in srgb, var(--blue) 45%, transparent); }
+.chan-prod { background: color-mix(in srgb, var(--red) 18%, transparent);  color: var(--red);  border:1px solid color-mix(in srgb, var(--red) 55%, transparent); }
+.plat-pill { background: color-mix(in srgb, var(--ink-2) 12%, transparent); color: var(--ink-1); border:1px solid color-mix(in srgb, var(--ink-2) 30%, transparent); }
+/* item 5 — build-approval button is a SOLID amber fill so a build is unmistakable vs a test-approval */
+.btn-build { background: var(--yellow); color:#1a1400; border-color: var(--yellow) !important; }
+.appr-item.build { box-shadow: inset 3px 0 0 var(--yellow); }
+/* item 1 — orchestrator version badge at the top of the screen */
+#orchVer { font-size:11.5px; font-weight:800; color:var(--blue); direction:ltr; cursor:help;
+  border:1px solid color-mix(in srgb, var(--blue) 40%, transparent); background: color-mix(in srgb, var(--blue) 12%, transparent);
+  border-radius:6px; padding:2px 8px; margin-inline-start:10px; white-space:nowrap; }
 .tablecard { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; overflow: hidden; }
 .scrollx { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
@@ -394,7 +414,7 @@ footer a { color: var(--muted); }
 </div>
 
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=d1440b2a"></script>
+<script src="data.enc.js?v=4282fc69"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -879,18 +899,26 @@ function mrRender(live) {
     // An OTA-test item is testable ONLY once its OTA is confirmed live. Action/decision
     // items (rejections, migrations, no-remote…) don't need an OTA to be decided.
     const otaLive = !!(it.push && ['pushed', 'published'].includes(it.push.status));
-    // Any item tied to an OTA channel needs its OTA live before it can be tested — not just
-    // dev-ota-review rows. A task-review for an app code change carries otaChannel:'dev' and
-    // must show the OTA state, never "פריט החלטה (לא דורש OTA)".
-    const needsOta = it.type === 'dev-ota-review' || it.type === 'task-review' || !!it.otaChannel;
+    const isBuild = String(it.type || '').startsWith('build');
+    // item 6 — DEV/PROD channel pill (from build/OTA channel); item 7 — iOS/macOS platform pill.
+    const chanPill = () => { const ch = it.buildChannel || it.otaChannel;
+      return ch === 'prod' ? '<span class="chan-pill chan-prod" title="שינוי ל-PROD — האפליקציה החיה בסטור">PROD</span>'
+        : ch === 'dev' ? '<span class="chan-pill chan-dev" title="שינוי ל-DEV — בדיקות בלבד">DEV</span>' : ''; };
+    const platPill = () => { const p = it.platform || (isBuild ? 'ios' : 'both');
+      const t = p === 'ios' ? 'iOS' : p === 'mac' ? 'macOS' : 'iOS + macOS';
+      return `<span class="plat-pill" title="פלטפורמה">${t}</span>`; };
+    // A build is NOT an OTA — never gate it on OTA. Otherwise any OTA-tied item needs its OTA live.
+    const needsOta = !isBuild && (it.type === 'dev-ota-review' || it.type === 'task-review' || !!it.otaChannel);
     const blocked = needsOta && !otaLive;   // OTA not live yet → cannot approve/test
     return `
-      <div class="appr-item ${esc(it.status)}" data-aid="${esc(it.id)}">
-        <div class="appr-head">${icon(it.app)}<span class="refid">${esc(it.refId || it.id)}</span><b>${esc(it.title)}</b>
+      <div class="appr-item ${esc(it.status)}${isBuild ? ' build' : ''}" data-aid="${esc(it.id)}">
+        <div class="appr-head">${icon(it.app)}<span class="refid">${esc(it.refId || it.id)}</span><b>${esc(it.title)}</b>${chanPill()}${platPill()}
           ${(() => { const v = it.version || (mrLastLive?.versions || {})[it.app]; return v ? `<span class="mdl" style="--bc:var(--blue)" dir="ltr" title="גרסה רלוונטית">📦 ${it.otaChannel === 'prod' ? 'prod' : it.otaChannel === 'dev' ? 'dev' : ''} ${esc(it.otaVersion || v.prodDisplay || v.prod || '')}${!it.otaVersion && v.dev ? ' / dev ' + esc(v.dev) : ''}</span>` : ''; })()}
           <span class="appr-status ${it.status === 'approved' ? 'ok' : it.status === 'rejected' ? 'no' : ''}">${it.status === 'approved' ? '✓ אושר על ידך' : it.status === 'rejected' ? '✗ הוחזר לתיקון' : 'ממתין לבדיקה'}</span>
         </div>
-        <div class="pushrow">${otaLive
+        <div class="pushrow">${isBuild
+          ? `<span class="mdl" style="--bc:var(--yellow)">🔨 דרוש בילד ${it.buildChannel === 'prod' ? 'PROD' : 'DEV'} — אשר לבנייה</span>`
+          : otaLive
           ? `<span class="mdl" style="--bc:var(--green)">✓ נדחף ${esc(it.push.channel || 'dev')}${it.push.version ? ' · ' + esc(it.push.version) : ''}</span>`
           : needsOta
             ? `<span class="mdl" style="--bc:var(--yellow)" title="ה-OTA עדיין לא פורסם">⏳ ה-OTA עדיין לא פורסם — לא ניתן לבדוק עדיין</span>`
@@ -906,7 +934,7 @@ function mrRender(live) {
         ${it.status === 'pending' ? (blocked
           ? `<div class="appr-blocked" style="margin-top:8px;color:var(--yellow);font-size:13px;font-weight:600">⏳ עוד אי אפשר לבדוק — ה-OTA מתפרסם כעת. השורה תיפתח לאישור אוטומטית ברגע שהגרסה תעלה ל-dev.</div>`
           : `<div class="appr-actions">
-          <button class="btn-approve">✓ בדקתי — מאושר</button>
+          <button class="btn-approve${isBuild ? ' btn-build' : ''}">${isBuild ? '🔨 אשר בניית בילד' : '✓ בדקתי — מאושר'}</button>
           <button class="btn-reject">✗ לא מאושר — יש לי הערות</button>
         </div>
         <div class="appr-form" hidden>
