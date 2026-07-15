@@ -170,6 +170,13 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 #mrBody .cat, #mrBody .refid { overflow-wrap: anywhere; word-break: break-word; }
 .prio-panel, .appr-item, .mr-app, #machineRoom { max-width: 100%; overflow-x: clip; }
 .mr-task { flex-wrap: wrap; }
+/* panel move buttons (item 2) */
+.mvbtns { float: left; display: inline-flex; gap: 3px; margin-inline-start: 8px; }
+.mvbtns button { border: 1px solid var(--grid); background: var(--surface-1); border-radius: 5px; font-size: 10px; line-height: 1.5; padding: 0 6px; cursor: pointer; color: var(--ink-2); }
+.mvbtns button:active { background: var(--tint, #eee); }
+.matrix td.mx-act { cursor: pointer; }
+.mxbtn { border: 1px solid var(--grid); background: var(--surface-1); border-radius: 6px; font-size: 12px; padding: 1px 7px; cursor: pointer; flex-shrink: 0; }
+
 /* mobile-only groups + matrix mobile cards */
 .mobile-only { display: none; }
 .matrix-cards { display: none; }
@@ -431,13 +438,10 @@ footer a { color: var(--muted); }
     <div class="stagebar-legend" id="stagelegend"></div>
   </div>
 
-  <div class="filters" id="filters">
-    <input id="search" type="search" placeholder="חיפוש…">
-  </div>
-
-  <details class="prio-panel desktop-only" style="--panel-accent:var(--blue)">
+  <details class="prio-panel desktop-only" data-pgk="native" style="--panel-accent:var(--blue)">
   <summary>📱 אפליקציות נייטיב</summary>
   <div class="section-sub">המוצרים העיקריים · אתר השיווק של כל אפליקציה משויך אליה</div>
+  <div class="filters" id="filters"><input id="search" type="search" placeholder="חיפוש / סינון אפליקציות…"></div>
   <div class="tablecard">
     <div class="scrollx">
       <table>
@@ -451,7 +455,7 @@ footer a { color: var(--muted); }
   </div>
   </details>
 
-  <details class="prio-panel desktop-only" id="webTitle" style="--panel-accent:var(--aqua)">
+  <details class="prio-panel desktop-only" data-pgk="web" id="webTitle" style="--panel-accent:var(--aqua)">
   <summary>🌐 פרויקטי ווב עצמאיים</summary>
   <div class="section-sub">פרויקטים שאינם אתרי שיווק של אפליקציית נייטיב · רפרנס בלבד</div>
   <div class="tablecard">
@@ -466,7 +470,7 @@ footer a { color: var(--muted); }
   </div>
   </details>
 
-  <details class="prio-panel desktop-only" style="--panel-accent:var(--muted)">
+  <details class="prio-panel desktop-only" data-pgk="legacy" style="--panel-accent:var(--muted)">
   <summary>🗂️ אחר / Legacy</summary>
   <div class="tablecard">
     <div class="scrollx">
@@ -480,18 +484,19 @@ footer a { color: var(--muted); }
   </div>
   </details>
 
-  <details class="prio-panel mobile-only" style="--panel-accent:var(--blue)">
+  <details class="prio-panel mobile-only" data-pgk="cards" style="--panel-accent:var(--blue)">
   <summary>📱 האפליקציות — נייטיב · ווב · אחר</summary>
+  <div class="filters"><input id="searchM" type="search" placeholder="חיפוש / סינון אפליקציות…"></div>
   <div class="cards" id="cards"></div>
   </details>
 
-  <details class="prio-panel" style="--panel-accent:#d2691e">
+  <details class="prio-panel" data-pgk="skills" style="--panel-accent:#d2691e">
   <summary>🛠️ קטלוג הסקילים</summary>
   <div class="section-sub">סקילים לשימוש חוזר בין אפליקציות — הדרך היחידה המותרת לשיתוף ידע בין פרויקטים</div>
   <div class="skillgrid" id="skillsGrid"></div>
   </details>
 
-  <details class="prio-panel" style="--panel-accent:#8e44ad">
+  <details class="prio-panel" data-pgk="matrix" style="--panel-accent:#8e44ad">
   <summary>🧩 מטריצת הטמעה — אפליקציות נייטיב × סקילים</summary>
   <div class="tablecard mx-desktop">
     <div class="scrollx">
@@ -505,9 +510,9 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.3.0'</script>
+<script>window.ERZA_DEPLOY_VER='1.4.0'</script>
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=d210f785"></script>
+<script src="data.enc.js?v=ce6250fd"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -645,6 +650,9 @@ function boot(D, locked) {
       fDiv.appendChild(b);
     });
   document.getElementById('search').oninput = e => { fText = e.target.value.trim().toLowerCase(); render(); };
+  // mobile clone (inside the cards panel) drives the same filter
+  const sm = document.getElementById('searchM');
+  if (sm) sm.oninput = e => { fText = e.target.value.trim().toLowerCase(); const d = document.getElementById('search'); if (d) d.value = e.target.value; render(); };
   const match = a =>
     (fStage === 'all' || a.stage === fStage) &&
     (!fText || [a.name, a.displayName, a.product, a.purpose, a.purposeHe, a.marketingSite].join(' ').toLowerCase().includes(fText));
@@ -781,22 +789,27 @@ function boot(D, locked) {
       skillNames.map(n => `<th class="rot"><div>${esc(n)}</div></th>`).join('') + '</tr></thead><tbody>' +
       natives.map(a => {
         const cells = skillNames.map(n => {
-          const st = (a.skills || []).find(s => s.skill === n)?.status || 'absent';
+          const row = (a.skills || []).find(s => s.skill === n) || {};
+          const st = row.status || 'absent';
           const [sym, cls, he] = MSYM[st] || MSYM.absent;
-          return `<td class="${cls}" title="${esc(a.name)} · ${esc(n)}: ${he}">${sym}</td>`;
+          const meta = (row.doneAt ? ' · בוצע ' + row.doneAt : '') + (row.version ? ' · v' + row.version : '') + (row.build ? ' · build ' + row.build : '');
+          return `<td class="${cls} mx-act" data-app="${esc(a.name)}" data-skill="${esc(n)}" title="${esc(a.name)} · ${esc(n)}: ${he}${esc(meta)}\nלחיצה: ביצוע מחדש / משימה חלקית">${sym}</td>`;
         }).join('');
         return `<tr><td class="appcol">${esc(a.displayName || a.name)}</td>${cells}</tr>`;
       }).join('') + '</tbody>';
     // mobile: the rotated wide table is unusable on a phone — stacked per-app cards instead
     const mcEl = document.getElementById('matrixCards');
     if (mcEl) mcEl.innerHTML = natives.map(a => `<div class="mx-card"><div class="mx-app">${esc(a.displayName || a.name)}</div>${
-      skillNames.map(n => { const st = (a.skills || []).find(s => s.skill === n)?.status || 'absent';
+      skillNames.map(n => { const row = (a.skills || []).find(s => s.skill === n) || {}; const st = row.status || 'absent';
         const [sym, cls, he] = MSYM[st] || MSYM.absent;
-        return `<div class="mx-row"><span class="sym ${cls}">${sym}</span><span>${esc(n)}</span><span class="cat">· ${he}</span></div>`; }).join('')
+        const meta = (row.doneAt ? ' · ' + row.doneAt : '') + (row.version ? ' · v' + row.version : '') + (row.build ? ' · b' + row.build : '');
+        return `<div class="mx-row"><span class="sym ${cls}">${sym}</span><span style="flex:1;min-width:0">${esc(n)}<span class="cat"> · ${he}${esc(meta)}</span></span><button type="button" class="mxbtn" data-app="${esc(a.name)}" data-skill="${esc(n)}">⚙️</button></div>`; }).join('')
     }</div>`).join('');
   } else {
     document.getElementById('matrixTable').outerHTML = '<div style="padding:14px;font-size:13px;color:var(--muted)">אין נתונים להצגה</div>';
   }
+
+  document.querySelectorAll('.mx-act, .mxbtn').forEach(el => { el.onclick = () => matrixAction(el.dataset.app, el.dataset.skill).catch(() => alert('שגיאה — נסה שוב')); });
 
   mrInit();
 }
@@ -1369,6 +1382,9 @@ async function mrTick() {
       const up = await gh('registry/user_priorities.json');
       mrPrios = up.tasks || {}; mrAppRanks = up.apps || {};
     } catch { /* אין קובץ עדיפויות עדיין */ }
+    try { mrLayout = await gh('registry/ui_layout.json') || {}; } catch { mrLayout = {}; }
+    try { mrGlobals = await gh('registry/global_tasks.json') || { tasks: [] }; } catch { mrGlobals = { tasks: [] }; }
+    applyPageOrder(); injectMoveButtons('#main > details[data-pgk]');
     try {
       const meta = await gh('registry/approvals.json', undefined, { headers: { Accept: 'application/vnd.github+json' } });
       mrApprovalsSha = meta.sha;
