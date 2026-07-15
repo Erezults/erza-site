@@ -507,7 +507,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.3.0'</script>
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=55bad564"></script>
+<script src="data.enc.js?v=d210f785"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -806,6 +806,68 @@ const ICONV = (window.ERZA_ICONV || '1');
 const GH = { owner: 'Erezults', repo: 'ERZA_Orchestrator' };
 const pat = () => localStorage.getItem('erza-pat') || '';
 let mrPrios = {}, mrAppRanks = {}, mrDirty = false, mrLastLive = null, mrApprovals = { items: [] }, mrApprovalsSha = null, mrInstr = { items: [] };
+let mrLayout = {}, mrGlobals = { tasks: [] };
+
+/* item 2 — panel order editing: ▲▼ on every panel; order persists to registry/ui_layout.json */
+async function saveLayout() {
+  const mr = [...document.querySelectorAll('#mrBody details[data-mrk]')].map(d => d.dataset.mrk);
+  const page = [...document.querySelectorAll('#main > details[data-pgk]')].map(d => d.dataset.pgk);
+  mrLayout = { ...mrLayout, mr, page, updatedAt: new Date().toISOString() };
+  let sha; try { sha = (await gh('registry/ui_layout.json', undefined, { headers: { Accept: 'application/vnd.github+json' } })).sha; } catch {}
+  await gh('registry/ui_layout.json', undefined, { method: 'PUT', body: JSON.stringify({ message: 'סדר תצוגה מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
+    content: btoa(unescape(encodeURIComponent(JSON.stringify(mrLayout, null, 2)))) }) });
+}
+function movePanel(el, dir) {
+  const sib = dir < 0 ? el.previousElementSibling : el.nextElementSibling;
+  const ok = sib && ((el.dataset.mrk && sib.matches('details[data-mrk]')) || (el.dataset.pgk && sib.matches('details[data-pgk]')));
+  if (!ok) return;
+  dir < 0 ? sib.before(el) : sib.after(el);
+  clearTimeout(movePanel._t); movePanel._t = setTimeout(() => saveLayout().catch(() => {}), 800);
+}
+function injectMoveButtons(scope) {
+  document.querySelectorAll(scope || '#mrBody details[data-mrk], #main > details[data-pgk]').forEach(d => {
+    const sum = d.querySelector('summary');
+    if (!sum || sum.querySelector('.mvbtns')) return;
+    const sp = document.createElement('span'); sp.className = 'mvbtns';
+    sp.innerHTML = '<button type="button" data-mv="-1" title="הזז מעלה">▲</button><button type="button" data-mv="1" title="הזז מטה">▼</button>';
+    sp.querySelectorAll('button').forEach(b => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); movePanel(d, +b.dataset.mv); });
+    sum.appendChild(sp);
+  });
+}
+function applyPageOrder() {
+  const want = Array.isArray(mrLayout.page) ? mrLayout.page : [];
+  const els = [...document.querySelectorAll('#main > details[data-pgk]')];
+  if (!els.length || !want.length) return;
+  const anchor = els[0];
+  const sorted = [...els].sort((a, b) => {
+    const ia = want.indexOf(a.dataset.pgk), ib = want.indexOf(b.dataset.pgk);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+  let ref = anchor.previousElementSibling;
+  sorted.forEach(el => { ref ? ref.after(el) : anchor.parentElement.prepend(el); ref = el; });
+}
+/* item 8 — mark a global task as requested (Erez chose to run it now) */
+async function saveGlobalRequest(gid) {
+  const cur = await gh('registry/global_tasks.json', undefined, { headers: { Accept: 'application/vnd.github+json' } });
+  const g = JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\s/g, '')))));
+  const t = (g.tasks || []).find(x => x.id === gid); if (!t) throw new Error('not found');
+  t.status = 'requested'; t.requestedAt = new Date().toISOString(); g.updatedAt = t.requestedAt;
+  await gh('registry/global_tasks.json', undefined, { method: 'PUT', body: JSON.stringify({ message: 'הפעלת משימה גלובלית מהדשבורד', branch: 'main', sha: cur.sha,
+    content: btoa(unescape(encodeURIComponent(JSON.stringify(g, null, 2)))) }) });
+  mrGlobals = g;
+}
+/* item 6b — interactive matrix: full re-run or explicit-instruction partial task */
+async function matrixAction(app, skill) {
+  const full = confirm(app + ' · ' + skill + '\n\nOK = ביצוע מחדש מלא של הסקיל\nביטול = משימה חלקית לפי הוראה שלך');
+  let instruction = '';
+  if (!full) { instruction = (prompt('מה בדיוק לבדוק / לממש (הוראה מפורשת למשימה החלקית):') || '').trim(); if (!instruction) return; }
+  const cur = await gh('registry/matrix_requests.json', undefined, { headers: { Accept: 'application/vnd.github+json' } });
+  const m = JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\s/g, '')))));
+  (m.requests = m.requests || []).push({ id: Date.now(), ts: new Date().toISOString(), app, skill, mode: full ? 'full' : 'partial', instruction, status: 'new' });
+  await gh('registry/matrix_requests.json', undefined, { method: 'PUT', body: JSON.stringify({ message: 'בקשת מטריצה מהדשבורד', branch: 'main', sha: cur.sha,
+    content: btoa(unescape(encodeURIComponent(JSON.stringify(m, null, 2)))) }) });
+  alert('נקלט ✓ — משימה תיווצר ותשובץ תוך ~5 דקות');
+}
 
 async function gh(pathName, ref, opts = {}) {
   const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${pathName}${ref ? `?ref=${ref}` : ''}`;
@@ -1123,27 +1185,43 @@ function mrRender(live) {
   </details>` : `<details class="prio-panel" data-mrk="rel" style="--panel-accent:#d2691e"><summary>📤 היסטוריית דחיפות OTA/Build — עדיין ריק (טרם נדחפו גרסאות)</summary>
     <div class="mr-setup" style="margin-top:8px">אף OTA/בילד לא בוצע עדיין. כל הפיקסים קיימים כ-commit מקומי בלבד — הגרסאות לא עלו. משימות ה-OTA בתור יבצעו דחיפה ל-dev וירשמו כאן את הגרסה המדויקת שנוצרה.</div></details>`;
 
-  const inboxHtml = `<div class="inbox">
-    <div class="section-sub" style="margin:0 0 6px">✉️ הוראה חופשית ל־ERZA — כתוב מה שתרצה, אני אפצל למשימות ואבצע לפי הכללים</div>
+  const inboxHtml = `<details class="prio-panel" data-mrk="inbox" style="--panel-accent:#2a9d8f"><summary>✉️ הוראה חופשית ל־ERZA</summary><div class="inbox" style="border-top:none;margin-top:0;padding-top:6px">
+    <div class="section-sub" style="margin:0 0 6px">כתוב מה שתרצה — אני אפצל למשימות ואבצע לפי הכללים</div>
     <textarea id="inboxText" placeholder="לדוגמה: תעצור הכל ב-Coin ותתמקד בהגשת Fundiva עוד היום…"></textarea>
     <div class="files" style="margin-top:6px"><input type="file" id="inboxFiles" multiple> 📎 אפשר לצרף מדיה/קבצים להוראה (נשמר בארכיון ומצורף להוראה)</div>
     <div class="row"><button id="inboxSend">📨 שלח ל־ERZA</button><span class="ok" id="inboxOk"></span></div>
-  </div>`;
+  </div></details>`;
 
   // Section order (Erez 2026-07-14): review-desk FIRST, then live work, then controls;
   // low-importance archives (push history, decided items, instruction archive) at the BOTTOM.
   // keep whatever Erez opened OPEN across the periodic re-render (session-only; a page
   // load/refresh starts everything collapsed, per his default-collapsed rule)
   const mrOpenKeys = new Set([...document.querySelectorAll('#mrBody details[data-mrk][open]')].map(d => d.dataset.mrk));
-  document.getElementById('mrBody').innerHTML =
-    erzaLine +
-    `<div class="mr-accounts">${accs}</div>` +
-    apprHtml +
-    `<details class="prio-panel" data-mrk="run" style="--panel-accent:#d63384"><summary>▶️ מבוצע כעת — פר אפליקציה</summary><div style="margin-top:8px">` + runningHtml + `</div></details>` +
-    queuePanel + ranksHtml + inboxHtml +
-    `<div class="section-sub" style="margin:18px 0 4px;opacity:.7">🗄️ ארכיונים והיסטוריה</div>` +
-    relHtml + archHtml + instrHtml;
+  const accPanel = `<details class="prio-panel" data-mrk="acc" style="--panel-accent:#607d8b"><summary>👥 חשבונות — ניצול ומצב</summary><div class="mr-accounts" style="margin-top:8px">${accs}</div></details>`;
+  // item 8 — Erez's global tasks: he decides WHEN each runs (🚀 sets requested; ERZA executes)
+  const globPanel = `<details class="prio-panel" data-mrk="glob" style="--panel-accent:#c2185b"><summary>🌍 משימות גלובליות — ${(mrGlobals.tasks || []).filter(t => t.status === 'available').length} זמינות להפעלה</summary>
+    <div style="margin-top:8px">${(mrGlobals.tasks || []).map(t => `<div class="appr-item" style="padding:10px">
+      <div class="appr-title"><b>${esc(t.title)}</b></div>
+      <div class="section-sub" style="margin:4px 0">${esc(t.desc || '')}</div>
+      ${t.status === 'available' ? `<button class="btn-approve globrun" data-gid="${esc(t.id)}">🚀 הפעל עכשיו</button>`
+        : t.status === 'requested' ? `<span class="mdl" style="--bc:var(--yellow)">⏳ הופעל — ERZA מבצעת בסבב הקרוב</span>`
+        : t.status === 'running' ? `<span class="mdl" style="--bc:var(--blue)">🔄 רץ עכשיו</span>`
+        : `<span class="mdl" style="--bc:var(--green)">✓ בוצע${t.doneAt ? ' · ' + esc(String(t.doneAt).slice(0, 10)) : ''}</span>`}
+    </div>`).join('') || '<div class="mr-setup">אין משימות גלובליות מוגדרות</div>'}</div></details>`;
+  const runPanel = `<details class="prio-panel" data-mrk="run" style="--panel-accent:#d63384"><summary>▶️ מבוצע כעת — פר אפליקציה</summary><div style="margin-top:8px">` + runningHtml + `</div></details>`;
+  // item 2 — Erez's saved panel order (registry/ui_layout.json), unknown keys appended
+  const PANELS = { appr: apprHtml, glob: globPanel, acc: accPanel, run: runPanel, queue: queuePanel, ranks: ranksHtml, inbox: inboxHtml, rel: relHtml, arch: archHtml, instr: instrHtml };
+  const DEF_ORDER = ['appr', 'glob', 'acc', 'run', 'queue', 'ranks', 'inbox', 'rel', 'arch', 'instr'];
+  const order = [...(Array.isArray(mrLayout.mr) ? mrLayout.mr : [])].filter(k => k in PANELS);
+  DEF_ORDER.forEach(k => { if (!order.includes(k)) order.push(k); });
+  document.getElementById('mrBody').innerHTML = erzaLine + order.map(k => PANELS[k] || '').join('');
   document.querySelectorAll('#mrBody details[data-mrk]').forEach(d => { if (mrOpenKeys.has(d.dataset.mrk)) d.open = true; });
+  injectMoveButtons();
+  document.querySelectorAll('#mrBody .globrun').forEach(b => { b.onclick = async (e) => {
+    e.preventDefault(); b.disabled = true; b.textContent = 'שולח…';
+    try { await saveGlobalRequest(b.dataset.gid); b.textContent = '⏳ הופעל'; }
+    catch { b.textContent = 'שגיאה — נסה שוב'; b.disabled = false; }
+  }; });
   bindApprovals();
 
   document.querySelectorAll('#mrBody .stopbtn').forEach(b => {
