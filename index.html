@@ -170,6 +170,15 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 #mrBody .cat, #mrBody .refid { overflow-wrap: anywhere; word-break: break-word; }
 .prio-panel, .appr-item, .mr-app, #machineRoom { max-width: 100%; overflow-x: clip; }
 .mr-task { flex-wrap: wrap; }
+/* blinking running-app icons on the collapsed "מבוצע כעת" summary */
+.run-now { display: inline-flex; align-items: center; gap: 2px; margin-inline-start: 6px; vertical-align: middle; }
+.run-now .appicon { width: 20px; height: 20px; border-radius: 5px; vertical-align: middle; margin-inline-end: 2px; }
+.run-blink { display: inline-flex; animation: runblink 1.15s ease-in-out infinite; }
+.run-blink:nth-child(2) { animation-delay: .2s; } .run-blink:nth-child(3) { animation-delay: .4s; }
+.run-blink:nth-child(4) { animation-delay: .6s; } .run-blink:nth-child(5) { animation-delay: .8s; }
+@keyframes runblink { 0%, 100% { opacity: 1; } 50% { opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .run-blink { animation: none; } }
+
 /* panel move buttons (item 2) */
 .mvbtns { float: left; display: inline-flex; gap: 3px; margin-inline-start: 8px; }
 .mvbtns button { border: 1px solid var(--grid); background: var(--surface-1); border-radius: 5px; font-size: 10px; line-height: 1.5; padding: 0 6px; cursor: pointer; color: var(--ink-2); }
@@ -526,9 +535,9 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.5.1'</script>
+<script>window.ERZA_DEPLOY_VER='1.5.2'</script>
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=e7230059"></script>
+<script src="data.enc.js?v=cdaa2f20"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1258,7 +1267,11 @@ function mrRender(live) {
         : t.status === 'running' ? `<span class="mdl" style="--bc:var(--blue)">🔄 רץ עכשיו</span>`
         : `<span class="mdl" style="--bc:var(--green)">✓ בוצע${t.doneAt ? ' · ' + esc(String(t.doneAt).slice(0, 10)) : ''}</span>`}
     </div>`).join('') || '<div class="mr-setup">אין משימות גלובליות מוגדרות</div>'}</div></details>`;
-  const runPanel = `<details class="prio-panel" data-mrk="run" style="--panel-accent:#1baf7a"><summary>▶️ מבוצע כעת — פר אפליקציה</summary><div style="margin-top:8px">` + runningHtml + `</div></details>`;
+  // apps with active work BLINK on the summary line — visible while the panel is collapsed
+  const runningApps = sortedApps.filter(([, d]) => d.running).map(([app]) => app);
+  const runPanel = `<details class="prio-panel" data-mrk="run" style="--panel-accent:#1baf7a"><summary>▶️ מבוצע כעת${runningApps.length
+    ? ` · ${runningApps.length} <span class="run-now">${runningApps.map(app => `<span class="run-blink" title="${esc(app)} — בעבודה">${icon(app)}</span>`).join('')}</span>`
+    : ' — אין עבודה רצה'}</summary><div style="margin-top:8px">` + runningHtml + `</div></details>`;
   // item 2 — Erez's saved panel order (registry/ui_layout.json), unknown keys appended
   const PANELS = { appr: apprHtml, glob: globPanel, acc: accPanel, run: runPanel, queue: queuePanel, ranks: ranksHtml, inbox: inboxHtml, rel: relHtml, arch: archHtml, instr: instrHtml };
   const DEF_ORDER = ['appr', 'glob', 'acc', 'run', 'queue', 'ranks', 'inbox', 'rel', 'arch', 'instr'];
