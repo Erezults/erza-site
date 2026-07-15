@@ -170,6 +170,19 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 #mrBody .cat, #mrBody .refid { overflow-wrap: anywhere; word-break: break-word; }
 .prio-panel, .appr-item, .mr-app, #machineRoom { max-width: 100%; overflow-x: clip; }
 .mr-task { flex-wrap: wrap; }
+/* mobile-only groups + matrix mobile cards */
+.mobile-only { display: none; }
+.matrix-cards { display: none; }
+.mx-card { border: 1px solid var(--grid); border-radius: 10px; padding: 10px 12px; margin: 8px 0; background: var(--surface-1); }
+.mx-card .mx-app { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+.mx-card .mx-row { display: flex; gap: 8px; align-items: baseline; font-size: 13px; padding: 2px 0; }
+.mx-card .mx-row .sym { width: 18px; text-align: center; flex-shrink: 0; }
+@media (max-width: 760px) {
+  .mobile-only { display: block; }
+  .mx-desktop { display: none; }
+  .matrix-cards { display: block; }
+}
+
 /* pushrow badges are full sentences — they always wrap (the version pill stays short) */
 .pushrow .mdl, .appr-tags .mdl { white-space: normal; line-height: 1.45; }
 @media (max-width: 640px) {
@@ -422,9 +435,10 @@ footer a { color: var(--muted); }
     <input id="search" type="search" placeholder="חיפוש…">
   </div>
 
-  <div class="section-title desktop-only">📱 אפליקציות נייטיב</div>
-  <div class="section-sub desktop-only">המוצרים העיקריים · אתר השיווק של כל אפליקציה משויך אליה</div>
-  <div class="tablecard desktop-only">
+  <details class="prio-panel desktop-only" style="--panel-accent:var(--blue)">
+  <summary>📱 אפליקציות נייטיב</summary>
+  <div class="section-sub">המוצרים העיקריים · אתר השיווק של כל אפליקציה משויך אליה</div>
+  <div class="tablecard">
     <div class="scrollx">
       <table>
         <thead><tr>
@@ -435,10 +449,12 @@ footer a { color: var(--muted); }
       </table>
     </div>
   </div>
+  </details>
 
-  <div class="section-title desktop-only" id="webTitle">🌐 פרויקטי ווב עצמאיים</div>
-  <div class="section-sub desktop-only">פרויקטים שאינם אתרי שיווק של אפליקציית נייטיב</div>
-  <div class="tablecard desktop-only">
+  <details class="prio-panel desktop-only" id="webTitle" style="--panel-accent:var(--aqua)">
+  <summary>🌐 פרויקטי ווב עצמאיים</summary>
+  <div class="section-sub">פרויקטים שאינם אתרי שיווק של אפליקציית נייטיב · רפרנס בלבד</div>
+  <div class="tablecard">
     <div class="scrollx">
       <table>
         <thead><tr>
@@ -448,9 +464,11 @@ footer a { color: var(--muted); }
       </table>
     </div>
   </div>
+  </details>
 
-  <div class="section-title desktop-only">🗂️ אחר / Legacy</div>
-  <div class="tablecard desktop-only">
+  <details class="prio-panel desktop-only" style="--panel-accent:var(--muted)">
+  <summary>🗂️ אחר / Legacy</summary>
+  <div class="tablecard">
     <div class="scrollx">
       <table>
         <thead><tr>
@@ -460,27 +478,36 @@ footer a { color: var(--muted); }
       </table>
     </div>
   </div>
+  </details>
 
+  <details class="prio-panel mobile-only" style="--panel-accent:var(--blue)">
+  <summary>📱 האפליקציות — נייטיב · ווב · אחר</summary>
   <div class="cards" id="cards"></div>
+  </details>
 
-  <div class="section-title">🛠️ קטלוג הסקילים</div>
+  <details class="prio-panel" style="--panel-accent:#d2691e">
+  <summary>🛠️ קטלוג הסקילים</summary>
   <div class="section-sub">סקילים לשימוש חוזר בין אפליקציות — הדרך היחידה המותרת לשיתוף ידע בין פרויקטים</div>
   <div class="skillgrid" id="skillsGrid"></div>
+  </details>
 
-  <div class="section-title">🧩 מטריצת הטמעה — אפליקציות נייטיב × סקילים</div>
-  <div class="tablecard">
+  <details class="prio-panel" style="--panel-accent:#8e44ad">
+  <summary>🧩 מטריצת הטמעה — אפליקציות נייטיב × סקילים</summary>
+  <div class="tablecard mx-desktop">
     <div class="scrollx">
       <table class="matrix" id="matrixTable"></table>
     </div>
   </div>
+  <div id="matrixCards" class="matrix-cards"></div>
   <div class="legendline">✓ הוטמע &nbsp;·&nbsp; ◐ חלקי &nbsp;·&nbsp; ✗ לא הוטמע &nbsp;·&nbsp; — לא רלוונטי</div>
+  </details>
 
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.2.5'</script>
+<script>window.ERZA_DEPLOY_VER='1.3.0'</script>
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=47582a1b"></script>
+<script src="data.enc.js?v=88480b03"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -760,6 +787,13 @@ function boot(D, locked) {
         }).join('');
         return `<tr><td class="appcol">${esc(a.displayName || a.name)}</td>${cells}</tr>`;
       }).join('') + '</tbody>';
+    // mobile: the rotated wide table is unusable on a phone — stacked per-app cards instead
+    const mcEl = document.getElementById('matrixCards');
+    if (mcEl) mcEl.innerHTML = natives.map(a => `<div class="mx-card"><div class="mx-app">${esc(a.displayName || a.name)}</div>${
+      skillNames.map(n => { const st = (a.skills || []).find(s => s.skill === n)?.status || 'absent';
+        const [sym, cls, he] = MSYM[st] || MSYM.absent;
+        return `<div class="mx-row"><span class="sym ${cls}">${sym}</span><span>${esc(n)}</span><span class="cat">· ${he}</span></div>`; }).join('')
+    }</div>`).join('');
   } else {
     document.getElementById('matrixTable').outerHTML = '<div style="padding:14px;font-size:13px;color:var(--muted)">אין נתונים להצגה</div>';
   }
@@ -919,7 +953,7 @@ function mrRender(live) {
   const icon = app => `<img class="appicon" src="icons/${esc(app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
   const orderedApps = [...(live.nativeApps || [])].sort((a, b) => (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99));
   const ranksHtml = orderedApps.length
-    ? `<details class="prio-panel" style="--panel-accent:var(--aqua)"><summary>🎯 סדר עדיפויות בין האפליקציות — לחץ לפתיחה וסדר מהחשובה ביותר לנמוכה</summary>
+    ? `<details class="prio-panel" data-mrk="ranks" style="--panel-accent:var(--aqua)"><summary>🎯 סדר עדיפויות בין האפליקציות — לחץ לפתיחה וסדר מהחשובה ביותר לנמוכה</summary>
        <ul id="appOrder">${orderedApps.map((app, i) => `<li draggable="true" data-app="${esc(app)}">
          <span class="rank-num">${i + 1}</span>${icon(app)}<span class="nm">${esc(app)}</span>
          <span class="mv"><button class="up" title="העלה">▲</button><button class="dn" title="הורד">▼</button></span>
@@ -939,7 +973,7 @@ function mrRender(live) {
 
   // מכווץ: תור המשימות + תוצאות אחרונות פר אפליקציה
   const queuedTotal = sortedApps.reduce((n, [, d]) => n + d.queued.length, 0);
-  const queuePanel = queuedTotal ? `<details class="prio-panel" style="--panel-accent:var(--blue)">
+  const queuePanel = queuedTotal ? `<details class="prio-panel" data-mrk="queue" style="--panel-accent:var(--blue)">
     <summary>🗂️ תור המשימות לפי אפליקציה — ${queuedTotal} ממתינות (כאן קובעים עדיפות/עצירה לכל משימה)</summary>
     <div style="margin-top:8px">${sortedApps.filter(([, d]) => d.queued.length || d.recent.length).map(([app, d]) =>
       `<div class="mr-app"><h3>${icon(app)}${esc(app)} ${mrAppRanks[app] ? `<span class="cat">· עדיפות ${mrAppRanks[app]}</span>` : ''}</h3>
@@ -1034,7 +1068,7 @@ function mrRender(live) {
   const awaitItems = (mrApprovals.items || []).filter(i => i.status === 'awaiting-deploy');
   const awaitByApp = {};
   for (const it of awaitItems) (awaitByApp[it.app] ??= []).push(it);
-  const awaitHtml = awaitItems.length ? `<details class="prio-panel" style="--panel-accent:var(--yellow)">
+  const awaitHtml = awaitItems.length ? `<details class="prio-panel" data-mrk="await" style="--panel-accent:var(--yellow)">
     <summary>⏳ ממתין לדחיפת OTA — ${awaitItems.length} תיקונים מוכנים (commit מקומי) שהגרסה עוד לא עלתה עליהם. לא ניתן לבדוק עד שיידחפו ל-dev</summary>
     <div style="margin-top:8px">${Object.entries(awaitByApp)
       .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
@@ -1045,20 +1079,20 @@ function mrRender(live) {
   const archItems = (mrApprovals.items || []).filter(isArchived);
   const archByApp = {};
   for (const it of archItems) (archByApp[it.app] ??= []).push(it);
-  const archHtml = archItems.length ? `<details class="prio-panel" style="--panel-accent:var(--muted)">
+  const archHtml = archItems.length ? `<details class="prio-panel" data-mrk="arch" style="--panel-accent:var(--muted)">
     <summary>🗄️ ארכיון — ${archItems.length} פריטים שטופלו (לפי אפליקציה)</summary>
     <div style="margin-top:8px">${Object.entries(archByApp)
       .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
       .map(([app, items]) => `<details style="margin:6px 0"><summary>${icon(app)}${esc(app)} · ${items.length}</summary>
         <div style="margin-top:8px">${items.map(apprItemHtml).join('')}</div></details>`).join('')}</div>
   </details>` : '';
-  const apprHtml = `<details class="prio-panel" style="--panel-accent:var(--green)" ${pendItems.length ? 'open' : ''}>
+  const apprHtml = `<details class="prio-panel" data-mrk="appr" style="--panel-accent:var(--green)">
     <summary>✅ לבדיקתך — ${pendItems.length ? pendItems.length + ' נדחפו ל-dev ומוכנים לבדיקה' : 'אין כרגע (שום דבר לא נדחף ל-dev עדיין)'}</summary>
     <div style="margin-top:10px">${pendItems.length ? pendItems.map(apprItemHtml).join('') : '<div class="mr-setup">שורות יופיעו כאן רק אחרי שהתיקון נדחף ל-dev והגרסה עלתה — אז אפשר לבדוק על האפליקציה.</div>'}</div>
   </details>` + awaitHtml;
 
   const taskName = id => { for (const d of Object.values(live.apps || {})) { const all = [...(d.queued || []), ...(d.recent || []), d.running].filter(Boolean); const f = all.find(t => t.id === id); if (f) return f.title; } return id; };
-  const instrHtml = (mrInstr.items || []).length ? `<details class="prio-panel" style="margin-top:12px;--panel-accent:#8e44ad">
+  const instrHtml = (mrInstr.items || []).length ? `<details class="prio-panel" data-mrk="instr" style="margin-top:12px;--panel-accent:#8e44ad">
     <summary>🗄️ ארכיון ההוראות שלך — ${mrInstr.items.length} (כולל ההתייחסות של ERZA)</summary>
     <div style="margin-top:8px">${[...mrInstr.items].reverse().map(it => `
       <div class="instr-item">
@@ -1075,7 +1109,7 @@ function mrRender(live) {
   const rels = live.releases || [];
   const relByApp = {};
   for (const r of rels) (relByApp[r.app] ??= []).push(r);
-  const relHtml = rels.length ? `<details class="prio-panel" style="--panel-accent:#d2691e">
+  const relHtml = rels.length ? `<details class="prio-panel" data-mrk="rel" style="--panel-accent:#d2691e">
     <summary>📤 היסטוריית דחיפות OTA/Build — ${rels.length} (לפי אפליקציה, מהחדש לישן)</summary>
     <div style="margin-top:8px">${Object.entries(relByApp)
       .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
@@ -1086,7 +1120,7 @@ function mrRender(live) {
           ${(r.refIds || []).length ? ` · <span class="cat">${esc(r.refIds.join(', '))}</span>` : ''}
           ${r.prodRisk ? ` · <span class="cat">סיכון: ${esc(r.prodRisk)}</span>` : ''}</div>`).join('')}
       </div>`).join('')}</div>
-  </details>` : `<details class="prio-panel" style="--panel-accent:#d2691e"><summary>📤 היסטוריית דחיפות OTA/Build — עדיין ריק (טרם נדחפו גרסאות)</summary>
+  </details>` : `<details class="prio-panel" data-mrk="rel" style="--panel-accent:#d2691e"><summary>📤 היסטוריית דחיפות OTA/Build — עדיין ריק (טרם נדחפו גרסאות)</summary>
     <div class="mr-setup" style="margin-top:8px">אף OTA/בילד לא בוצע עדיין. כל הפיקסים קיימים כ-commit מקומי בלבד — הגרסאות לא עלו. משימות ה-OTA בתור יבצעו דחיפה ל-dev וירשמו כאן את הגרסה המדויקת שנוצרה.</div></details>`;
 
   const inboxHtml = `<div class="inbox">
@@ -1098,14 +1132,18 @@ function mrRender(live) {
 
   // Section order (Erez 2026-07-14): review-desk FIRST, then live work, then controls;
   // low-importance archives (push history, decided items, instruction archive) at the BOTTOM.
+  // keep whatever Erez opened OPEN across the periodic re-render (session-only; a page
+  // load/refresh starts everything collapsed, per his default-collapsed rule)
+  const mrOpenKeys = new Set([...document.querySelectorAll('#mrBody details[data-mrk][open]')].map(d => d.dataset.mrk));
   document.getElementById('mrBody').innerHTML =
     erzaLine +
     `<div class="mr-accounts">${accs}</div>` +
     apprHtml +
-    `<details class="prio-panel" style="--panel-accent:#d63384" open><summary>▶️ מבוצע כעת — פר אפליקציה</summary><div style="margin-top:8px">` + runningHtml + `</div></details>` +
+    `<details class="prio-panel" data-mrk="run" style="--panel-accent:#d63384"><summary>▶️ מבוצע כעת — פר אפליקציה</summary><div style="margin-top:8px">` + runningHtml + `</div></details>` +
     queuePanel + ranksHtml + inboxHtml +
     `<div class="section-sub" style="margin:18px 0 4px;opacity:.7">🗄️ ארכיונים והיסטוריה</div>` +
     relHtml + archHtml + instrHtml;
+  document.querySelectorAll('#mrBody details[data-mrk]').forEach(d => { if (mrOpenKeys.has(d.dataset.mrk)) d.open = true; });
   bindApprovals();
 
   document.querySelectorAll('#mrBody .stopbtn').forEach(b => {
