@@ -170,6 +170,11 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 #mrBody .cat, #mrBody .refid { overflow-wrap: anywhere; word-break: break-word; }
 .prio-panel, .appr-item, .mr-app, #machineRoom { max-width: 100%; overflow-x: clip; }
 .mr-task { flex-wrap: wrap; }
+/* the free-instructions field is the ONE field that never collapses (Erez) */
+.inbox-always-open > summary { pointer-events: none; }
+.inbox-always-open > summary .mvbtns { pointer-events: auto; }
+.inbox-always-open > summary::-webkit-details-marker, .inbox-always-open > summary::marker { display: none; content: ""; }
+
 /* blinking running-app icons on the collapsed "מבוצע כעת" summary */
 .run-now { display: inline-flex; align-items: center; gap: 2px; margin-inline-start: 6px; vertical-align: middle; }
 .run-now .appicon { width: 20px; height: 20px; border-radius: 5px; vertical-align: middle; margin-inline-end: 2px; }
@@ -535,9 +540,9 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.5.2'</script>
+<script>window.ERZA_DEPLOY_VER='1.5.3'</script>
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=f946c535"></script>
+<script src="data.enc.js?v=06370cb1"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1244,7 +1249,7 @@ function mrRender(live) {
   </details>` : `<details class="prio-panel" data-mrk="rel" style="--panel-accent:#3f51b5"><summary>📤 היסטוריית דחיפות OTA/Build — עדיין ריק (טרם נדחפו גרסאות)</summary>
     <div class="mr-setup" style="margin-top:8px">אף OTA/בילד לא בוצע עדיין. כל הפיקסים קיימים כ-commit מקומי בלבד — הגרסאות לא עלו. משימות ה-OTA בתור יבצעו דחיפה ל-dev וירשמו כאן את הגרסה המדויקת שנוצרה.</div></details>`;
 
-  const inboxHtml = `<details class="prio-panel" data-mrk="inbox" style="--panel-accent:#1b6e3c"><summary>✉️ הוראה חופשית ל־ERZA</summary><div class="inbox" style="border-top:none;margin-top:0;padding-top:6px">
+  const inboxHtml = `<details class="prio-panel inbox-always-open" data-mrk="inbox" style="--panel-accent:#1b6e3c" open><summary>✉️ הוראה חופשית ל־ERZA <span class="cat">(תמיד פתוח)</span></summary><div class="inbox" style="border-top:none;margin-top:0;padding-top:6px">
     <div class="section-sub" style="margin:0 0 6px">כתוב מה שתרצה — אני אפצל למשימות ואבצע לפי הכללים</div>
     <textarea id="inboxText" placeholder="לדוגמה: תעצור הכל ב-Coin ותתמקד בהגשת Fundiva עוד היום…"></textarea>
     <div class="files" style="margin-top:6px"><input type="file" id="inboxFiles" multiple> 📎 אפשר לצרף מדיה/קבצים להוראה (נשמר בארכיון ומצורף להוראה)</div>
@@ -1278,7 +1283,7 @@ function mrRender(live) {
   const order = [...(Array.isArray(mrLayout.mr) ? mrLayout.mr : [])].filter(k => k in PANELS);
   DEF_ORDER.forEach(k => { if (!order.includes(k)) order.push(k); });
   document.getElementById('mrBody').innerHTML = erzaLine + order.map(k => PANELS[k] || '').join('');
-  document.querySelectorAll('#mrBody details[data-mrk]').forEach(d => { if (mrOpenKeys.has(d.dataset.mrk)) d.open = true; });
+  document.querySelectorAll('#mrBody details[data-mrk]').forEach(d => { if (mrOpenKeys.has(d.dataset.mrk) || d.dataset.mrk === 'inbox') d.open = true; });
   injectMoveButtons();
   document.querySelectorAll('#mrBody .globrun').forEach(b => { b.onclick = async (e) => {
     e.preventDefault(); b.disabled = true; b.textContent = 'שולח…';
