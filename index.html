@@ -517,12 +517,18 @@ footer a { color: var(--muted); }
   <div class="legendline">✓ הוטמע &nbsp;·&nbsp; ◐ חלקי &nbsp;·&nbsp; ✗ לא הוטמע &nbsp;·&nbsp; — לא רלוונטי</div>
   </details>
 
+  <details class="prio-panel" data-pgk="compat" style="--panel-accent:var(--aqua)">
+  <summary>🧬 אחידות בין האפליקציות — תאימות פונקציונלית</summary>
+  <div class="section-sub">כל נושא פונקציונלי משותף · ציון 0-5 לכל אפליקציה · המימוש הטוב ביותר בכל שורה</div>
+  <div id="compatBody"><div class="mr-setup">טוען…</div></div>
+  </details>
+
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.4.1'</script>
+<script>window.ERZA_DEPLOY_VER='1.5.0'</script>
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=5e598b99"></script>
+<script src="data.enc.js?v=494d11b9"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -879,6 +885,27 @@ async function saveGlobalRequest(gid) {
     content: btoa(unescape(encodeURIComponent(JSON.stringify(g, null, 2)))) }) });
   mrGlobals = g;
 }
+/* uniformity section — renders registry/compat_matrix.json (G2 workflow output) */
+function renderCompat(cm) {
+  const el = document.getElementById('compatBody');
+  if (!el || !cm || !Array.isArray(cm.topics) || !cm.topics.length) { throw new Error('no data'); }
+  const appsOrder = cm.apps || [...new Set(cm.topics.flatMap(t => (t.ranking || []).map(r => r.app)))];
+  const short = a => a.replace('Native', '').replace('_New', '');
+  const cell = v => v == null ? '<td class="m-n">—</td>'
+    : `<td class="${v >= 4 ? 'm-i' : v >= 2 ? 'm-p' : 'm-a'}">${v}</td>`;
+  const table = `<div class="tablecard mx-desktop"><div class="scrollx"><table class="matrix">
+    <thead><tr><th class="appcol">נושא</th>${appsOrder.map(a => `<th class="rot"><div>${esc(short(a))}</div></th>`).join('')}<th>🏆 הטוב ביותר</th></tr></thead>
+    <tbody>${cm.topics.map(t => `<tr><td class="appcol" title="${esc(t.desc || '')}">${esc(t.he || t.key)}</td>${
+      appsOrder.map(a => { const r = (t.ranking || []).find(x => x.app === a); return cell(r ? r.score : null); }).join('')
+    }<td style="white-space:nowrap;font-weight:700">${esc(short(t.best || ''))}</td></tr>`).join('')}</tbody></table></div></div>`;
+  const cards = `<div class="matrix-cards">${cm.topics.map(t => `<div class="mx-card">
+    <div class="mx-app">${esc(t.he || t.key)} · 🏆 ${esc(short(t.best || ''))}</div>
+    ${(t.ranking || []).slice().sort((a, b) => b.score - a.score).map(r =>
+      `<div class="mx-row"><span class="sym ${r.score >= 4 ? 'm-i' : r.score >= 2 ? 'm-p' : 'm-a'}">${r.score}</span><span style="flex:1;min-width:0">${esc(short(r.app))}<span class="cat">${r.gap ? ' · ' + esc(r.gap) : ''}</span></span></div>`).join('')}
+  </div>`).join('')}</div>`;
+  el.innerHTML = table + cards + (cm.updatedAt ? `<div class="legendline">עודכן: ${esc(String(cm.updatedAt).slice(0, 16).replace('T', ' '))} · המקור: G2 Workflow</div>` : '');
+}
+
 /* item 6b — interactive matrix: full re-run or explicit-instruction partial task */
 async function matrixAction(app, skill) {
   const full = confirm(app + ' · ' + skill + '\n\nOK = ביצוע מחדש מלא של הסקיל\nביטול = משימה חלקית לפי הוראה שלך');
@@ -1393,6 +1420,13 @@ async function mrTick() {
       mrPrios = up.tasks || {}; mrAppRanks = up.apps || {};
     } catch { /* אין קובץ עדיפויות עדיין */ }
     try { mrLayout = await gh('registry/ui_layout.json') || {}; } catch { mrLayout = {}; }
+    try { renderCompat(await gh('registry/compat_matrix.json')); }
+    catch { const g = (mrGlobals.tasks || []).find(t => t.id === 'G2');
+      const el = document.getElementById('compatBody');
+      if (el) el.innerHTML = '<div class="mr-setup">' + (g && g.status === 'running'
+        ? '🔄 ה-Workflow של מטריצת התאימות רץ עכשיו (22 סוכנים) — הטבלה תופיע כאן אוטומטית כשיסיים.'
+        : g && g.status === 'done' ? 'הנתונים בדרך — רענן בעוד רגע.'
+        : 'טרם הופעל — הפעל את "מטריצת תאימות" בפאנל המשימות הגלובליות בחדר המכונות.') + '</div>'; }
     try { mrGlobals = await gh('registry/global_tasks.json') || { tasks: [] }; } catch { mrGlobals = { tasks: [] }; }
     applyPageOrder(); injectMoveButtons('#main > details[data-pgk]');
     try {
