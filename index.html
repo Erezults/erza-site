@@ -175,6 +175,22 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .inbox-always-open > summary .mvbtns { pointer-events: auto; }
 .inbox-always-open > summary::-webkit-details-marker, .inbox-always-open > summary::marker { display: none; content: ""; }
 
+/* per-account model/usage cards (👥 חשבונות) */
+.mr-accounts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.acc-card { border: 1px solid var(--grid); border-radius: 10px; padding: 10px 12px; background: var(--surface-1); font-size: 12.5px; }
+.acc-card.blocked { border-color: color-mix(in srgb, var(--red) 45%, var(--grid)); }
+.acc-card .acc-head { font-size: 13px; margin-bottom: 6px; }
+.acc-meter { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.acc-meter .nm { width: 44px; color: var(--ink-2); flex-shrink: 0; }
+.acc-meter .bar { flex: 1; height: 6px; border-radius: 4px; background: color-mix(in srgb, var(--grid) 60%, transparent); overflow: hidden; min-width: 40px; }
+.acc-meter .bar i { display: block; height: 100%; background: var(--green); border-radius: 4px; }
+.acc-meter .pct { width: 34px; text-align: left; direction: ltr; font-weight: 700; flex-shrink: 0; }
+.acc-model { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; border-top: 1px dashed color-mix(in srgb, var(--grid) 70%, transparent); padding-top: 4px; }
+.acc-model .st { font-weight: 700; }
+.acc-model .st.red { color: var(--red); } .acc-model .st.green { color: var(--green); }
+.cd { font-variant-numeric: tabular-nums; direction: ltr; display: inline-block; }
+.cd-open { color: var(--green); font-weight: 700; }
+
 /* blinking running-app icons on the collapsed "מבוצע כעת" summary */
 .run-now { display: inline-flex; align-items: center; gap: 2px; margin-inline-start: 6px; vertical-align: middle; }
 .run-now .appicon { width: 20px; height: 20px; border-radius: 5px; vertical-align: middle; margin-inline-end: 2px; }
@@ -540,9 +556,9 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.5.3'</script>
+<script>window.ERZA_DEPLOY_VER='1.6.0'</script>
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=61aeb0d8"></script>
+<script src="data.enc.js?v=7381edab"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -899,6 +915,19 @@ async function saveGlobalRequest(gid) {
     content: btoa(unescape(encodeURIComponent(JSON.stringify(g, null, 2)))) }) });
   mrGlobals = g;
 }
+/* live countdown ticker — every .cd[data-until] shows time remaining, updating each second */
+if (!window._cdTimer) window._cdTimer = setInterval(() => {
+  document.querySelectorAll('.cd[data-until]').forEach(el => {
+    const t = Date.parse(el.dataset.until || '');
+    if (!t) { el.textContent = '—'; return; }
+    let d = Math.floor((t - Date.now()) / 1000);
+    if (d <= 0) { el.textContent = 'נפתח ✓'; el.classList.add('cd-open'); return; }
+    const days = Math.floor(d / 86400); d %= 86400;
+    const h = Math.floor(d / 3600), m = Math.floor(d % 3600 / 60), sec = d % 60;
+    el.textContent = (days ? days + ' ימ׳ ' : '') + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+  });
+}, 1000);
+
 /* uniformity section — renders registry/compat_matrix.json (G2 workflow output) */
 function renderCompat(cm) {
   const el = document.getElementById('compatBody');
@@ -1071,8 +1100,26 @@ function mrRender(live) {
     if (a.fableStatus === 'capped') return '🔴 חסום' + (a.fableUntil ? ' עד ' + new Date(a.fableUntil).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '');
     return '🟢 פנוי לעבודה';
   };
-  const accs = Object.entries(live.accounts || {}).map(([id, a]) =>
-    `<span class="mr-acc"><b>${esc(a.label || id)}</b>${a.renewDay ? ` · מתחדש ${a.renewDay}/חודש` : ''}${roleTag(id)}<br>${fableLabel(a)}${a.fablePctEst != null ? ` <span class="cat" title="הערכה מקומית בלבד — לא הנתון האמיתי מהשרת">(אומדן מקומי ${Math.round(a.fablePctEst)}%)</span>` : ''}</span>`).join('');
+  const accs = Object.entries(live.accounts || {}).map(([id, a]) => {
+    const now = Date.now();
+    const blockedAll = a.exhausted && a.exhaustedUntil && Date.parse(a.exhaustedUntil) > now;
+    const fableBlocked = blockedAll || (a.fableStatus && a.fableStatus !== 'available' && a.fableUntil && Date.parse(a.fableUntil) > now);
+    const fableUntil = blockedAll ? (a.fableUntil && Date.parse(a.fableUntil) > Date.parse(a.exhaustedUntil) ? a.fableUntil : a.exhaustedUntil) : a.fableUntil;
+    const meter = (name, pct, resetAt) => `<div class="acc-meter"><span class="nm">${name}</span>
+      <span class="bar"><i style="width:${Math.min(100, Math.round(pct ?? 0))}%;${(pct ?? 0) >= 90 ? 'background:var(--red)' : (pct ?? 0) >= 65 ? 'background:var(--yellow)' : ''}"></i></span>
+      <span class="pct">${pct != null ? Math.round(pct) + '%' : '—'}</span>${resetAt ? `<span class="cat">מתאפס <span class="cd" data-until="${esc(resetAt)}"></span></span>` : ''}</div>`;
+    const modelRow = (name, blocked, until) => `<div class="acc-model">${blocked
+      ? `<span class="st red">🔴 ${name}</span><span class="cat">חוזר בעוד <b class="cd" data-until="${esc(until || '')}"></b></span>`
+      : `<span class="st green">🟢 ${name}</span><span class="cat">פעיל</span>`}</div>`;
+    return `<div class="mr-acc acc-card${blockedAll ? ' blocked' : ''}">
+      <div class="acc-head"><b>${esc(a.label || id)}</b>${roleTag(id)}${a.renewDay ? `<span class="cat"> · מתחדש ${a.renewDay}/חודש</span>` : ''}</div>
+      ${meter('סשן', a.sessionPctEst, a.sessionResetsAt)}
+      ${meter('שבועי', a.weeklyPctEst, a.weeklyResetsAt)}
+      ${meter('Fable', a.fablePctEst, null)}
+      ${modelRow('Fable', fableBlocked, fableUntil)}
+      ${modelRow('Opus / Sonnet / Haiku', blockedAll, a.exhaustedUntil)}
+      ${blockedAll && a.blockReason ? `<div class="cat" style="margin-top:3px">⛔ ${esc(a.blockReason)}</div>` : ''}
+    </div>`; }).join('');
   const r = live.resource;
   const erzaLine = `<div class="mr-erzaline">🧠 <b>ERZA (סשן אינטראקטיבי)</b> על: <b>${esc(live.erza?.session?.label || '—')}</b>${live.erza?.brain?.label ? ` · 🤖 המוח האוטונומי על: <b>${esc(live.erza.brain.label)}</b>` : ''}${r ? ` · 💻 עומס ${r.perCore5}/ליבה (${r.state}) · זיכרון ${r.memFreePct}% פנוי · ${r.claudeProcs} תהליכים` : ''}</div>`;
 
