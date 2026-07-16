@@ -556,9 +556,9 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.9.0'</script>
+<script>window.ERZA_DEPLOY_VER='1.9.1'</script>
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=e6f2cb1d"></script>
+<script src="data.enc.js?v=58d667a9"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1036,8 +1036,14 @@ function bindApprovals() {
         const d = it.decisions.find(x => x.key === row.dataset.key);
         if (d) d.chosen = row.querySelector('.decsel').value || null;
       });
-      try { await saveApprovals(); document.getElementById('mrUpdated').textContent = 'החלטות נשמרו ✓'; e.target.textContent = '✓ נשמר'; }
-      catch { e.target.textContent = 'שגיאה'; e.target.disabled = false; }
+      try { await saveApprovals(); document.getElementById('mrUpdated').textContent = 'החלטות נשמרו ✓'; e.target.textContent = '✓ נשמר — יהפוך למשימות תוך ~5 דק׳'; mrRender(mrLastLive); }
+      catch {
+        try { // stale sha (the registry moves every ~5 min) — refetch and retry once
+          const meta = await gh('registry/approvals.json', undefined, { headers: { Accept: 'application/vnd.github+json' } });
+          mrApprovalsSha = meta.sha;
+          await saveApprovals(); document.getElementById('mrUpdated').textContent = 'החלטות נשמרו ✓ (סנכרון)'; e.target.textContent = '✓ נשמר'; mrRender(mrLastLive);
+        } catch { e.target.textContent = 'שגיאה — רענן ונסה שוב'; e.target.disabled = false; }
+      }
     };
     el.querySelectorAll('[data-file]').forEach(a => a.onclick = async e => {
       e.preventDefault();
@@ -1215,8 +1221,8 @@ function mrRender(live) {
         ${(it.check || []).length ? `<h5>מה לבדוק כדי לאשר</h5><ul>${it.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
         ${(it.decisions || []).length ? `<h5>🗳️ החלטות בתוך הרשומה — סמן ליד כל אחת</h5>
           ${it.decisions.map(d => `<div class="mr-task" data-key="${esc(d.key)}">
-            <select class="decsel">${DEC.map(([v, l]) => `<option value="${v}" ${v === (d.chosen || '') ? 'selected' : ''}>${l}</option>`).join('')}</select>
-            <span class="t-title">${esc(d.text)}</span></div>`).join('')}
+            <select class="decsel" ${d.taskCreated ? 'disabled' : ''}>${DEC.map(([v, l]) => `<option value="${v}" ${v === (d.chosen || '') ? 'selected' : ''}>${l}</option>`).join('')}</select>
+            <span class="t-title">${esc(d.text)}</span>${d.taskCreated && d.taskCreated !== 'skipped' ? `<span class="mdl" style="--bc:var(--green)" title="ההחלטה נקלטה והפכה למשימה">✓ ${esc(d.taskCreated)}</span>` : d.taskCreated === 'skipped' ? `<span class="mdl" style="--bc:var(--muted)">⏭ דולג</span>` : d.chosen ? `<span class="mdl" style="--bc:var(--yellow)" title="נשמר — יהפוך למשימה תוך ~5 דק׳">💾 נשמר</span>` : ''}</div>`).join('')}
           <button class="btn-approve savedec" style="margin-top:6px">💾 שמור החלטות</button>` : ''}
         ${(it.feedback || []).map(f => `<div class="appr-fb">🗒️ ${esc(f.text)}${(f.files || []).length ? `<div class="att">${f.files.map(p => `<a href="#" data-file="${esc(p)}">📎 ${esc(p.split('/').pop())}</a>`).join('')}</div>` : ''}</div>`).join('')}
         ${it.status === 'pending' ? (blocked
