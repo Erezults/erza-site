@@ -556,9 +556,9 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.9.1'</script>
+<script>window.ERZA_DEPLOY_VER='1.9.2'</script>
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=78ad294e"></script>
+<script src="data.enc.js?v=cd84a64e"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1219,7 +1219,8 @@ function mrRender(live) {
             : `<span class="mdl" style="--bc:var(--blue)">🗳️ פריט החלטה (לא דורש OTA)</span>`}</div>
         <h5>מה בוצע</h5><ul>${(it.done || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>
         ${(it.check || []).length ? `<h5>מה לבדוק כדי לאשר</h5><ul>${it.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
-        ${(it.decisions || []).length ? `<h5>🗳️ החלטות בתוך הרשומה — סמן ליד כל אחת</h5>
+        ${(it.decisions || []).length ? `${(() => { const tot = it.decisions.length, done = it.decisions.filter(d => d.taskCreated).length, saved = it.decisions.filter(d => d.chosen && !d.taskCreated).length, left = tot - done - saved;
+          return done + saved ? `<div class="mdl" style="--bc:${left ? 'var(--yellow)' : 'var(--green)'};margin:6px 0">${done ? `✓ ${done} הפכו למשימות` : ''}${done && saved ? ' · ' : ''}${saved ? `💾 ${saved} נשמרו (יהפכו למשימות תוך ~5 דק׳)` : ''}${left ? ` · נותרו ${left} להכרעה — הפריט ייסגר ויֵעלם רק כשכל השורות יוכרעו` : ' · כל השורות הוכרעו — הפריט ייסגר בטיק הקרוב'}</div>` : ''; })()}<h5>🗳️ החלטות בתוך הרשומה — סמן ליד כל אחת</h5>
           ${it.decisions.map(d => `<div class="mr-task" data-key="${esc(d.key)}">
             <select class="decsel" ${d.taskCreated ? 'disabled' : ''}>${DEC.map(([v, l]) => `<option value="${v}" ${v === (d.chosen || '') ? 'selected' : ''}>${l}</option>`).join('')}</select>
             <span class="t-title">${esc(d.text)}</span>${d.taskCreated && d.taskCreated !== 'skipped' ? `<span class="mdl" style="--bc:var(--green)" title="ההחלטה נקלטה והפכה למשימה">✓ ${esc(d.taskCreated)}</span>` : d.taskCreated === 'skipped' ? `<span class="mdl" style="--bc:var(--muted)">⏭ דולג</span>` : d.chosen ? `<span class="mdl" style="--bc:var(--yellow)" title="נשמר — יהפוך למשימה תוך ~5 דק׳">💾 נשמר</span>` : ''}</div>`).join('')}
