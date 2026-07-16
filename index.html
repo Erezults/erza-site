@@ -556,9 +556,9 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.9.2'</script>
+<script>window.ERZA_DEPLOY_VER='1.9.3'</script>
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=902589e2"></script>
+<script src="data.enc.js?v=3766b951"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1215,7 +1215,9 @@ function mrRender(live) {
           : needsOta
             ? (it.gate === "migration"
               ? `<span class="mdl" style="--bc:var(--red)" title="הקוד מוכן אך דורש מיגרציית DB לפני OTA">🔒 ממתין לאישור המיגרציה שלך (השורה הסגולה 🗄️ של האפליקציה) — אישור שם ⇒ ה-OTA נדחף אוטומטית</span>`
-              : `<span class="mdl" style="--bc:var(--yellow)" title="ה-OTA עדיין לא פורסם">⏳ ה-OTA עדיין לא פורסם — לא ניתן לבדוק עדיין</span>`)
+              : it.gate === "worker"
+              ? `<span class="mdl" style="--bc:var(--blue)" title="worker רץ על האפליקציה כרגע">🔧 עבודה פעילה על האפליקציה — ה-OTA יידחף אוטומטית בסיומה</span>`
+              : `<span class="mdl" style="--bc:var(--yellow)" title="ממתין לדחיפה בטיק הקרוב">⏳ ה-OTA בתור לדחיפה (טיק של עד 5 דק׳)</span>`)
             : `<span class="mdl" style="--bc:var(--blue)">🗳️ פריט החלטה (לא דורש OTA)</span>`}</div>
         <h5>מה בוצע</h5><ul>${(it.done || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>
         ${(it.check || []).length ? `<h5>מה לבדוק כדי לאשר</h5><ul>${it.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
@@ -1228,8 +1230,10 @@ function mrRender(live) {
         ${(it.feedback || []).map(f => `<div class="appr-fb">🗒️ ${esc(f.text)}${(f.files || []).length ? `<div class="att">${f.files.map(p => `<a href="#" data-file="${esc(p)}">📎 ${esc(p.split('/').pop())}</a>`).join('')}</div>` : ''}</div>`).join('')}
         ${it.status === 'pending' ? (blocked
           ? (it.gate === "migration"
-            ? `<div class="appr-blocked" style="margin-top:8px;color:var(--red);font-size:13px;font-weight:600">🔒 התיקון מוכן אך כולל מיגרציית DB — אשר את השורה הסגולה 🗄️ של האפליקציה (כפתור אישור-מיגרציה ייעודי), ו-ERZA תריץ את המיגרציה ותדחוף את ה-OTA אוטומטית.</div>`
-            : `<div class="appr-blocked" style="margin-top:8px;color:var(--yellow);font-size:13px;font-weight:600">⏳ עוד אי אפשר לבדוק — ה-OTA מתפרסם כעת. השורה תיפתח לאישור אוטומטית ברגע שהגרסה תעלה ל-dev.</div>`)
+            ? `<div class="appr-blocked" style="margin-top:8px;color:var(--red);font-size:13px;font-weight:600">🔒 התיקון מוכן אך כולל מיגרציית DB — אשר את השורה הסגולה 🗄️ של האפליקציה, ו-ERZA תריץ את המיגרציה ותדחוף את ה-OTA אוטומטית.</div>`
+            : it.gate === "worker"
+            ? `<div class="appr-blocked" style="margin-top:8px;color:var(--blue);font-size:13px;font-weight:600">🔧 worker עדיין עובד על האפליקציה — כדי לא לדחוף חצי-עבודה, ה-OTA ישוחרר אוטומטית ברגע שיסיים.</div>`
+            : `<div class="appr-blocked" style="margin-top:8px;color:var(--yellow);font-size:13px;font-weight:600">⏳ ה-OTA בתור לדחיפה האוטומטית (עד 5 דק׳). אם זה נשאר כך מעבר לרבע שעה — יש בעיה אמיתית ותוכל לדחות עם הערה.</div>`)
           : `<div class="appr-actions">
           <button class="btn-approve${isBuild ? ' btn-build' : isMig ? ' btn-mig' : ''}">${isBuild ? '🔨 אשר בניית בילד' : isMig ? '🗄️ אשר מיגרציה ⇒ OTA אוטומטי' : '✓ בדקתי — מאושר'}</button>
           <button class="btn-reject">✗ לא מאושר — יש לי הערות</button>
