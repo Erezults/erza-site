@@ -866,12 +866,19 @@ const GH = { owner: 'Erezults', repo: 'ERZA_Orchestrator' };
 const pat = () => localStorage.getItem('erza-pat') || '';
 let mrPrios = {}, mrAppRanks = {}, mrDirty = false, mrLastLive = null, mrApprovals = { items: [] }, mrApprovalsSha = null, mrInstr = { items: [] };
 let mrLayout = {}, mrGlobals = { tasks: [] };
+let mrDecDirty = false;      // unsaved decision-dropdown choices (pauses auto-refresh)
+let mrApprovalsErr = false;  // last approvals fetch failed — desk shows last-known + warning
 
 /* item 2 — panel order editing: ▲▼ on every panel; order persists to registry/ui_layout.json */
 async function saveLayout() {
-  const mr = [...document.querySelectorAll('#mrBody details[data-mrk]')].map(d => d.dataset.mrk);
-  const page = [...document.querySelectorAll('#main > details[data-pgk]')].map(d => d.dataset.pgk);
-  mrLayout = { ...mrLayout, mr, page, updatedAt: new Date().toISOString() };
+  const mrDom = [...document.querySelectorAll('#mrBody details[data-mrk]')].map(d => d.dataset.mrk);
+  const pageDom = [...document.querySelectorAll('#main > details[data-pgk]')].map(d => d.dataset.pgk);
+  // audit r2: while the machine room shows an error/token-setup message it has no panels —
+  // never persist an EMPTY snapshot over Erez's saved order.
+  mrLayout = { ...mrLayout,
+    mr: mrDom.length ? mrDom : (mrLayout.mr || []),
+    page: pageDom.length ? pageDom : (mrLayout.page || []),
+    updatedAt: new Date().toISOString() };
   let sha; try { sha = (await gh('registry/ui_layout.json', undefined, { headers: { Accept: 'application/vnd.github+json' } })).sha; } catch {}
   await gh('registry/ui_layout.json', undefined, { method: 'PUT', body: JSON.stringify({ message: 'סדר תצוגה מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
     content: btoa(unescape(encodeURIComponent(JSON.stringify(mrLayout, null, 2)))) }) });
@@ -993,10 +1000,38 @@ const modelBadge = m => { if (!m) return ''; const c = { Opus: 'var(--violet)', 
 const lvlOf = p => !p ? '' : p.hold ? 'hold' : (p.star || p.p === 1) ? '1' : p.p === 2 ? '2' : p.p === 3 ? '3' : '';
 const LVLS = [['', '— עדיפות —'], ['1', '🔴 דחוף — בצע ראשון'], ['2', '🟡 רגיל'], ['3', '🟢 נמוך'], ['hold', '⏸ מושהה']];
 async function saveApprovals() {
-  const body = { message: 'החלטות אישור מהדשבורד', branch: 'main', ...(mrApprovalsSha ? { sha: mrApprovalsSha } : {}),
-    content: btoa(unescape(encodeURIComponent(JSON.stringify({ updatedAt: new Date().toISOString(), items: mrApprovals.items }, null, 2)))) };
-  const r = await gh('registry/approvals.json', undefined, { method: 'PUT', body: JSON.stringify(body) });
-  mrApprovalsSha = r.content?.sha || mrApprovalsSha;
+  const put = async () => {
+    const body = { message: 'החלטות אישור מהדשבורד', branch: 'main', ...(mrApprovalsSha ? { sha: mrApprovalsSha } : {}),
+      content: btoa(unescape(encodeURIComponent(JSON.stringify({ updatedAt: new Date().toISOString(), items: mrApprovals.items }, null, 2)))) };
+    const r = await gh('registry/approvals.json', undefined, { method: 'PUT', body: JSON.stringify(body) });
+    mrApprovalsSha = r.content?.sha || mrApprovalsSha;
+  };
+  try { await put(); }
+  catch (e) {
+    // stale sha — the registry moves every ~5 min and userBusy pauses the refresher while
+    // typing, so the cached sha 409s (this used to deadlock rejection feedback forever).
+    // Refetch fresh content+sha and REBASE the local edits onto it by id: only the fields
+    // the user actually decides (status/feedback/decisions) are overlaid, so concurrent
+    // tick stamps (push/gate) are never overwritten. Then retry once.
+    const meta = await gh('registry/approvals.json', undefined, { headers: { Accept: 'application/vnd.github+json' } });
+    const fresh = JSON.parse(decodeURIComponent(escape(atob(meta.content.replace(/\s/g, '')))));
+    const freshItems = fresh.items || [];
+    const byId = new Map(freshItems.map(i => [i.id, i]));
+    for (const loc of (mrApprovals.items || [])) {
+      const f = byId.get(loc.id);
+      if (!f) { freshItems.push(loc); continue; }
+      if (loc.status !== f.status && ['approved', 'rejected', 'decisions-made'].includes(loc.status)) { f.status = loc.status; f.decidedAt = loc.decidedAt || f.decidedAt; }
+      if ((loc.feedback || []).length > (f.feedback || []).length) f.feedback = loc.feedback;
+      for (const d of (loc.decisions || [])) {
+        const cur = (f.decisions || []).find(x => x.key === d.key);
+        if (cur && d.chosen && !cur.taskCreated) cur.chosen = d.chosen;
+      }
+    }
+    mrApprovals = { items: freshItems };
+    mrApprovalsSha = meta.sha;
+    await put();
+  }
+  mrDecDirty = false;
 }
 
 async function uploadFile(dir, file) {
@@ -1009,10 +1044,22 @@ async function uploadFile(dir, file) {
 }
 
 function bindApprovals() {
+  // decision dropdowns: mirror every change into in-memory state + set the decision-dirty
+  // flag, so the 120s auto-refresh can never silently wipe unsaved choices (audit r2).
+  document.querySelectorAll('.appr-item .mr-task[data-key] select.decsel').forEach(sel => {
+    sel.onchange = () => {
+      const itEl = sel.closest('.appr-item');
+      const it = mrApprovals.items.find(x => x.id === itEl?.dataset.aid);
+      const d = it && (it.decisions || []).find(x => x.key === sel.closest('.mr-task').dataset.key);
+      if (d) { d.chosen = sel.value || null; mrDecDirty = true; }
+    };
+  });
   document.querySelectorAll('.appr-item[data-decision]').forEach(el => {
     const it = mrApprovals.items.find(x => x.id === el.dataset.aid);
     if (!it) return;
-    el.querySelector('.savedec').onclick = async e => {
+    const decBtn = el.querySelector('.savedec');
+    if (!decBtn) return; // closed/archived decision item — read-only
+    decBtn.onclick = async e => {
       e.target.disabled = true; e.target.textContent = 'שומר…';
       el.querySelectorAll('.mr-task[data-key]').forEach(row => {
         const d = (it.decisions || []).find(x => x.key === row.dataset.key);
@@ -1037,13 +1084,7 @@ function bindApprovals() {
         if (d) d.chosen = row.querySelector('.decsel').value || null;
       });
       try { await saveApprovals(); document.getElementById('mrUpdated').textContent = 'החלטות נשמרו ✓'; e.target.textContent = '✓ נשמר — יהפוך למשימות תוך ~5 דק׳'; mrRender(mrLastLive); }
-      catch {
-        try { // stale sha (the registry moves every ~5 min) — refetch and retry once
-          const meta = await gh('registry/approvals.json', undefined, { headers: { Accept: 'application/vnd.github+json' } });
-          mrApprovalsSha = meta.sha;
-          await saveApprovals(); document.getElementById('mrUpdated').textContent = 'החלטות נשמרו ✓ (סנכרון)'; e.target.textContent = '✓ נשמר'; mrRender(mrLastLive);
-        } catch { e.target.textContent = 'שגיאה — רענן ונסה שוב'; e.target.disabled = false; }
-      }
+      catch { e.target.textContent = 'שגיאה — רענן ונסה שוב'; e.target.disabled = false; } // saveApprovals already rebases+retries once on stale sha
     };
     el.querySelectorAll('[data-file]').forEach(a => a.onclick = async e => {
       e.preventDefault();
@@ -1068,8 +1109,12 @@ function bindApprovals() {
       if (!text) { form.querySelector('textarea').focus(); return; }
       e.target.disabled = true; e.target.textContent = 'מעלה ושומר…';
       try {
-        const files = [];
-        for (const f of form.querySelector('input[type=file]').files) files.push(await uploadFile('archive/feedback/' + it.id, f));
+        // upload once per form even across retries — a failed save must not duplicate attachments
+        if (!form._uploaded) {
+          form._uploaded = [];
+          for (const f of form.querySelector('input[type=file]').files) form._uploaded.push(await uploadFile('archive/feedback/' + it.id, f));
+        }
+        const files = form._uploaded;
         it.feedback = it.feedback || [];
         it.feedback.push({ at: new Date().toISOString(), text, files });
         it.status = 'rejected'; it.decidedAt = new Date().toISOString();
@@ -1091,7 +1136,8 @@ function mrTaskRow(t) {
 
 function mrRender(live) {
   const ago = Math.round((Date.now() - Date.parse(live.updatedAt)) / 60e3);
-  document.getElementById('mrUpdated').textContent = `עודכן לפני ${ago} דק' · ${live.totals.running} רצים · ${live.totals.queued} בתור · ${live.totals.review + live.totals.done} הסתיימו`;
+  // failures/parked are NOT "finished" (audit r2 SM-05/SM-09) — they get their own counters
+  document.getElementById('mrUpdated').textContent = `עודכן לפני ${ago} דק' · ${live.totals.running} רצים · ${live.totals.queued} בתור · ${(live.totals.review || 0) + (live.totals.done || 0)} הסתיימו${live.totals.needsReview ? ` · ⚠️ ${live.totals.needsReview} כשלים לטיפולך` : ''}${live.totals.parked ? ` · ⏸ ${live.totals.parked} מוקפאות` : ''}`;
   const wl = live.erza?.workerLoad || {};
   const roleTag = id => {
     const tags = [];
@@ -1100,17 +1146,11 @@ function mrRender(live) {
     if (wl[id]) tags.push(`⚙️ ${wl[id]} workers`);
     return tags.length ? ` · ${tags.join(' · ')}` : '';
   };
-  const fableLabel = a => {
-    if (a.fableStatus === 'fable-spent') return '🔴 Fable מוצה (שבועי, חוזר שישי)';
-    if (a.fableStatus === 'monthly-blocked') return '⛔ חסום חודשי';
-    if (a.fableStatus === 'session-capped') return '🟠 session מלא' + (a.fableUntil ? ' · חוזר ' + new Date(a.fableUntil).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '');
-    if (a.fableStatus === 'capped') return '🔴 חסום' + (a.fableUntil ? ' עד ' + new Date(a.fableUntil).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '');
-    return '🟢 פנוי לעבודה';
-  };
   const accs = Object.entries(live.accounts || {}).map(([id, a]) => {
     const now = Date.now();
     const blockedAll = a.exhausted && a.exhaustedUntil && Date.parse(a.exhaustedUntil) > now;
-    const fableBlocked = blockedAll || (a.fableStatus && a.fableStatus !== 'available' && a.fableUntil && Date.parse(a.fableUntil) > now);
+    // audit r2: a measured blocked state without a parseable reset time is still BLOCKED
+    const fableBlocked = blockedAll || (a.fableStatus && a.fableStatus !== 'available' && (!a.fableUntil || Date.parse(a.fableUntil) > now));
     const fableUntil = blockedAll ? (a.fableUntil && Date.parse(a.fableUntil) > Date.parse(a.exhaustedUntil) ? a.fableUntil : a.exhaustedUntil) : a.fableUntil;
     const meter = (name, pct, resetAt) => `<div class="acc-meter"><span class="nm">${name}</span>
       <span class="bar"><i style="width:${Math.min(100, Math.round(pct ?? 0))}%;${(pct ?? 0) >= 90 ? 'background:var(--red)' : (pct ?? 0) >= 65 ? 'background:var(--yellow)' : ''}"></i></span>
@@ -1162,26 +1202,32 @@ function mrRender(live) {
        ${d.recent.map(r => `<div class="mr-recent">${r.status === 'review' ? '✅' : '⚠️'} ${esc(r.title)}${r.note ? ' — ' + esc(r.note) : ''}</div>`).join('')}
       </div>`).join('')}</div></details>` : '';
 
-  const isArchived = i => !['pending', 'decision-pending'].includes(i.status);
-  const DEC = [['', '— טרם —'], ['yes', '✅ ליישום'], ['no', '⏭ דלג']];
-  const decItemHtml = it => `
+  // approved-migration/approved-build are ACTIVE gates awaiting ERZA execution — they live
+  // in the pending section, never the archive (audit r2 SM-01/XC-10/status-blind-archive);
+  // awaiting-deploy has its own panel.
+  const EXEC_GATES = ['approved-migration', 'approved-build'];
+  const isArchived = i => !['pending', 'decision-pending', 'awaiting-deploy', ...EXEC_GATES].includes(i.status);
+  const DEC = [['', '— טרם —'], ['yes', '✅ ליישום'], ['later', '🕓 לעתיד'], ['no', '⏭ דלג']];
+  const decItemHtml = it => { const closed = !['pending', 'decision-pending'].includes(it.status); // archived decisions are read-only (audit r2)
+    return `
     <div class="appr-item" data-aid="${esc(it.id)}" data-decision="1">
       <div class="appr-head">${icon(it.app)}<span class="refid">${esc(it.refId || it.id)}</span><b>${esc(it.title)}</b>
-        <span class="appr-status" style="color:var(--yellow)">🗳️ נדרשות החלטות</span></div>
+        <span class="appr-status" style="color:${closed ? 'var(--muted)' : 'var(--yellow)'}">${closed ? '🗄️ הוכרע ונסגר' : '🗳️ נדרשות החלטות'}</span></div>
       ${it.intro ? `<div class="mr-run">${esc(it.intro)}</div>` : ''}
       ${(it.decisions || []).map(d => `<div class="mr-task" data-key="${esc(d.key)}">
-        <select class="decsel">${DEC.map(([v, l]) => `<option value="${v}" ${v === (d.chosen || '') ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        <select class="decsel" ${closed || d.taskCreated ? 'disabled' : ''}>${DEC.map(([v, l]) => `<option value="${v}" ${v === (d.chosen || '') ? 'selected' : ''}>${l}</option>`).join('')}</select>
         <span class="t-title">${esc(d.text)}</span></div>`).join('')}
       ${(it.check || []).length ? `<h5>לבדיקה נפרדת</h5><ul>${it.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
-      <div class="appr-actions"><button class="btn-approve savedec">💾 שמור החלטות</button></div>
-    </div>`;
+      ${closed ? '' : '<div class="appr-actions"><button class="btn-approve savedec">💾 שמור החלטות</button></div>'}
+    </div>`; };
   const apprItemHtml = it => {
     if (it.type === 'decision') return decItemHtml(it);
     // An OTA-test item is testable ONLY once its OTA is confirmed live. Action/decision
     // items (rejections, migrations, no-remote…) don't need an OTA to be decided.
     const otaLive = !!(it.push && ['pushed', 'published'].includes(it.push.status));
-    const isBuild = String(it.type || '').startsWith('build');
+    const isBuild = /(^|-)build$/.test(String(it.type || '')); // build, dev-build, prod-build (audit r2)
     const isMig = it.type === 'migration';
+    const isExecGate = EXEC_GATES.includes(it.status); // approved by Erez, awaiting ERZA execution
     // item 6 — DEV/PROD channel pill (from build/OTA channel); item 7 — iOS/macOS platform pill.
     const chanPill = () => { const ch = it.buildChannel || it.otaChannel || it.channel || (it.app && it.app !== 'multi' && it.app !== 'general' ? 'dev' : null);
       return ch === 'prod' ? '<span class="chan-pill chan-prod" title="שינוי ל-PROD — האפליקציה החיה בסטור">PROD</span>'
@@ -1189,8 +1235,11 @@ function mrRender(live) {
     const platPill = () => { const p = it.platform || (isBuild ? 'ios' : 'both');
       const t = p === 'ios' ? 'iOS' : p === 'mac' ? 'macOS' : 'iOS + macOS';
       return `<span class="plat-pill" title="פלטפורמה">${t}</span>`; };
-    // A build is NOT an OTA — never gate it on OTA. Otherwise any OTA-tied item needs its OTA live.
-    const needsOta = !isBuild && !isMig && (it.type === 'dev-ota-review' || it.type === 'task-review' || !!it.otaChannel);
+    // A build is NOT an OTA — never gate it on OTA. And only apps the auto-OTA pipeline can
+    // actually stamp are gated at all (audit r2 XC-01: Coin/general rows were blocked FOREVER
+    // because no stamper exists for them).
+    const otaCapable = (mrLastLive?.otaApps || ['SalarixNative', 'HealtyNative', 'OwnestNative', 'FundivaNative', 'GroupyNative_New', 'Emoryx', 'HomeNetIP', 'xpensy']).includes(it.app);
+    const needsOta = !isBuild && !isMig && otaCapable && (it.type === 'dev-ota-review' || it.type === 'task-review' || !!it.otaChannel);
     const blocked = needsOta && !otaLive;   // OTA not live yet → cannot approve/test
     return `
       <div class="appr-item ${esc(it.status)}${isBuild ? ' build' : ''}${isMig ? ' mig' : ''}" data-aid="${esc(it.id)}">
@@ -1203,10 +1252,17 @@ function mrRender(live) {
             ? `<span class="icon-wrap">${icon(it.app)}<span class="icon-tag ${ch}">${ch === 'prod' ? 'PROD' : 'DEV'}</span></span>`
             : icon(it.app); })()}<span class="refid">${esc(it.refId || it.id)}</span><b>${esc(it.title)}</b></div>
           <div class="appr-tags">${chanPill()}${platPill()}
-          ${(() => { const v = it.version || (mrLastLive?.versions || {})[it.app]; return v ? `<span class="mdl" style="--bc:var(--blue)" dir="ltr" title="גרסה רלוונטית">📦 ${it.otaChannel === 'prod' ? 'prod' : it.otaChannel === 'dev' ? 'dev' : ''} ${esc(it.otaVersion || v.prodDisplay || v.prod || '')}${!it.otaVersion && v.dev ? ' / dev ' + esc(v.dev) : ''}</span>` : ''; })()}
-          <span class="appr-status ${it.status === 'approved' ? 'ok' : it.status === 'rejected' ? 'no' : ''}">${it.status === 'approved' ? '✓ אושר על ידך' : it.status === 'rejected' ? '✗ הוחזר לתיקון' : 'ממתין לבדיקה'}</span></div>
+          ${(() => { // channel-aware version pill (audit r2: v.dev/v.prod keys never existed — dev rows showed the PROD version labeled dev)
+          const v = it.version || (mrLastLive?.versions || {})[it.app]; if (!v && !it.otaVersion) return '';
+          const ch = it.otaChannel === 'prod' ? 'prod' : it.otaChannel === 'dev' ? 'dev' : '';
+          const val = it.otaVersion || (ch === 'dev' ? (v?.devDisplay ?? v?.deployed?.dev) : (v?.prodDisplay ?? v?.store)) || '';
+          if (!val) return '';
+          return `<span class="mdl" style="--bc:var(--blue)" dir="ltr" title="גרסה רלוונטית${it.push?.predicted ? ' (צפי — טרם אומת מול ה-CI)' : ''}">📦 ${ch} ${it.push?.predicted ? '~' : ''}${esc(val)}</span>`; })()}
+          <span class="appr-status ${it.status === 'approved' ? 'ok' : it.status === 'rejected' ? 'no' : ''}">${it.status === 'approved' ? '✓ אושר על ידך' : it.status === 'rejected' ? '✗ הוחזר לתיקון' : isExecGate ? '🔧 אושר — ממתין לביצוע ERZA' : 'ממתין לבדיקה'}</span></div>
         </div>
-        <div class="pushrow">${isMig
+        <div class="pushrow">${isExecGate
+          ? `<span class="mdl" style="--bc:#8e44ad">✅ אישרת — ERZA הראשית ${it.status === 'approved-migration' ? 'תריץ את המיגרציה על ה-DB ותדחוף את ה-OTA' : 'תבנה את הבילד'} בסבב הקרוב; הפריט ייסגר אוטומטית בסיום</span>`
+          : isMig
           ? `<span class="mdl" style="--bc:#8e44ad">🗄️ מיגרציית DB ממתינה לאישורך — אישור ⇒ ERZA מריצה את המיגרציה ודוחפת את ה-OTA אוטומטית</span>`
           : isBuild
           ? `<span class="mdl" style="--bc:var(--yellow)">🔨 דרוש בילד ${it.buildChannel === 'prod' ? 'PROD' : 'DEV'} — אשר לבנייה</span>`
@@ -1248,8 +1304,8 @@ function mrRender(live) {
 
   // Order: decisions first, then ACTION GATES (migration/build — Erez's click unblocks work),
   // then regular test rows by app priority. Gates were getting buried below 20+ rows on mobile.
-  const pendRank = i => i.type === 'decision' ? 0 : (i.type === 'migration' || String(i.type || '').startsWith('build')) ? 1 : 2;
-  const pendItems = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending'].includes(i.status))
+  const pendRank = i => i.type === 'decision' ? 0 : (i.type === 'migration' || /(^|-)build$/.test(String(i.type || '')) || EXEC_GATES.includes(i.status)) ? 1 : 2;
+  const pendItems = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending', ...EXEC_GATES].includes(i.status))
     .sort((a, b) => pendRank(a) - pendRank(b) || (mrAppRanks[a.app] ?? 99) - (mrAppRanks[b.app] ?? 99));
   const awaitItems = (mrApprovals.items || []).filter(i => i.status === 'awaiting-deploy');
   const awaitByApp = {};
@@ -1269,7 +1325,7 @@ function mrRender(live) {
     <summary>🗄️ ארכיון — ${archItems.length} פריטים שטופלו (לפי אפליקציה)</summary>
     <div style="margin-top:8px">${Object.entries(archByApp)
       .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
-      .map(([app, items]) => `<details style="margin:6px 0"><summary>${icon(app)}${esc(app)} · ${items.length}</summary>
+      .map(([app, items]) => `<details data-mrsub="arch-${esc(app)}" style="margin:6px 0"><summary>${icon(app)}${esc(app)} · ${items.length}</summary>
         <div style="margin-top:8px">${items.map(apprItemHtml).join('')}</div></details>`).join('')}</div>
   </details>` : '';
   const apprHtml = `<details class="prio-panel" data-mrk="appr" style="--panel-accent:var(--green)">
@@ -1321,6 +1377,8 @@ function mrRender(live) {
   // keep whatever Erez opened OPEN across the periodic re-render (session-only; a page
   // load/refresh starts everything collapsed, per his default-collapsed rule)
   const mrOpenKeys = new Set([...document.querySelectorAll('#mrBody details[data-mrk][open]')].map(d => d.dataset.mrk));
+  // nested sub-panels (per-app archive groups) keep their open state too (audit r2)
+  const mrOpenSubs = new Set([...document.querySelectorAll('#mrBody details[data-mrsub][open]')].map(d => d.dataset.mrsub));
   const accPanel = `<details class="prio-panel" data-mrk="acc" style="--panel-accent:#607d8b"><summary>👥 חשבונות — ניצול ומצב</summary><div class="mr-accounts" style="margin-top:8px">${accs}</div></details>`;
   // item 8 — Erez's global tasks: he decides WHEN each runs (🚀 sets requested; ERZA executes)
   const globPanel = `<details class="prio-panel" data-mrk="glob" style="--panel-accent:#2a9d8f"><summary>🌍 משימות גלובליות — ${(mrGlobals.tasks || []).filter(t => t.status === 'available').length} זמינות להפעלה</summary>
@@ -1342,8 +1400,13 @@ function mrRender(live) {
   const DEF_ORDER = ['appr', 'glob', 'acc', 'run', 'queue', 'ranks', 'inbox', 'rel', 'arch', 'instr'];
   const order = [...(Array.isArray(mrLayout.mr) ? mrLayout.mr : [])].filter(k => k in PANELS);
   DEF_ORDER.forEach(k => { if (!order.includes(k)) order.push(k); });
-  document.getElementById('mrBody').innerHTML = erzaLine + order.map(k => PANELS[k] || '').join('');
+  // approved gates awaiting ERZA execution — a visible banner so they can't rot silently (audit r2 SM-01)
+  const gateBanner = (live.approvedGates || []).length
+    ? `<div style="border:1px solid #8e44ad;background:color-mix(in srgb,#8e44ad 9%,transparent);border-radius:10px;padding:8px 12px;margin:8px 0;font-size:13px;font-weight:600">🗄️ ${live.approvedGates.length} אישורים ממתינים לביצוע ERZA (מיגרציות/בילדים) — ${live.approvedGates.map(g => esc(g.app)).join(', ')}</div>`
+    : '';
+  document.getElementById('mrBody').innerHTML = erzaLine + gateBanner + order.map(k => PANELS[k] || '').join('');
   document.querySelectorAll('#mrBody details[data-mrk]').forEach(d => { if (mrOpenKeys.has(d.dataset.mrk) || d.dataset.mrk === 'inbox') d.open = true; });
+  document.querySelectorAll('#mrBody details[data-mrsub]').forEach(d => { if (mrOpenSubs.has(d.dataset.mrsub)) d.open = true; });
   injectMoveButtons();
   document.querySelectorAll('#mrBody .globrun').forEach(b => { b.onclick = async (e) => {
     e.preventDefault(); b.disabled = true; b.textContent = 'שולח…';
@@ -1446,6 +1509,7 @@ function userBusy() {
   const el = document.activeElement;
   if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.tagName === 'SELECT')) return true;
   if (mrDirty) return true;
+  if (mrDecDirty) return true; // unsaved decision choices — refresh would wipe them
   const inbox = document.getElementById('inboxText');
   if (inbox && inbox.value.trim()) return true;
   for (const ta of document.querySelectorAll('.appr-form textarea')) if (ta.value.trim()) return true;
