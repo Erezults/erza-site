@@ -556,9 +556,9 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.8.0'</script>
+<script>window.ERZA_DEPLOY_VER='1.8.1'</script>
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=ee8b5b7c"></script>
+<script src="data.enc.js?v=a1a1c7d1"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -911,6 +911,7 @@ async function saveGlobalRequest(gid) {
   const g = JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\s/g, '')))));
   const t = (g.tasks || []).find(x => x.id === gid); if (!t) throw new Error('not found');
   t.status = 'requested'; t.requestedAt = new Date().toISOString(); g.updatedAt = t.requestedAt;
+  t.runs = t.runs || [];   // rerunnable: history is preserved and feeds the next run
   await gh('registry/global_tasks.json', undefined, { method: 'PUT', body: JSON.stringify({ message: 'הפעלת משימה גלובלית מהדשבורד', branch: 'main', sha: cur.sha,
     content: btoa(unescape(encodeURIComponent(JSON.stringify(g, null, 2)))) }) });
   mrGlobals = g;
@@ -1315,10 +1316,10 @@ function mrRender(live) {
     <div style="margin-top:8px">${(mrGlobals.tasks || []).map(t => `<div class="appr-item" style="padding:10px">
       <div class="appr-title"><b>${esc(t.title)}</b></div>
       <div class="section-sub" style="margin:4px 0">${esc(t.desc || '')}</div>
-      ${t.status === 'available' ? `<button class="btn-approve globrun" data-gid="${esc(t.id)}">🚀 הפעל עכשיו</button>`
-        : t.status === 'requested' ? `<span class="mdl" style="--bc:var(--yellow)">⏳ הופעל — ERZA מבצעת בסבב הקרוב</span>`
+      ${(t.runs || []).length ? `<div class="cat" style="margin:4px 0">📜 היסטוריית הרצות: ${t.runs.map(r => `${esc(String(r.startedAt).slice(5, 16).replace('T', ' '))}${r.finishedAt ? ' ✓' : ' 🔄'}`).join(' · ')}${t.runs.length > 1 ? ` (${t.runs.length})` : ''}</div>` : ''}
+      ${t.status === 'requested' ? `<span class="mdl" style="--bc:var(--yellow)">⏳ הופעל — ERZA מבצעת בסבב הקרוב</span>`
         : t.status === 'running' ? `<span class="mdl" style="--bc:var(--blue)">🔄 רץ עכשיו</span>`
-        : `<span class="mdl" style="--bc:var(--green)">✓ בוצע${t.doneAt ? ' · ' + esc(String(t.doneAt).slice(0, 10)) : ''}</span>`}
+        : `${t.status === 'done' ? `<span class="mdl" style="--bc:var(--green)">✓ בוצע לאחרונה${t.doneAt ? ' · ' + esc(String(t.doneAt).slice(0, 10)) : ''}</span> ` : ''}<button class="btn-approve globrun" data-gid="${esc(t.id)}">${t.status === 'done' ? '🔁 הרץ שוב (מהיסוד, מועשר בהרצות הקודמות)' : '🚀 הפעל עכשיו'}</button>`}
     </div>`).join('') || '<div class="mr-setup">אין משימות גלובליות מוגדרות</div>'}</div></details>`;
   // apps with active work BLINK on the summary line — visible while the panel is collapsed
   const runningApps = sortedApps.filter(([, d]) => d.running).map(([app]) => app);
