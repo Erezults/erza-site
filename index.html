@@ -556,7 +556,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.9.4'</script>
+<script>window.ERZA_DEPLOY_VER='1.10.0'</script>
 <script>window.ERZA_ICONV='11ebf3f6'</script>
 <script src="data.enc.js?v=915b1520"></script>
 <script>
@@ -1329,7 +1329,7 @@ function mrRender(live) {
         <div style="margin-top:8px">${items.map(apprItemHtml).join('')}</div></details>`).join('')}</div>
   </details>` : '';
   const apprHtml = `<details class="prio-panel" data-mrk="appr" style="--panel-accent:var(--green)">
-    <summary>✅ לבדיקתך — ${pendItems.length ? pendItems.length + ' נדחפו ל-dev ומוכנים לבדיקה' : 'אין כרגע (שום דבר לא נדחף ל-dev עדיין)'}</summary>
+    <summary>✅ לבדיקתך — ${pendItems.length ? pendItems.length + ' פריטים ממתינים' : 'אין כרגע (שום דבר לא נדחף ל-dev עדיין)'}${mrApprovalsErr ? ' <span style="color:var(--yellow)">⚠️ שליפת האישורים נכשלה — מוצג המצב האחרון הידוע</span>' : ''}</summary>
     <div style="margin-top:10px">${pendItems.length ? pendItems.map(apprItemHtml).join('') : '<div class="mr-setup">שורות יופיעו כאן רק אחרי שהתיקון נדחף ל-dev והגרסה עלתה — אז אפשר לבדוק על האפליקציה.</div>'}</div>
   </details>` + awaitHtml;
 
@@ -1580,14 +1580,25 @@ async function mrTick() {
     applyPageOrder(); injectMoveButtons('#main > details[data-pgk]');
     try {
       const meta = await gh('registry/approvals.json', undefined, { headers: { Accept: 'application/vnd.github+json' } });
-      mrApprovalsSha = meta.sha;
-      mrApprovals = JSON.parse(decodeURIComponent(escape(atob(meta.content.replace(/\s/g, '')))));
-    } catch { mrApprovals = { items: [] }; }
+      // parse FIRST — a transient failure (or a >1MB empty-content response) must keep the
+      // last-known desk and NEVER leave a valid sha beside empty items (audit r2)
+      const parsed = JSON.parse(decodeURIComponent(escape(atob(meta.content.replace(/\s/g, '')))));
+      mrApprovals = parsed; mrApprovalsSha = meta.sha; mrApprovalsErr = false;
+    } catch { mrApprovalsErr = true; /* keep last-known mrApprovals */ }
     try { mrInstr = await gh('registry/instructions_log.json'); } catch { mrInstr = { items: [] }; }
     mrLastLive = live;
     mrRender(live);
-    window.erzaRerender?.();
+    // the portfolio tables read STATIC data.js — their only live input is the app-rank
+    // order; rebuilding them on every tick collapsed open detail rows mid-read (audit r2)
+    const ranksSig = JSON.stringify(mrAppRanks);
+    if (ranksSig !== window._erzaRanksSig) { window._erzaRanksSig = ranksSig; window.erzaRerender?.(); }
   } catch (e) {
+    // never wipe a working machine room over one transient fetch error (audit r2) — keep
+    // the DOM and flag the failure; wipe only when there was never a successful render.
+    if (mrLastLive) {
+      document.getElementById('mrUpdated').textContent = `⚠️ רענון נכשל (${e.status || esc(String(e.message))}) — מציג את המצב האחרון; ינוסה שוב אוטומטית`;
+      return;
+    }
     document.getElementById('mrBody').innerHTML = `<div class="mr-setup">${e.status === 404 ? 'עדיין אין סטטוס חי — הדחיפה הראשונה תופיע תוך ~5 דקות.' : e.status === 401 || e.status === 403 ? 'הטוקן לא תקין או חסרות הרשאות — לחץ ⚙️ והדבק טוקן חדש.' : 'שגיאה בשליפת סטטוס (' + esc(String(e.message)) + ')'}</div>`;
   }
 }
