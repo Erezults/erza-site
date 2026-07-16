@@ -556,9 +556,9 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.6.0'</script>
+<script>window.ERZA_DEPLOY_VER='1.7.0'</script>
 <script>window.ERZA_ICONV='fd2ffb26'</script>
-<script src="data.enc.js?v=fb097e0f"></script>
+<script src="data.enc.js?v=0052da62"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1119,6 +1119,7 @@ function mrRender(live) {
       ${modelRow('Fable', fableBlocked, fableUntil)}
       ${modelRow('Opus / Sonnet / Haiku', blockedAll, a.exhaustedUntil)}
       ${blockedAll && a.blockReason ? `<div class="cat" style="margin-top:3px">⛔ ${esc(a.blockReason)}</div>` : ''}
+      ${a.probe && a.probe.at ? `<div class="cat" style="margin-top:3px">🔬 נבדק אמפירית ${esc(String(a.probe.at).slice(11, 16))}Z${a.probe.session ? ' · חשבון הסשן' : a.probe.evidence ? ' · ' + esc(a.probe.evidence) : ''}</div>` : ''}
     </div>`; }).join('');
   const r = live.resource;
   const erzaLine = `<div class="mr-erzaline">🧠 <b>ERZA (סשן אינטראקטיבי)</b> על: <b>${esc(live.erza?.session?.label || '—')}</b>${live.erza?.brain?.label ? ` · 🤖 המוח האוטונומי על: <b>${esc(live.erza.brain.label)}</b>` : ''}${r ? ` · 💻 עומס ${r.perCore5}/ליבה (${r.state}) · זיכרון ${r.memFreePct}% פנוי · ${r.claudeProcs} תהליכים` : ''}</div>`;
