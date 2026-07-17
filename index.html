@@ -151,6 +151,20 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .stopbtn { border: 1px solid color-mix(in srgb, var(--red) 40%, transparent); background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--red); border-radius: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
 /* approvals desk */
 .appr-item { border: 1px solid var(--grid); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; background: var(--surface-1); }
+/* consolidated dev-OTA review — changes grouped by the OTA they shipped in */
+.ota-grp { border: 1px solid var(--grid); border-radius: 8px; margin: 6px 0; overflow: hidden; }
+.ota-grp-h { background: var(--surface-2, var(--ink-1)); padding: 5px 9px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.ota-grp-h .ota-cnt { font-size: 10.5px; font-weight: 600; color: var(--muted); }
+.ota-chg { border-top: 1px solid var(--grid); padding: 5px 9px; }
+.ota-chg:first-of-type { border-top: none; }
+.ota-chg > summary { cursor: pointer; font-size: 12.5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; list-style: none; }
+.ota-chg > summary::-webkit-details-marker { display: none; }
+.ota-chg > summary::before { content: '▸'; color: var(--muted); font-size: 11px; }
+.ota-chg[open] > summary::before { content: '▾'; }
+.ota-chg .ota-sha { font-family: ui-monospace, monospace; font-size: 10px; color: var(--muted); background: var(--ink-1); border-radius: 4px; padding: 0 5px; }
+.ota-chg-b { font-size: 12px; margin: 4px 0 4px 16px; color: var(--ink-2, inherit); }
+.ota-chg-b ul { margin: 2px 0; padding-inline-start: 18px; }
+.ota-chg-b b { font-size: 11px; color: var(--muted); }
 .appr-item.approved { border-color: color-mix(in srgb, var(--green) 45%, transparent); }
 .appr-item.rejected { border-color: color-mix(in srgb, var(--red) 45%, transparent); }
 /* Title is a full-width row of its own; all pills/labels live on a SEPARATE row below
@@ -1294,8 +1308,24 @@ function mrRender(live) {
               ? `<span class="mdl" style="--bc:var(--blue)" title="worker רץ על האפליקציה כרגע">🔧 עבודה פעילה על האפליקציה — ה-OTA יידחף אוטומטית בסיומה</span>`
               : `<span class="mdl" style="--bc:var(--yellow)" title="ממתין לדחיפה בטיק הקרוב">⏳ ה-OTA בתור לדחיפה (טיק של עד 5 דק׳)</span>`)
             : `<span class="mdl" style="--bc:var(--blue)">🗳️ פריט החלטה (לא דורש OTA)</span>`}</div>
-        <h5>מה בוצע</h5><ul>${(it.done || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>
-        ${(it.check || []).length ? `<h5>מה לבדוק כדי לאשר</h5><ul>${it.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
+        ${(it.changes || []).length ? (() => {
+          // Consolidated dev-OTA review (Erez 2026-07-17): accumulated changes grouped by the
+          // OTA they shipped in. Check once on the LATEST (cumulative) build; each change keeps
+          // its own detail + version/sha so a later fix or rollback is traceable to its build.
+          const byOta = {}; for (const c of it.changes) (byOta[c.otaVersion || '—'] = byOta[c.otaVersion || '—'] || []).push(c);
+          const vers = Object.keys(byOta).sort();
+          const latest = it.latestOta || vers[vers.length - 1] || '';
+          return `<div class="mdl" style="--bc:var(--blue);margin:6px 0">📦 ${it.changes.length} שינויים מצטברים על פני ${vers.length} גרסאות OTA — בדוק על הגרסה האחרונה <b dir="ltr">${esc(latest)}</b> (מצטברת: כוללת את כל השינויים למטה). לכל שינוי מצוינת גרסת ה-OTA שבה נכנס, לשחזור/רול-בק.</div>
+          ${vers.map(v => `<div class="ota-grp">
+            <div class="ota-grp-h">📦 OTA <b dir="ltr">${esc(v)}</b> <span class="ota-cnt">${byOta[v].length} שינויים</span></div>
+            ${byOta[v].map(c => `<details class="ota-chg">
+              <summary><span class="refid">${esc(c.refId)}</span> ${esc((c.title || '').replace(/^[✅⚠️🔒📦🎨🔧🚀🖼️🧬📲🔍]+\s*/, ''))}${c.sha ? `<span class="ota-sha" dir="ltr" title="commit — לשחזור/רול-בק של שינוי זה">· ${esc(String(c.sha).slice(0, 7))}</span>` : ''}</summary>
+              ${(c.done || []).length ? `<div class="ota-chg-b"><b>מה בוצע</b><ul>${c.done.map(d => `<li>${esc(d)}</li>`).join('')}</ul></div>` : ''}
+              ${(c.check || []).length ? `<div class="ota-chg-b"><b>מה לבדוק</b><ul>${c.check.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+            </details>`).join('')}
+          </div>`).join('')}`;
+        })() : `<h5>מה בוצע</h5><ul>${(it.done || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>
+        ${(it.check || []).length ? `<h5>מה לבדוק כדי לאשר</h5><ul>${it.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}`}
         ${(it.decisions || []).length ? `${(() => { const tot = it.decisions.length, done = it.decisions.filter(d => d.taskCreated).length, saved = it.decisions.filter(d => d.chosen && !d.taskCreated).length, left = tot - done - saved;
           return done + saved ? `<div class="mdl" style="--bc:${left ? 'var(--yellow)' : 'var(--green)'};margin:6px 0">${done ? `✓ ${done} הפכו למשימות` : ''}${done && saved ? ' · ' : ''}${saved ? `💾 ${saved} נשמרו (יהפכו למשימות תוך ~5 דק׳)` : ''}${left ? ` · נותרו ${left} להכרעה — הפריט ייסגר ויֵעלם רק כשכל השורות יוכרעו` : ' · כל השורות הוכרעו — הפריט ייסגר בטיק הקרוב'}</div>` : ''; })()}<h5>🗳️ החלטות בתוך הרשומה — סמן ליד כל אחת</h5>
           ${it.decisions.map(d => `<div class="mr-task" data-key="${esc(d.key)}">
