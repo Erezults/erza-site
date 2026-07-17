@@ -595,7 +595,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.16.1'</script>
+<script>window.ERZA_DEPLOY_VER='1.16.2'</script>
 <script>window.ERZA_ICONV='11ebf3f6'</script>
 <script src="data.enc.js?v=7542e594"></script>
 <script>
@@ -1291,7 +1291,11 @@ function mrRender(live) {
     // actually stamp are gated at all (audit r2 XC-01: Coin/general rows were blocked FOREVER
     // because no stamper exists for them).
     const otaCapable = (mrLastLive?.otaApps || ['SalarixNative', 'HealtyNative', 'OwnestNative', 'FundivaNative', 'GroupyNative_New', 'Emoryx', 'HomeNetIP', 'xpensy']).includes(it.app);
-    const needsOta = !isBuild && !isMig && otaCapable && (it.type === 'dev-ota-review' || it.type === 'task-review' || !!it.otaChannel);
+    // prod-ota = a PROMOTION DECISION for Erez (auto-push never touches prod — rule 0.5), and
+    // ota-batch = consolidated already-pushed changes; NEITHER may be gated "queued for push"
+    // (Erez 2026-07-17: prod-ota rows sat hours labeled "בתור לדחיפה" for a push that never comes).
+    const isProdOta = it.type === 'prod-ota';
+    const needsOta = !isBuild && !isMig && !isProdOta && it.type !== 'ota-batch' && otaCapable && (it.type === 'dev-ota-review' || it.type === 'task-review' || !!it.otaChannel);
     // Authoritative pipeline stage from scripts/gate-approvals.mjs (computed each tick from
     // ground truth: open migration items + releases.json). When present it WINS over the
     // local OTA heuristic, so a review row is actionable ONLY at stage 'ready' — never before
@@ -1324,6 +1328,8 @@ function mrRender(live) {
           ? `<span class="mdl" style="--bc:#8e44ad">🗄️ מיגרציית DB ממתינה לאישורך — אישור ⇒ ERZA מריצה את המיגרציה ודוחפת את ה-OTA אוטומטית</span>`
           : isBuild
           ? `<span class="mdl" style="--bc:var(--yellow)">🔨 דרוש בילד ${it.buildChannel === 'prod' ? 'PROD' : 'DEV'} — אשר לבנייה</span>`
+          : isProdOta
+          ? `<span class="mdl" style="--bc:var(--red)">🚀 החלטת קידום ל-PROD — ממתין לאישורך; אישור ⇒ ERZA (המנצחת בלבד) תדחוף לערוץ prod</span>`
           : otaLive
           ? `<span class="mdl" style="--bc:var(--green)">✓ נדחף ${esc(it.push.channel || 'dev')}${it.push.version ? ' · ' + esc(it.push.version) : ''}</span>`
           : needsOta
