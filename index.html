@@ -179,6 +179,12 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 /* dedicated migrations group — purple, distinct from the per-app groups */
 .appr-miggrp { border-color: color-mix(in srgb, #8e44ad 45%, var(--grid)); }
 .appr-miggrp > summary { background: color-mix(in srgb, #8e44ad 12%, transparent); color: color-mix(in srgb, #8e44ad 70%, var(--ink-1)); }
+/* backlog rows: task text + a "בצע עכשיו" promote button */
+.backlog-row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.backlog-row .backlog-txt { flex: 1; min-width: 0; }
+.backlog-row .backlog-run { flex-shrink: 0; border: 1px solid color-mix(in srgb, var(--green) 45%, var(--grid)); background: color-mix(in srgb, var(--green) 12%, transparent); color: var(--green); border-radius: 7px; padding: 4px 9px; font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.backlog-row .backlog-run:hover { background: color-mix(in srgb, var(--green) 22%, transparent); }
+.backlog-row .backlog-run:disabled { opacity: .7; cursor: default; }
 /* inbox app-selector — button opens a LAYERED overlay with an icon grid.
    All selectors carry .appmodal / .inbox-appsel so they OUTRANK `.inbox button`
    (index.html: white var(--ink-1) bg + mobile width:100%), which the modal is nested under. */
@@ -1042,6 +1048,20 @@ async function gh(pathName, ref, opts = {}) {
   return r.status === 204 ? null : r.json();
 }
 
+// "בצע עכשיו": flag a backlog task urgent in user_priorities.json; the tick's
+// promote-urgent-backlog step moves it backlog→queued at top priority (one-shot).
+async function runBacklogNow(taskId) {
+  const cur = await gh('registry/user_priorities.json', undefined, { headers: { Accept: 'application/vnd.github+json' } })
+    .catch(e => { if (e && e.status === 404) return null; throw e; });
+  let data = { tasks: {}, apps: {} }, sha;
+  if (cur) { sha = cur.sha; try { data = JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\s/g, ''))))); } catch {} }
+  data.tasks = data.tasks || {};
+  data.tasks[taskId] = { ...(data.tasks[taskId] || {}), urgent: true, star: true, p: 0, urgentAt: new Date().toISOString() };
+  data.updatedAt = new Date().toISOString();
+  const body = { message: 'בצע עכשיו — קידום backlog מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
+    content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))) };
+  await gh('registry/user_priorities.json', undefined, { method: 'PUT', body: JSON.stringify(body) });
+}
 async function savePriorities() {
   const btn = document.getElementById('mrSaveBtn');
   btn.disabled = true; btn.textContent = 'שומר…';
@@ -1276,7 +1296,7 @@ function mrRender(live) {
         <summary>📋 Backlog — ${backlogTotal} משימות עתידיות (זוהו, טרם אושרו לתור)</summary>
         <div style="margin-top:8px">${sortedApps.filter(([, d]) => (d.backlog || []).length).map(([app, d]) =>
           `<div class="mr-app"><h3>${icon(app)}${esc(appLabel(app))} <span class="cat">· ${d.backlog.length}</span></h3>
-           ${d.backlog.map(t => `<div class="mr-recent"><span class="refid">${esc(t.refId || t.id)}</span> ${esc(t.title)}${t.note ? ` <span class="cat">— ${esc(t.note)}</span>` : ''}</div>`).join('')}
+           ${d.backlog.map(t => `<div class="mr-recent backlog-row"><div class="backlog-txt"><span class="refid">${esc(t.refId || t.id)}</span> ${esc(t.title)}${t.note ? ` <span class="cat">— ${esc(t.note)}</span>` : ''}</div><button type="button" class="backlog-run" data-tid="${esc(t.id)}" title="קדם לתור וסמן דחוף">▶️ בצע עכשיו</button></div>`).join('')}
           </div>`).join('')}</div></details>`
     : `<details class="prio-panel" data-mrk="backlog" style="--panel-accent:#8a6d3b"><summary>📋 Backlog — ריק כרגע</summary><div class="mr-setup" style="margin-top:8px">אין משימות backlog — כל מה שזוהה כבר בתור או בביצוע.</div></details>`;
 
@@ -1602,6 +1622,12 @@ function mrRender(live) {
   document.querySelectorAll('#mrBody .globrun').forEach(b => { b.onclick = async (e) => {
     e.preventDefault(); b.disabled = true; b.textContent = 'שולח…';
     try { await saveGlobalRequest(b.dataset.gid); b.textContent = '⏳ הופעל'; }
+    catch { b.textContent = 'שגיאה — נסה שוב'; b.disabled = false; }
+  }; });
+  // "בצע עכשיו" — promote a backlog task to the queue as urgent (Erez 2026-07-17).
+  document.querySelectorAll('#mrBody .backlog-run').forEach(b => { b.onclick = async (e) => {
+    e.preventDefault(); e.stopPropagation(); b.disabled = true; b.textContent = 'מסמן…';
+    try { await runBacklogNow(b.dataset.tid); b.textContent = '⚡ סומן — יעלה לתור בטיק הקרוב'; }
     catch { b.textContent = 'שגיאה — נסה שוב'; b.disabled = false; }
   }; });
   bindApprovals();
