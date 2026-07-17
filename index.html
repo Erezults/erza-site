@@ -625,7 +625,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.17.0'</script>
+<script>window.ERZA_DEPLOY_VER='1.17.1'</script>
 <script>window.ERZA_ICONV='11ebf3f6'</script>
 <script src="data.enc.js?v=3cf7382b"></script>
 <script>
@@ -1761,14 +1761,42 @@ function userBusy() {
   return false;
 }
 
+// Reviewing = an approvals APP-GROUP (or the migrations group) is expanded — a deliberate
+// "I opened this to handle it" action. While reviewing, the auto-refresh hold extends to
+// 5 min so a rebuild can't close your work mid-check (Erez 2026-07-17).
+function apprReviewing() {
+  return !!document.querySelector('#mrBody details[data-mrsub^="appr-"][open]');
+}
 const REFRESH_SECS = 120;
+const REFRESH_REVIEW_SECS = 300;   // 5-minute hold while reviewing approvals
 let refreshLeft = REFRESH_SECS;
+let reviewHold = false;            // user chose "חזור לרגיל" → drop the long hold this session
+let prevReviewing = false;
 function tickCountdown() {
   const el = document.getElementById('refreshCounter');
-  if (userBusy()) { refreshLeft = REFRESH_SECS; if (el) el.textContent = '⏸ ההקלדה מוגנת — לא ירונן עד שתסיים'; return; }
+  const rawReviewing = apprReviewing();
+  if (!rawReviewing) reviewHold = false;                              // nothing expanded → re-arm for next time
+  const reviewing = rawReviewing && !reviewHold;
+  if (reviewing && !prevReviewing) refreshLeft = REFRESH_REVIEW_SECS; // just opened a group → extend to 5 min
+  prevReviewing = reviewing;
+  const cap = reviewing ? REFRESH_REVIEW_SECS : REFRESH_SECS;
+  if (userBusy()) { refreshLeft = cap; if (el) el.textContent = '⏸ ההקלדה מוגנת — לא ירונן עד שתסיים'; return; }
+  if (refreshLeft > cap) refreshLeft = cap;                           // switched back to normal → shrink
   refreshLeft--;
-  if (el) el.textContent = refreshLeft > 0 ? `רענון אוטומטי בעוד ${refreshLeft} שנ׳` : 'מרענן…';
-  if (refreshLeft <= 0) { refreshLeft = REFRESH_SECS; mrTick(); }
+  if (el) {
+    if (reviewing) {
+      if (!document.getElementById('refCd')) {   // build the links ONCE, then update only the clock
+        el.innerHTML = `🔍 בבדיקת אישורים — רענון מושהה (<span id="refCd"></span>) · <a href="#" id="refNow" style="color:var(--blue)">רענן עכשיו</a> · <a href="#" id="refNormal" style="color:var(--muted)">חזור לרגיל</a>`;
+        document.getElementById('refNow').onclick = e => { e.preventDefault(); refreshLeft = 0; };
+        document.getElementById('refNormal').onclick = e => { e.preventDefault(); reviewHold = true; };
+      }
+      const s = Math.max(0, refreshLeft), cd = document.getElementById('refCd');
+      if (cd) cd.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    } else {
+      el.textContent = refreshLeft > 0 ? `רענון אוטומטי בעוד ${refreshLeft} שנ׳` : 'מרענן…';
+    }
+  }
+  if (refreshLeft <= 0) { refreshLeft = cap; mrTick(); }
 }
 
 async function mrTick() {
