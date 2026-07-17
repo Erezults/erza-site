@@ -1268,6 +1268,18 @@ function mrRender(live) {
        ${d.recent.map(r => `<div class="mr-recent">${r.status === 'review' ? '✅' : '⚠️'} ${esc(r.title)}${r.note ? ' — ' + esc(r.note) : ''}</div>`).join('')}
       </div>`).join('')}</div></details>` : '';
 
+  // Backlog panel (Erez 2026-07-17): future work identified but not yet approved to the queue
+  // (backlog → queued only on approval → running). Always shown so it's findable under ניהול.
+  const backlogTotal = sortedApps.reduce((n, [, d]) => n + ((d.backlog || []).length), 0);
+  const backlogPanel = backlogTotal
+    ? `<details class="prio-panel" data-mrk="backlog" style="--panel-accent:#8a6d3b">
+        <summary>📋 Backlog — ${backlogTotal} משימות עתידיות (זוהו, טרם אושרו לתור)</summary>
+        <div style="margin-top:8px">${sortedApps.filter(([, d]) => (d.backlog || []).length).map(([app, d]) =>
+          `<div class="mr-app"><h3>${icon(app)}${esc(appLabel(app))} <span class="cat">· ${d.backlog.length}</span></h3>
+           ${d.backlog.map(t => `<div class="mr-recent"><span class="refid">${esc(t.refId || t.id)}</span> ${esc(t.title)}${t.note ? ` <span class="cat">— ${esc(t.note)}</span>` : ''}</div>`).join('')}
+          </div>`).join('')}</div></details>`
+    : `<details class="prio-panel" data-mrk="backlog" style="--panel-accent:#8a6d3b"><summary>📋 Backlog — ריק כרגע</summary><div class="mr-setup" style="margin-top:8px">אין משימות backlog — כל מה שזוהה כבר בתור או בביצוע.</div></details>`;
+
   // approved-migration/approved-build are ACTIVE gates awaiting ERZA execution — they live
   // in the pending section, never the archive (audit r2 SM-01/XC-10/status-blind-archive);
   // awaiting-deploy has its own panel.
@@ -1559,15 +1571,14 @@ function mrRender(live) {
     ? ` · ${runningApps.length} <span class="run-now">${runningApps.map(app => `<span class="run-blink" title="${esc(app)} — בעבודה">${icon(app)}</span>`).join('')}</span>`
     : ' — אין עבודה רצה'}</summary><div style="margin-top:8px">` + runningHtml + `</div></details>`;
   // item 2 — Erez's saved panel order (registry/ui_layout.json), unknown keys appended
-  const PANELS = { appr: apprHtml, glob: globPanel, acc: accPanel, run: runPanel, queue: queuePanel, ranks: ranksHtml, inbox: inboxHtml, rel: relHtml, arch: archHtml, instr: instrHtml };
+  const PANELS = { appr: apprHtml, glob: globPanel, acc: accPanel, run: runPanel, queue: queuePanel, backlog: backlogPanel, ranks: ranksHtml, inbox: inboxHtml, rel: relHtml, arch: archHtml, instr: instrHtml };
   // 4-ZONE LAYOUT (Erez 2026-07-17): group the machine-room panels into focused zones so the
   // default view shows only what needs your response; status / archive / management are one
   // click away. Archives (OTA history + approvals + instructions) are merged into ONE zone.
   const ZONES = [
     { key: 'z-act',  title: '🔔 דורש את תשומת ליבך', accent: 'var(--green)', open: true,  panels: ['appr'] },
-    { key: 'z-stat', title: '📊 מצב המערכת',           accent: 'var(--blue)',  open: false, panels: ['acc', 'queue', 'ranks'] },
+    { key: 'z-mng',  title: '⚙️ ניהול',                accent: '#4a7ba6',      open: false, panels: ['queue', 'backlog', 'acc', 'ranks', 'glob'] },
     { key: 'z-arch', title: '🗄️ ארכיון והיסטוריה',    accent: '#7a8ca3',      open: false, panels: ['rel', 'arch', 'instr'] },
-    { key: 'z-mng',  title: '⚙️ ניהול',                accent: '#4a7ba6',      open: false, panels: ['glob'] },
   ];
   // first render → zone defaults (act open); later re-renders → keep whatever Erez toggled.
   const hadZones = !!document.querySelector('#mrBody details[data-zone]');
