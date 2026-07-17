@@ -203,6 +203,15 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .chat-input textarea { flex: 1; resize: none; border: 1px solid var(--grid); background: var(--page); color: var(--ink-1); border-radius: 12px; padding: 9px 12px; font-size: 14px; font-family: inherit; max-height: 140px; line-height: 1.4; }
 .chat-input #chatSend { flex-shrink: 0; border: none; background: #7c5cff; color: #fff; border-radius: 50%; width: 40px; height: 40px; font-size: 17px; cursor: pointer; padding: 0; }
 .chat-input #chatSend:hover { background: color-mix(in srgb, #7c5cff 85%, #000); }
+/* send arrow points inward (into the RTL conversation = leftward), not outward (Erez 2026-07-18) */
+.chat-input #chatSend .chat-send-arrow { display: inline-block; transform: scaleX(-1); }
+/* chat toolbar: app-focus selector (right) + new-session button (left) */
+.chat-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 2px; }
+.chat-toolbar .cat { font-size: 11px; }
+.chat-toolbar .chat-newsess { margin-inline-start: auto; border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-1); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; font-weight: 600; cursor: pointer; width: auto; }
+.chat-toolbar .chat-newsess:hover { border-color: #7c5cff; background: color-mix(in srgb, #7c5cff 12%, transparent); }
+.chat-ctx-chip { font-size: 10px; color: #7c5cff; margin: 0 6px 2px; font-weight: 600; }
+.chat-sess-sep { align-self: center; font-size: 10.5px; color: var(--muted); text-align: center; padding: 6px 0 2px; width: 100%; border-top: 1px dashed var(--grid); margin-top: 4px; }
 .chat-arch { margin-top: 8px; }
 .chat-arch-toggle { width: 100%; border: 1px dashed var(--grid); background: color-mix(in srgb, #7c5cff 6%, transparent); color: var(--ink-2); border-radius: 10px; padding: 7px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .chat-arch-toggle:hover { border-color: #7c5cff; }
@@ -958,6 +967,7 @@ const pat = () => localStorage.getItem('erza-pat') || '';
 let mrPrios = {}, mrAppRanks = {}, mrDirty = false, mrLastLive = null, mrApprovals = { items: [] }, mrApprovalsSha = null, mrInstr = { items: [] };
 let mrChat = { messages: [] }, mrChatSig = '';   // live chat with ERZA (registry/chat.json)
 let chatAtBottom = true, chatScrollSave = null;  // preserve scroll across the auto-refresh
+let chatApp = '';                                // app the chat is focused on ('' = general) — survives re-renders
 let mrLayout = {}, mrGlobals = { tasks: [] };
 let mrDecDirty = false;      // unsaved decision-dropdown choices (pauses auto-refresh)
 let mrApprovalsErr = false;  // last approvals fetch failed — desk shows last-known + warning
@@ -1252,7 +1262,26 @@ function mrTaskRow(t) {
 const CHAT_RECENT = 25;   // messages shown in the main log; older ones go to the archive
 function chatBubbleHtml(m) {
   const mine = m.role === 'user', t = (m.at || '').slice(11, 16);
-  return `<div class="chat-msg ${mine ? 'me' : 'erza'}"><div class="chat-bubble">${esc(m.text || '').replace(/\n/g, '<br>')}</div><div class="chat-meta">${mine ? 'אני' : 'ERZA'}${t ? ' · ' + t : ''}</div></div>`;
+  const appTag = m.app ? ` · ${esc(String(m.app).replace(/Native/g, '').replace(/_New/g, '').trim())}` : '';
+  return `<div class="chat-msg ${mine ? 'me' : 'erza'}"><div class="chat-bubble">${esc(m.text || '').replace(/\n/g, '<br>')}</div><div class="chat-meta">${mine ? 'אני' : 'ERZA'}${t ? ' · ' + t : ''}${appTag}</div></div>`;
+}
+// split the transcript into the CURRENT session (after the last boundary) and PAST sessions.
+// "new session" appends a boundary timestamp → everything before it moves to the archive,
+// leaving a clean sequence. Boundaries live in chat.json so they survive refresh + the responder.
+function chatSessionSplit(msgs) {
+  const b = (mrChat.sessionBoundaries || []).filter(Boolean).slice().sort();
+  const tOf = m => m.at ? Date.parse(m.at) : (typeof m.id === 'number' ? m.id : 0);
+  const startT = b.length ? Date.parse(b[b.length - 1]) : -Infinity;
+  return { current: msgs.filter(m => tOf(m) >= startT), past: msgs.filter(m => tOf(m) < startT), boundaries: b, tOf };
+}
+function chatArchiveHtml(archived, boundaries, tOf) {
+  const bt = boundaries.map(Date.parse);
+  let html = '', bi = 0;
+  for (const m of archived) {
+    while (bi < bt.length && tOf(m) >= bt[bi]) { html += `<div class="chat-sess-sep">— סשן חדש —</div>`; bi++; }
+    html += chatBubbleHtml(m);
+  }
+  return html;
 }
 function renderChatLog(msgs) {
   const all = msgs || [];
@@ -1264,14 +1293,36 @@ function renderChatLog(msgs) {
 }
 function chatPanelHtml() {
   const msgs = mrChat.messages || [];
-  const older = msgs.length > CHAT_RECENT ? msgs.slice(0, msgs.length - CHAT_RECENT) : [];
+  const { current, past, boundaries, tOf } = chatSessionSplit(msgs);
+  const overflow = current.length > CHAT_RECENT ? current.slice(0, current.length - CHAT_RECENT) : [];
+  const archived = [...past, ...overflow];
+  const iconOf = a => `<img class="appicon" src="icons/${esc(a)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
+  const labelOf = a => String(a).replace(/Native/g, '').replace(/_New/g, '').trim() || String(a);
+  const apps = [...((mrLastLive && mrLastLive.nativeApps) || [])].sort((a, b) => (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99));
   return `<details class="prio-panel chat-panel" data-mrk="chat" style="--panel-accent:#7c5cff" open>
     <summary>💬 צ׳אט עם ERZA <span class="cat">(שיחה שוטפת — במקביל לכל העבודה)</span></summary>
-    <div class="chat-log" id="chatLog">${renderChatLog(msgs)}</div>
-    ${older.length ? `<div class="chat-arch"><button type="button" id="chatArchToggle" class="chat-arch-toggle">🗄️ הצג ארכיון שיחה (${older.length})</button><div id="chatArchBody" class="chat-arch-body" hidden>${older.map(chatBubbleHtml).join('')}</div></div>` : ''}
+    <div class="chat-toolbar inbox-appsel">
+      <span class="cat">התמקדות:</span>
+      <button type="button" id="chatAppBtn" class="appsel-btn">${chatApp ? `${iconOf(chatApp)}${esc(labelOf(chatApp))}` : '🌐 כללי'} <span class="appsel-caret">▾</span></button>
+      ${chatApp ? '<button type="button" id="chatAppClear" class="appsel-clear" title="חזרה לכללי">✕</button>' : ''}
+      <button type="button" id="chatNewSess" class="chat-newsess" title="העבר את השיחה הנוכחית לארכיון והתחל רצף נקי">＋ סשן חדש</button>
+    </div>
+    <div id="chatAppModal" class="appmodal" hidden>
+      <div class="appmodal-backdrop"></div>
+      <div class="appmodal-card" role="dialog" aria-modal="true">
+        <div class="appmodal-head"><b>בחר אפליקציה להתמקדות בצ׳אט</b><button type="button" class="appmodal-x" data-app="">✕</button></div>
+        <button type="button" class="appmodal-general" data-app="">🌐 כללי — לא קשור לאפליקציה מסוימת</button>
+        <div class="appmodal-grid">
+          ${apps.map(a => `<button type="button" class="appmodal-tile" data-app="${esc(a)}">${iconOf(a)}<span class="appmodal-name">${esc(labelOf(a))}</span></button>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="chat-log" id="chatLog">${renderChatLog(current)}</div>
+    ${archived.length ? `<div class="chat-arch"><button type="button" id="chatArchToggle" class="chat-arch-toggle">🗄️ ארכיון שיחות קודמות (${archived.length})</button><div id="chatArchBody" class="chat-arch-body" hidden>${chatArchiveHtml(archived, boundaries, tOf)}</div></div>` : ''}
+    ${chatApp ? `<div class="chat-ctx-chip">✳️ השיחה בהקשר: ${esc(labelOf(chatApp))}</div>` : ''}
     <div class="chat-input">
       <textarea id="chatText" rows="1" placeholder="כתוב הודעה ל-ERZA…  (Enter לשליחה · Shift+Enter שורה חדשה)"></textarea>
-      <button id="chatSend" title="שלח">➤</button>
+      <button id="chatSend" title="שלח"><span class="chat-send-arrow">➤</span></button>
     </div>
   </details>`;
 }
@@ -1279,13 +1330,13 @@ function updateChatLog() {
   const log = document.getElementById('chatLog'); if (!log) return;
   const wasBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
   const prev = log.scrollTop;
-  log.innerHTML = renderChatLog(mrChat.messages);
+  log.innerHTML = renderChatLog(chatSessionSplit(mrChat.messages || []).current);   // current session only
   log.scrollTop = (wasBottom || chatAtBottom) ? log.scrollHeight : prev;   // stay put unless at bottom
 }
 async function chatSendMsg() {
   const ta = document.getElementById('chatText'); if (!ta) return;
   const text = ta.value.trim(); if (!text) return;
-  const msg = { id: Date.now(), role: 'user', text, at: new Date().toISOString() };
+  const msg = { id: Date.now(), role: 'user', text, ...(chatApp ? { app: chatApp } : {}), at: new Date().toISOString() };
   mrChat.messages = mrChat.messages || []; mrChat.messages.push(msg);
   ta.value = ''; ta.style.height = 'auto'; updateChatLog();
   try {
@@ -1331,9 +1382,62 @@ function bindChat() {
     chatScrollSave = null;
     log.onscroll = () => { chatAtBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 60; };
   }
-  // expand/collapse the chat archive (older messages)
+  // expand/collapse the chat archive (previous sessions + older messages)
   const arch = document.getElementById('chatArchToggle');
-  if (arch) arch.onclick = e => { e.preventDefault(); const b = document.getElementById('chatArchBody'); if (b) b.hidden = !b.hidden; arch.textContent = (b && b.hidden ? '🗄️ הצג ארכיון שיחה' : '🗄️ הסתר ארכיון') ; };
+  if (arch) arch.onclick = e => { e.preventDefault(); const b = document.getElementById('chatArchBody'); if (b) b.hidden = !b.hidden; arch.textContent = (b && b.hidden ? '🗄️ ארכיון שיחות קודמות' : '🗄️ הסתר ארכיון') ; };
+
+  // in-chat app-focus selector (Erez 2026-07-18) — mirrors the free-instruction picker.
+  // focus PERSISTS across messages (a conversation stays in one app's context) — unlike the
+  // inbox which resets after each send. Updates the button in place (no full re-render) so a
+  // half-typed message is never lost.
+  {
+    const appBtn = document.getElementById('chatAppBtn');
+    const modal = document.getElementById('chatAppModal');
+    const labelOf = a => String(a).replace(/Native/g, '').replace(/_New/g, '').trim() || String(a);
+    const setChatApp = a => {
+      chatApp = a || '';
+      if (appBtn) appBtn.innerHTML = (chatApp ? `<img class="appicon" src="icons/${esc(chatApp)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">${esc(labelOf(chatApp))}` : '🌐 כללי') + ' <span class="appsel-caret">▾</span>';
+      let cb = document.getElementById('chatAppClear');
+      if (chatApp && !cb && appBtn) appBtn.insertAdjacentHTML('afterend', '<button type="button" id="chatAppClear" class="appsel-clear" title="חזרה לכללי">✕</button>');
+      if (!chatApp && cb) cb.remove();
+      cb = document.getElementById('chatAppClear'); if (cb) cb.onclick = ev => { ev.preventDefault(); setChatApp(''); };
+      let chip = document.querySelector('.chat-panel .chat-ctx-chip');
+      const inputRow = document.querySelector('.chat-panel .chat-input');
+      if (chatApp) { if (chip) chip.innerHTML = '✳️ השיחה בהקשר: ' + esc(labelOf(chatApp)); else if (inputRow) inputRow.insertAdjacentHTML('beforebegin', `<div class="chat-ctx-chip">✳️ השיחה בהקשר: ${esc(labelOf(chatApp))}</div>`); }
+      else if (chip) chip.remove();
+    };
+    const closeModal = () => { if (modal) modal.hidden = true; };
+    if (appBtn && modal) appBtn.onclick = e => { e.preventDefault(); modal.hidden = false; };
+    const cb0 = document.getElementById('chatAppClear'); if (cb0) cb0.onclick = e => { e.preventDefault(); setChatApp(''); };
+    if (modal) {
+      modal.querySelectorAll('[data-app]').forEach(t => t.onclick = () => { setChatApp(t.dataset.app || ''); closeModal(); });
+      modal.querySelector('.appmodal-backdrop').onclick = closeModal;
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
+    }
+  }
+
+  // "new session" — append a boundary timestamp to chat.json; the current messages move to the
+  // archive and a clean sequence begins. The boundary lives in chat.json so refresh + the
+  // responder both honor it.
+  const newSess = document.getElementById('chatNewSess');
+  if (newSess) newSess.onclick = async e => {
+    e.preventDefault();
+    if (!(mrChat.messages || []).length) return;   // nothing to archive yet
+    newSess.disabled = true; const orig = newSess.textContent; newSess.textContent = 'מעביר לארכיון…';
+    try {
+      let sha, data = { messages: [] };
+      const cur = await gh('registry/chat.json', undefined, { headers: { Accept: 'application/vnd.github+json' } })
+        .catch(er => { if (er && er.status === 404) return null; throw er; });
+      if (cur) { sha = cur.sha; try { data = JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\s/g, ''))))); } catch {} }
+      data.messages = data.messages || [];
+      data.sessionBoundaries = [...(data.sessionBoundaries || []), new Date().toISOString()];
+      data.updatedAt = new Date().toISOString();
+      await gh('registry/chat.json', undefined, { method: 'PUT', body: JSON.stringify({ message: 'צ׳אט: סשן חדש (הקודם לארכיון)', branch: 'main', ...(sha ? { sha } : {}),
+        content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))) }) });
+      mrChat = data; mrChatSig = JSON.stringify(data.messages.map(m => m.id));
+      mrRender(mrLastLive);
+    } catch { newSess.disabled = false; newSess.textContent = orig; }
+  };
 }
 
 function mrRender(live) {
