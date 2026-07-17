@@ -179,14 +179,26 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 /* dedicated migrations group — purple, distinct from the per-app groups */
 .appr-miggrp { border-color: color-mix(in srgb, #8e44ad 45%, var(--grid)); }
 .appr-miggrp > summary { background: color-mix(in srgb, #8e44ad 12%, transparent); color: color-mix(in srgb, #8e44ad 70%, var(--ink-1)); }
-/* inbox app-selector dropdown — pick the native app the instruction relates to */
-.inbox-appsel { position: relative; display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+/* inbox app-selector — button opens a LAYERED overlay with an icon grid */
+.inbox-appsel { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
 .appsel-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-1); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
-.appsel-btn .appicon, .appsel-menu .appicon { width: 18px; height: 18px; border-radius: 5px; }
+.appsel-btn .appicon { width: 18px; height: 18px; border-radius: 5px; }
 .appsel-caret { color: var(--muted); font-size: 11px; }
-.appsel-menu { position: absolute; top: calc(100% + 4px); inset-inline-start: 0; z-index: 40; min-width: 260px; max-height: 320px; overflow-y: auto; background: var(--surface-1); border: 1px solid var(--grid); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.25); padding: 4px; }
-.appsel-opt { display: flex; align-items: center; gap: 8px; width: 100%; text-align: start; border: none; background: none; color: var(--ink-1); font-size: 13px; padding: 7px 9px; border-radius: 7px; cursor: pointer; }
-.appsel-opt:hover { background: color-mix(in srgb, var(--ink-1) 8%, transparent); }
+.appsel-clear { border: 1px solid var(--grid); background: none; color: var(--muted); border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-size: 12px; line-height: 1; }
+.appsel-clear:hover { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, var(--grid)); }
+/* overlay modal above the whole screen */
+.appmodal { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; }
+.appmodal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.55); }
+.appmodal-card { position: relative; width: min(560px, 92vw); max-height: 82vh; overflow-y: auto; background: var(--surface-1); border: 1px solid var(--grid); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.4); padding: 16px; }
+.appmodal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 15px; }
+.appmodal-x { border: none; background: none; color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1; }
+.appmodal-general { width: 100%; text-align: center; border: 1px dashed var(--grid); background: color-mix(in srgb, var(--ink-1) 4%, transparent); color: var(--ink-1); border-radius: 10px; padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 12px; }
+.appmodal-general:hover { border-color: var(--panel-accent, var(--blue)); }
+.appmodal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
+.appmodal-tile { display: flex; flex-direction: column; align-items: center; gap: 7px; border: 1px solid var(--grid); background: var(--surface-1); border-radius: 12px; padding: 12px 6px; cursor: pointer; }
+.appmodal-tile:hover { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 8%, transparent); transform: translateY(-1px); }
+.appmodal-tile .appicon { width: 46px; height: 46px; border-radius: 12px; }
+.appmodal-name { font-size: 11.5px; font-weight: 600; color: var(--ink-1); text-align: center; overflow-wrap: anywhere; line-height: 1.2; }
 /* 4-zone layout — top-level focus zones grouping the machine-room panels */
 .zone { border: 1px solid color-mix(in srgb, var(--panel-accent) 35%, var(--grid)); border-radius: 14px; margin-bottom: 14px; background: color-mix(in srgb, var(--panel-accent) 4%, var(--page)); overflow: hidden; }
 .zone > summary { cursor: pointer; padding: 12px 16px; font-size: 16px; font-weight: 800; list-style: none; display: flex; align-items: center; gap: 8px; color: var(--panel-accent); }
@@ -603,7 +615,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.16.3'</script>
+<script>window.ERZA_DEPLOY_VER='1.16.4'</script>
 <script>window.ERZA_ICONV='11ebf3f6'</script>
 <script src="data.enc.js?v=3cf7382b"></script>
 <script>
@@ -1489,10 +1501,17 @@ function mrRender(live) {
     <div class="section-sub" style="margin:0 0 6px">כתוב מה שתרצה — אני אפצל למשימות ואבצע לפי הכללים</div>
     <div class="inbox-appsel">
       <span class="cat">ההוראה נוגעת ל:</span>
-      <button type="button" id="inboxAppBtn" class="appsel-btn">${inboxApp ? `${icon(inboxApp)}${esc(inboxApp)}` : '🌐 הוראה כללית — לא קשורה לאפליקציה'} <span class="appsel-caret">▾</span></button>
-      <div id="inboxAppMenu" class="appsel-menu" hidden>
-        <button type="button" class="appsel-opt" data-app="">🌐 הוראה כללית — לא קשורה לאפליקציה</button>
-        ${orderedApps.map(a => `<button type="button" class="appsel-opt" data-app="${esc(a)}">${icon(a)}${esc(a)}</button>`).join('')}
+      <button type="button" id="inboxAppBtn" class="appsel-btn">${inboxApp ? `${icon(inboxApp)}${esc(inboxApp)}` : '🌐 הוראה כללית'} <span class="appsel-caret">▾</span></button>
+      ${inboxApp ? '<button type="button" id="inboxAppClear" class="appsel-clear" title="חזרה להוראה כללית">✕</button>' : ''}
+    </div>
+    <div id="inboxAppModal" class="appmodal" hidden>
+      <div class="appmodal-backdrop"></div>
+      <div class="appmodal-card" role="dialog" aria-modal="true">
+        <div class="appmodal-head"><b>בחר אפליקציה להוראה</b><button type="button" class="appmodal-x" data-app="">✕</button></div>
+        <button type="button" class="appmodal-general" data-app="">🌐 הוראה כללית — לא קשורה לאפליקציה מסוימת</button>
+        <div class="appmodal-grid">
+          ${orderedApps.map(a => `<button type="button" class="appmodal-tile" data-app="${esc(a)}">${icon(a)}<span class="appmodal-name">${esc(a)}</span></button>`).join('')}
+        </div>
       </div>
     </div>
     <textarea id="inboxText" placeholder="לדוגמה: תעצור הכל ב-Coin ותתמקד בהגשת Fundiva עוד היום…"></textarea>
@@ -1567,18 +1586,28 @@ function mrRender(live) {
       b.textContent = '⏹ ייעצר בשמירה'; b.disabled = true;
     };
   });
-  // App-selector dropdown for the free instruction (Erez 2026-07-17): pick the relevant
-  // native app (icons + names) or leave as a general instruction.
+  // App-selector overlay for the free instruction (Erez 2026-07-17): a layered modal with a
+  // grid of app icons (name under each). Default = general (no app). You can still write a
+  // general instruction that mentions an app in free text.
   {
-    const appBtn = document.getElementById('inboxAppBtn'), appMenu = document.getElementById('inboxAppMenu');
-    if (appBtn && appMenu) {
-      appBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); appMenu.hidden = !appMenu.hidden; };
-      appMenu.querySelectorAll('.appsel-opt').forEach(o => o.onclick = () => {
-        inboxApp = o.dataset.app || '';
-        appBtn.innerHTML = o.innerHTML + ' <span class="appsel-caret">▾</span>';
-        appMenu.hidden = true;
-      });
-      document.addEventListener('click', e => { if (!appMenu.hidden && !e.target.closest('.inbox-appsel')) appMenu.hidden = true; });
+    const appBtn = document.getElementById('inboxAppBtn');
+    const clearBtn = document.getElementById('inboxAppClear');
+    const modal = document.getElementById('inboxAppModal');
+    const setApp = a => {
+      inboxApp = a || '';
+      if (appBtn) appBtn.innerHTML = (inboxApp ? `<img class="appicon" src="icons/${esc(inboxApp)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">${esc(inboxApp)}` : '🌐 הוראה כללית') + ' <span class="appsel-caret">▾</span>';
+      const cb = document.getElementById('inboxAppClear');
+      if (inboxApp && !cb && appBtn) appBtn.insertAdjacentHTML('afterend', '<button type="button" id="inboxAppClear" class="appsel-clear" title="חזרה להוראה כללית">✕</button>');
+      if (!inboxApp && cb) cb.remove();
+      const nb = document.getElementById('inboxAppClear'); if (nb) nb.onclick = e => { e.preventDefault(); setApp(''); };
+    };
+    const closeModal = () => { if (modal) modal.hidden = true; };
+    if (appBtn && modal) appBtn.onclick = e => { e.preventDefault(); modal.hidden = false; };
+    if (clearBtn) clearBtn.onclick = e => { e.preventDefault(); setApp(''); };
+    if (modal) {
+      modal.querySelectorAll('[data-app]').forEach(t => t.onclick = () => { setApp(t.dataset.app || ''); closeModal(); });
+      modal.querySelector('.appmodal-backdrop').onclick = closeModal;
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
     }
   }
   document.getElementById('inboxSend').onclick = async () => {
@@ -1621,7 +1650,8 @@ function mrRender(live) {
       await gh('registry/inbox.json', undefined, { method: 'PUT', body: JSON.stringify(body) });
       ta.value = ''; if (fi) fi.value = '';
       const sentApp = inboxApp; inboxApp = '';
-      const ab = document.getElementById('inboxAppBtn'); if (ab) ab.innerHTML = '🌐 הוראה כללית — לא קשורה לאפליקציה <span class="appsel-caret">▾</span>';
+      const ab = document.getElementById('inboxAppBtn'); if (ab) ab.innerHTML = '🌐 הוראה כללית <span class="appsel-caret">▾</span>';
+      const cb = document.getElementById('inboxAppClear'); if (cb) cb.remove();
       ok.textContent = 'נקלט ✓' + (sentApp ? ` (${sentApp})` : '') + (files.length ? ` (${files.length} קבצים)` : '') + ' — ERZA תטפל בסבב הקרוב';
     } catch { ok.textContent = 'שגיאה בשליחה — נסה שוב'; }
   };
