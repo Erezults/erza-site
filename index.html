@@ -303,7 +303,8 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .inbox { border-top: 1px solid var(--grid); margin-top: 12px; padding-top: 12px; }
 .inbox textarea { width: 100%; min-height: 64px; border: 1px solid var(--grid); background: var(--page); color: var(--ink-1); border-radius: 10px; padding: 9px 12px; font-size: 14px; font-family: inherit; resize: vertical; }
 .inbox .row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
-.inbox button { border: none; background: var(--ink-1); color: var(--page); border-radius: 8px; padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.inbox button { border: none; background: var(--green); color: #fff; border-radius: 8px; padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.inbox button:hover { background: color-mix(in srgb, var(--green) 82%, #000); }
 .inbox .ok { font-size: 12.5px; color: var(--green); }
 .mr-recent { font-size: 12px; color: var(--muted); margin-top: 4px; }
 .mr-setup { font-size: 13px; color: var(--ink-2); line-height: 1.7; }
@@ -618,7 +619,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.16.4'</script>
+<script>window.ERZA_DEPLOY_VER='1.16.5'</script>
 <script>window.ERZA_ICONV='11ebf3f6'</script>
 <script src="data.enc.js?v=3cf7382b"></script>
 <script>
