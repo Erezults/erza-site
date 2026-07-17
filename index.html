@@ -179,26 +179,29 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 /* dedicated migrations group — purple, distinct from the per-app groups */
 .appr-miggrp { border-color: color-mix(in srgb, #8e44ad 45%, var(--grid)); }
 .appr-miggrp > summary { background: color-mix(in srgb, #8e44ad 12%, transparent); color: color-mix(in srgb, #8e44ad 70%, var(--ink-1)); }
-/* inbox app-selector — button opens a LAYERED overlay with an icon grid */
+/* inbox app-selector — button opens a LAYERED overlay with an icon grid.
+   All selectors carry .appmodal / .inbox-appsel so they OUTRANK `.inbox button`
+   (index.html: white var(--ink-1) bg + mobile width:100%), which the modal is nested under. */
 .inbox-appsel { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
-.appsel-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-1); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.inbox-appsel .appsel-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-1); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 600; cursor: pointer; width: auto; }
 .appsel-btn .appicon { width: 18px; height: 18px; border-radius: 5px; }
 .appsel-caret { color: var(--muted); font-size: 11px; }
-.appsel-clear { border: 1px solid var(--grid); background: none; color: var(--muted); border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-size: 12px; line-height: 1; }
-.appsel-clear:hover { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, var(--grid)); }
-/* overlay modal above the whole screen */
-.appmodal { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; }
-.appmodal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.55); }
-.appmodal-card { position: relative; width: min(560px, 92vw); max-height: 82vh; overflow-y: auto; background: var(--surface-1); border: 1px solid var(--grid); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.4); padding: 16px; }
-.appmodal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 15px; }
-.appmodal-x { border: none; background: none; color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1; }
-.appmodal-general { width: 100%; text-align: center; border: 1px dashed var(--grid); background: color-mix(in srgb, var(--ink-1) 4%, transparent); color: var(--ink-1); border-radius: 10px; padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 12px; }
-.appmodal-general:hover { border-color: var(--panel-accent, var(--blue)); }
-.appmodal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
-.appmodal-tile { display: flex; flex-direction: column; align-items: center; gap: 7px; border: 1px solid var(--grid); background: var(--surface-1); border-radius: 12px; padding: 12px 6px; cursor: pointer; }
-.appmodal-tile:hover { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 8%, transparent); transform: translateY(-1px); }
-.appmodal-tile .appicon { width: 46px; height: 46px; border-radius: 12px; }
-.appmodal-name { font-size: 11.5px; font-weight: 600; color: var(--ink-1); text-align: center; overflow-wrap: anywhere; line-height: 1.2; }
+.inbox-appsel .appsel-clear { border: 1px solid var(--grid); background: var(--surface-1); color: var(--muted); border-radius: 6px; width: 26px; height: 26px; padding: 0; cursor: pointer; font-size: 12px; line-height: 1; }
+.inbox-appsel .appsel-clear:hover { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, var(--grid)); }
+/* overlay modal above the whole screen — hidden by default (no auto-open) */
+.appmodal { position: fixed; inset: 0; z-index: 200; }
+.appmodal:not([hidden]) { display: flex; align-items: center; justify-content: center; }
+.appmodal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.6); }
+.appmodal-card { position: relative; width: min(560px, 92vw); max-height: 82vh; overflow-y: auto; background: var(--surface-1); border: 1px solid var(--grid); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.5); padding: 16px; }
+.appmodal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; font-size: 15px; color: var(--ink-1); }
+.appmodal .appmodal-x { border: none; background: none; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; width: auto; padding: 0 6px; }
+.appmodal .appmodal-general { width: 100%; text-align: center; border: 1px dashed var(--grid); background: color-mix(in srgb, var(--ink-1) 6%, transparent); color: var(--ink-1); border-radius: 10px; padding: 11px; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 14px; }
+.appmodal .appmodal-general:hover { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 12%, transparent); }
+.appmodal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.appmodal .appmodal-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-1); border-radius: 16px; padding: 8px; cursor: pointer; width: auto; }
+.appmodal .appmodal-tile:hover { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 10%, transparent); }
+.appmodal-tile .appicon { width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 22px; display: block; }
+.appmodal-name { font-size: 12px; font-weight: 600; color: var(--ink-1); text-align: center; overflow-wrap: anywhere; line-height: 1.2; }
 /* 4-zone layout — top-level focus zones grouping the machine-room panels */
 .zone { border: 1px solid color-mix(in srgb, var(--panel-accent) 35%, var(--grid)); border-radius: 14px; margin-bottom: 14px; background: color-mix(in srgb, var(--panel-accent) 4%, var(--page)); overflow: hidden; }
 .zone > summary { cursor: pointer; padding: 12px 16px; font-size: 16px; font-weight: 800; list-style: none; display: flex; align-items: center; gap: 8px; color: var(--panel-accent); }
