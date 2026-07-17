@@ -643,7 +643,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.18.0'</script>
+<script>window.ERZA_DEPLOY_VER='1.18.1'</script>
 <script>window.ERZA_ICONV='11ebf3f6'</script>
 <script src="data.enc.js?v=fae1f575"></script>
 <script>
@@ -1252,7 +1252,7 @@ function renderChatLog(msgs) {
   }).join('');
   const last = list[list.length - 1];
   const waiting = last && last.role === 'user' && !(msgs || []).some(y => y.role === 'erza' && y.replyTo === last.id);
-  const dots = waiting ? `<div class="chat-msg erza"><div class="chat-bubble chat-typing"><span></span><span></span><span></span></div><div class="chat-meta">ERZA מקלידה…</div></div>` : '';
+  const dots = waiting ? `<div class="chat-msg erza"><div class="chat-bubble chat-typing"><span></span><span></span><span></span></div><div class="chat-meta">✓ התקבל · ERZA מעבדת…</div></div>` : '';
   return (bubbles + dots) || '<div class="chat-empty">התחל שיחה עם ERZA — כתוב כל שאלה או הוראה, בדיוק כמו בטרמינל.</div>';
 }
 function chatPanelHtml() {
@@ -1293,8 +1293,13 @@ async function chatPoll() {
   try {
     const c = await gh('registry/chat.json');
     if (c && Array.isArray(c.messages)) {
-      const sig = JSON.stringify(c.messages.map(m => m.id));
-      if (sig !== mrChatSig) { mrChatSig = sig; mrChat = c; updateChatLog(); }
+      // merge origin + any local optimistic messages not yet on origin (a slow/failed send
+      // must not vanish on the next poll), chronological by id.
+      const originIds = new Set(c.messages.map(m => m.id));
+      const localOnly = (mrChat.messages || []).filter(m => !originIds.has(m.id));
+      const merged = [...c.messages, ...localOnly].sort((a, b) => (a.id || 0) - (b.id || 0));
+      const sig = JSON.stringify(merged.map(m => m.id));
+      if (sig !== mrChatSig) { mrChatSig = sig; mrChat = { ...c, messages: merged }; updateChatLog(); }
     }
   } catch { /* transient */ }
 }
