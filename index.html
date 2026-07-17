@@ -1399,9 +1399,9 @@ function mrRender(live) {
   // Sub-groups use data-mrsub so their open/closed state survives the auto-refresh (line ~1464).
   const GENERIC_APP = new Set(['multi', 'general', 'all', '']);
   const pendByApp = {};
-  for (const it of pendItems) (pendByApp[it.app || 'general'] = pendByApp[it.app || 'general'] || []).push(it);
+  for (const it of pendItems) { const k = GENERIC_APP.has(it.app || '') ? '__general__' : it.app; (pendByApp[k] = pendByApp[k] || []).push(it); }
   const pendAppKeys = Object.keys(pendByApp).sort((a, b) =>
-    (GENERIC_APP.has(a) ? 1 : 0) - (GENERIC_APP.has(b) ? 1 : 0)
+    (a === '__general__' ? 1 : 0) - (b === '__general__' ? 1 : 0)
     || (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99) || a.localeCompare(b));
   const grpSummary = its => {
     const ready = its.filter(i => !i.pipelineStage || i.pipelineStage === 'ready').length;
@@ -1412,8 +1412,8 @@ function mrRender(live) {
     <summary>✅ לבדיקתך — ${pendItems.length ? `${pendItems.length} פריטים ב-${pendAppKeys.length} אפליקציות` : 'אין כרגע (שום דבר לא נדחף ל-dev עדיין)'}${mrApprovalsErr ? ' <span style="color:var(--yellow)">⚠️ שליפת האישורים נכשלה — מוצג המצב האחרון הידוע</span>' : ''}</summary>
     <div style="margin-top:10px">${pendItems.length ? pendAppKeys.map(app => {
       const its = pendByApp[app].slice().sort((a, b) => pendRank(a) - pendRank(b));
-      const label = GENERIC_APP.has(app) ? '🌐 כללי / חוצה-אפליקציות' : `${icon(app)}${esc(app)}`;
-      return `<details class="appr-appgrp" data-mrsub="appr-${esc(app)}" style="margin:6px 0"><summary>${label}<span class="appgrp-cnt">${grpSummary(its)}</span></summary>
+      const label = app === '__general__' ? '🌐 כללי / חוצה-אפליקציות' : `${icon(app)}${esc(app)}`;
+      return `<details class="appr-appgrp" data-mrsub="appr-${app === '__general__' ? 'general' : esc(app)}" style="margin:6px 0"><summary>${label}<span class="appgrp-cnt">${grpSummary(its)}</span></summary>
         <div style="margin-top:8px">${its.map(apprItemHtml).join('')}</div></details>`;
     }).join('') : '<div class="mr-setup">שורות יופיעו כאן רק אחרי שהתיקון נדחף ל-dev והגרסה עלתה — אז אפשר לבדוק על האפליקציה.</div>'}</div>
   </details>` + awaitHtml;
