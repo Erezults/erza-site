@@ -625,9 +625,9 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.17.1'</script>
+<script>window.ERZA_DEPLOY_VER='1.17.2'</script>
 <script>window.ERZA_ICONV='11ebf3f6'</script>
-<script src="data.enc.js?v=3cf7382b"></script>
+<script src="data.enc.js?v=ae684d02"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1157,7 +1157,13 @@ function bindApprovals() {
     };
   });
   document.querySelectorAll('.appr-item:not([data-decision])').forEach(el => {
-    const it = mrApprovals.items.find(x => x.id === el.dataset.aid);
+    // Duplicate ids can exist (a rejected+archived batch beside a fresh pending one). In the
+    // approvals desk resolve to the PENDING copy, in the archive to the archived one — so the
+    // approve/reject handler wires to the right item (Erez 2026-07-17: dead approve button).
+    const dups = mrApprovals.items.filter(x => x.id === el.dataset.aid);
+    const it = dups.length > 1
+      ? (el.closest('[data-mrk="appr"]') ? dups.find(x => x.status === 'pending') : dups.find(x => x.status !== 'pending')) || dups[0]
+      : dups[0];
     if (!it) return;
     // normal items may ALSO carry per-record decisions (extracted from check lists)
     const savedecBtn = el.querySelector('.savedec');
