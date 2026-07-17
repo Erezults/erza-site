@@ -185,6 +185,24 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .backlog-row .backlog-run { flex-shrink: 0; border: 1px solid color-mix(in srgb, var(--green) 45%, var(--grid)); background: color-mix(in srgb, var(--green) 12%, transparent); color: var(--green); border-radius: 7px; padding: 4px 9px; font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .backlog-row .backlog-run:hover { background: color-mix(in srgb, var(--green) 22%, transparent); }
 .backlog-row .backlog-run:disabled { opacity: .7; cursor: default; }
+/* live chat with ERZA — chat bubbles (you on the right, ERZA on the left) + typing dots */
+.chat-panel .chat-log { max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 4px; margin-top: 6px; }
+.chat-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 24px 12px; }
+.chat-msg { display: flex; flex-direction: column; max-width: 84%; }
+.chat-msg.me { align-self: flex-start; align-items: flex-start; }
+.chat-msg.erza { align-self: flex-end; align-items: flex-end; }
+.chat-bubble { padding: 8px 12px; border-radius: 14px; font-size: 13.5px; line-height: 1.55; overflow-wrap: anywhere; }
+.chat-msg.me .chat-bubble { background: color-mix(in srgb, var(--green) 24%, var(--surface-1)); color: var(--ink-1); border-start-end-radius: 4px; }
+.chat-msg.erza .chat-bubble { background: color-mix(in srgb, #7c5cff 24%, var(--surface-1)); color: var(--ink-1); border-start-start-radius: 4px; }
+.chat-meta { font-size: 10px; color: var(--muted); margin: 2px 6px 0; }
+.chat-typing { display: inline-flex; gap: 4px; align-items: center; }
+.chat-typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: chatdot 1.2s infinite; }
+.chat-typing span:nth-child(2) { animation-delay: .2s; } .chat-typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes chatdot { 0%,60%,100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+.chat-input { display: flex; gap: 8px; align-items: flex-end; margin-top: 8px; }
+.chat-input textarea { flex: 1; resize: none; border: 1px solid var(--grid); background: var(--page); color: var(--ink-1); border-radius: 12px; padding: 9px 12px; font-size: 14px; font-family: inherit; max-height: 140px; line-height: 1.4; }
+.chat-input #chatSend { flex-shrink: 0; border: none; background: #7c5cff; color: #fff; border-radius: 50%; width: 40px; height: 40px; font-size: 17px; cursor: pointer; padding: 0; }
+.chat-input #chatSend:hover { background: color-mix(in srgb, #7c5cff 85%, #000); }
 /* inbox app-selector — button opens a LAYERED overlay with an icon grid.
    All selectors carry .appmodal / .inbox-appsel so they OUTRANK `.inbox button`
    (index.html: white var(--ink-1) bg + mobile width:100%), which the modal is nested under. */
@@ -934,6 +952,7 @@ const ICONV = (window.ERZA_ICONV || '1');
 const GH = { owner: 'Erezults', repo: 'ERZA_Orchestrator' };
 const pat = () => localStorage.getItem('erza-pat') || '';
 let mrPrios = {}, mrAppRanks = {}, mrDirty = false, mrLastLive = null, mrApprovals = { items: [] }, mrApprovalsSha = null, mrInstr = { items: [] };
+let mrChat = { messages: [] }, mrChatSig = '';   // live chat with ERZA (registry/chat.json)
 let mrLayout = {}, mrGlobals = { tasks: [] };
 let mrDecDirty = false;      // unsaved decision-dropdown choices (pauses auto-refresh)
 let mrApprovalsErr = false;  // last approvals fetch failed — desk shows last-known + warning
@@ -1222,6 +1241,71 @@ function mrTaskRow(t) {
     <span class="t-title">${esc(t.title)}</span>
     ${t.heavy ? '<span title="משימה כבדה">🏗️</span>' : ''}
   </div>`;
+}
+
+// ── Live chat with ERZA (Erez 2026-07-18) ──
+function renderChatLog(msgs) {
+  const list = (msgs || []).slice(-40);
+  const bubbles = list.map(m => {
+    const mine = m.role === 'user', t = (m.at || '').slice(11, 16);
+    return `<div class="chat-msg ${mine ? 'me' : 'erza'}"><div class="chat-bubble">${esc(m.text || '').replace(/\n/g, '<br>')}</div><div class="chat-meta">${mine ? 'אני' : 'ERZA'}${t ? ' · ' + t : ''}</div></div>`;
+  }).join('');
+  const last = list[list.length - 1];
+  const waiting = last && last.role === 'user' && !(msgs || []).some(y => y.role === 'erza' && y.replyTo === last.id);
+  const dots = waiting ? `<div class="chat-msg erza"><div class="chat-bubble chat-typing"><span></span><span></span><span></span></div><div class="chat-meta">ERZA מקלידה…</div></div>` : '';
+  return (bubbles + dots) || '<div class="chat-empty">התחל שיחה עם ERZA — כתוב כל שאלה או הוראה, בדיוק כמו בטרמינל.</div>';
+}
+function chatPanelHtml() {
+  return `<details class="prio-panel chat-panel" data-mrk="chat" style="--panel-accent:#7c5cff" open>
+    <summary>💬 צ׳אט עם ERZA <span class="cat">(שיחה שוטפת — במקביל לכל העבודה)</span></summary>
+    <div class="chat-log" id="chatLog">${renderChatLog(mrChat.messages)}</div>
+    <div class="chat-input">
+      <textarea id="chatText" rows="1" placeholder="כתוב הודעה ל-ERZA…  (Enter לשליחה · Shift+Enter שורה חדשה)"></textarea>
+      <button id="chatSend" title="שלח">➤</button>
+    </div>
+  </details>`;
+}
+function updateChatLog() {
+  const log = document.getElementById('chatLog'); if (!log) return;
+  log.innerHTML = renderChatLog(mrChat.messages); log.scrollTop = log.scrollHeight;
+}
+async function chatSendMsg() {
+  const ta = document.getElementById('chatText'); if (!ta) return;
+  const text = ta.value.trim(); if (!text) return;
+  const msg = { id: Date.now(), role: 'user', text, at: new Date().toISOString() };
+  mrChat.messages = mrChat.messages || []; mrChat.messages.push(msg);
+  ta.value = ''; ta.style.height = 'auto'; updateChatLog();
+  try {
+    let sha, data = { messages: [] };
+    const cur = await gh('registry/chat.json', undefined, { headers: { Accept: 'application/vnd.github+json' } })
+      .catch(e => { if (e && e.status === 404) return null; throw e; });
+    if (cur) { sha = cur.sha; try { data = JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\s/g, ''))))); } catch {} }
+    data.messages = data.messages || [];
+    if (!data.messages.some(m => m.id === msg.id)) data.messages.push(msg);
+    data.updatedAt = new Date().toISOString();
+    await gh('registry/chat.json', undefined, { method: 'PUT', body: JSON.stringify({ message: 'הודעת צ׳אט מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
+      content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))) }) });
+    mrChat = data; mrChatSig = JSON.stringify(data.messages.map(m => m.id));
+  } catch { /* keep optimistic message; the poll reconciles */ }
+}
+async function chatPoll() {
+  if (!pat()) return;
+  try {
+    const c = await gh('registry/chat.json');
+    if (c && Array.isArray(c.messages)) {
+      const sig = JSON.stringify(c.messages.map(m => m.id));
+      if (sig !== mrChatSig) { mrChatSig = sig; mrChat = c; updateChatLog(); }
+    }
+  } catch { /* transient */ }
+}
+function bindChat() {
+  const ta = document.getElementById('chatText'), send = document.getElementById('chatSend');
+  if (ta && !ta._bound) { ta._bound = true;
+    ta.oninput = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 140) + 'px'; };
+    ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSendMsg(); } };
+  }
+  if (send) send.onclick = e => { e.preventDefault(); chatSendMsg(); };
+  const log = document.getElementById('chatLog'); if (log) log.scrollTop = log.scrollHeight;
 }
 
 function mrRender(live) {
@@ -1620,8 +1704,8 @@ function mrRender(live) {
     return `<details class="zone" data-zone="${z.key}" style="--panel-accent:${z.accent}"${isOpen ? ' open' : ''}>
       <summary>${z.title}</summary><div class="zone-body">${inner}</div></details>`;
   }).join('');
-  // Order (Erez 2026-07-17): free-instruction inbox FIRST, then "מבוצע כעת", then the zones.
-  document.getElementById('mrBody').innerHTML = erzaLine + gateBanner + inboxHtml + runPanel + zoneHtml;
+  // Order: live chat FIRST, then free-instruction inbox, then "מבוצע כעת", then the zones.
+  document.getElementById('mrBody').innerHTML = erzaLine + gateBanner + chatPanelHtml() + inboxHtml + runPanel + zoneHtml;
   document.querySelectorAll('#mrBody details[data-mrk]').forEach(d => { if (mrOpenKeys.has(d.dataset.mrk) || d.dataset.mrk === 'inbox' || d.dataset.mrk === 'appr') d.open = true; });
   document.querySelectorAll('#mrBody details[data-mrsub]').forEach(d => { if (mrOpenSubs.has(d.dataset.mrsub)) d.open = true; });
   injectMoveButtons('#main > details[data-pgk]');  // zones fix the machine-room order; keep portfolio reordering
@@ -1637,6 +1721,7 @@ function mrRender(live) {
     catch { b.textContent = 'שגיאה — נסה שוב'; b.disabled = false; }
   }; });
   bindApprovals();
+  bindChat();
 
   document.querySelectorAll('#mrBody .stopbtn').forEach(b => {
     b.onclick = () => {
@@ -1763,6 +1848,8 @@ function userBusy() {
   if (mrDecDirty) return true; // unsaved decision choices — refresh would wipe them
   const inbox = document.getElementById('inboxText');
   if (inbox && inbox.value.trim()) return true;
+  const chat = document.getElementById('chatText');
+  if (chat && chat.value.trim()) return true;   // don't wipe a half-typed chat message
   for (const ta of document.querySelectorAll('.appr-form textarea')) if (ta.value.trim()) return true;
   return false;
 }
@@ -1870,6 +1957,7 @@ async function mrTick() {
       mrApprovals = parsed; mrApprovalsSha = meta.sha; mrApprovalsErr = false;
     } catch { mrApprovalsErr = true; /* keep last-known mrApprovals */ }
     try { mrInstr = await gh('registry/instructions_log.json'); } catch { mrInstr = { items: [] }; }
+    try { const c = await gh('registry/chat.json'); if (c && Array.isArray(c.messages)) mrChat = c; } catch { /* no chat yet */ }
     mrLastLive = live;
     mrRender(live);
     // the portfolio tables read STATIC data.js — their only live input is the app-rank
@@ -1895,6 +1983,7 @@ function mrInit() {
   document.getElementById('mrSaveBtn').onclick = savePriorities;
   mrTick();
   setInterval(tickCountdown, 1000);   // 1s countdown; refreshes only every REFRESH_SECS and never while typing
+  setInterval(chatPoll, 8000);        // live chat: poll ERZA's replies every 8s (light — one small file)
 }
 
 init();
