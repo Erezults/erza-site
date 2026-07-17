@@ -1236,6 +1236,8 @@ function mrRender(live) {
   const erzaLine = `<div class="mr-erzaline">🧠 <b>ERZA (סשן אינטראקטיבי)</b> על: <b>${esc(live.erza?.session?.label || '—')}</b>${live.erza?.brain?.label ? ` · 🤖 המוח האוטונומי על: <b>${esc(live.erza.brain.label)}</b>` : ''}${r ? ` · 💻 עומס ${r.perCore5}/ליבה (${r.state}) · זיכרון ${r.memFreePct}% פנוי · ${r.claudeProcs} תהליכים` : ''}</div>`;
 
   const icon = app => `<img class="appicon" src="icons/${esc(app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
+  // Display name without the "Native"/"_New" suffix (the id keeps the full key for routing).
+  const appLabel = app => String(app).replace(/Native/g, '').replace(/_New/g, '').trim() || String(app);
   const orderedApps = [...(live.nativeApps || [])].sort((a, b) => (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99));
   const ranksHtml = orderedApps.length
     ? `<details class="prio-panel" data-mrk="ranks" style="--panel-accent:#58a6dc"><summary>🎯 סדר עדיפויות בין האפליקציות — לחץ לפתיחה וסדר מהחשובה ביותר לנמוכה</summary>
@@ -1505,7 +1507,7 @@ function mrRender(live) {
     <div class="section-sub" style="margin:0 0 6px">כתוב מה שתרצה — אני אפצל למשימות ואבצע לפי הכללים</div>
     <div class="inbox-appsel">
       <span class="cat">ההוראה נוגעת ל:</span>
-      <button type="button" id="inboxAppBtn" class="appsel-btn">${inboxApp ? `${icon(inboxApp)}${esc(inboxApp)}` : '🌐 הוראה כללית'} <span class="appsel-caret">▾</span></button>
+      <button type="button" id="inboxAppBtn" class="appsel-btn">${inboxApp ? `${icon(inboxApp)}${esc(appLabel(inboxApp))}` : '🌐 הוראה כללית'} <span class="appsel-caret">▾</span></button>
       ${inboxApp ? '<button type="button" id="inboxAppClear" class="appsel-clear" title="חזרה להוראה כללית">✕</button>' : ''}
     </div>
     <div id="inboxAppModal" class="appmodal" hidden>
@@ -1514,7 +1516,7 @@ function mrRender(live) {
         <div class="appmodal-head"><b>בחר אפליקציה להוראה</b><button type="button" class="appmodal-x" data-app="">✕</button></div>
         <button type="button" class="appmodal-general" data-app="">🌐 הוראה כללית — לא קשורה לאפליקציה מסוימת</button>
         <div class="appmodal-grid">
-          ${orderedApps.map(a => `<button type="button" class="appmodal-tile" data-app="${esc(a)}">${icon(a)}<span class="appmodal-name">${esc(a)}</span></button>`).join('')}
+          ${orderedApps.map(a => `<button type="button" class="appmodal-tile" data-app="${esc(a)}">${icon(a)}<span class="appmodal-name">${esc(appLabel(a))}</span></button>`).join('')}
         </div>
       </div>
     </div>
@@ -1599,7 +1601,7 @@ function mrRender(live) {
     const modal = document.getElementById('inboxAppModal');
     const setApp = a => {
       inboxApp = a || '';
-      if (appBtn) appBtn.innerHTML = (inboxApp ? `<img class="appicon" src="icons/${esc(inboxApp)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">${esc(inboxApp)}` : '🌐 הוראה כללית') + ' <span class="appsel-caret">▾</span>';
+      if (appBtn) appBtn.innerHTML = (inboxApp ? `<img class="appicon" src="icons/${esc(inboxApp)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">${esc(appLabel(inboxApp))}` : '🌐 הוראה כללית') + ' <span class="appsel-caret">▾</span>';
       const cb = document.getElementById('inboxAppClear');
       if (inboxApp && !cb && appBtn) appBtn.insertAdjacentHTML('afterend', '<button type="button" id="inboxAppClear" class="appsel-clear" title="חזרה להוראה כללית">✕</button>');
       if (!inboxApp && cb) cb.remove();
