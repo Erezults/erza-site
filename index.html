@@ -647,7 +647,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.18.2'</script>
+<script>window.ERZA_DEPLOY_VER='1.18.3'</script>
 <script>window.ERZA_ICONV='11ebf3f6'</script>
 <script src="data.enc.js?v=81633c3c"></script>
 <script>
@@ -1948,7 +1948,10 @@ async function mrTick() {
       if (window.ERZA_DEPLOY_VER && ov.version !== window.ERZA_DEPLOY_VER
           && sessionStorage.getItem('erzaReloadedFor') !== ov.version) {
         sessionStorage.setItem('erzaReloadedFor', ov.version);
-        location.reload();
+        // cache-BUSTING reload: location.reload() can serve the stale cached index.html, so the
+        // page keeps thinking it's current and never updates (Erez 2026-07-18). Navigating to a
+        // ?v=<version> URL forces a fresh fetch of the HTML.
+        location.replace(location.pathname + '?v=' + encodeURIComponent(ov.version));
       }
     } catch { /* אין קובץ גרסה עדיין */ }
     try {
