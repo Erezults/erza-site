@@ -203,6 +203,10 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .chat-input textarea { flex: 1; resize: none; border: 1px solid var(--grid); background: var(--page); color: var(--ink-1); border-radius: 12px; padding: 9px 12px; font-size: 14px; font-family: inherit; max-height: 140px; line-height: 1.4; }
 .chat-input #chatSend { flex-shrink: 0; border: none; background: #7c5cff; color: #fff; border-radius: 50%; width: 40px; height: 40px; font-size: 17px; cursor: pointer; padding: 0; }
 .chat-input #chatSend:hover { background: color-mix(in srgb, #7c5cff 85%, #000); }
+.chat-arch { margin-top: 8px; }
+.chat-arch-toggle { width: 100%; border: 1px dashed var(--grid); background: color-mix(in srgb, #7c5cff 6%, transparent); color: var(--ink-2); border-radius: 10px; padding: 7px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.chat-arch-toggle:hover { border-color: #7c5cff; }
+.chat-arch-body { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 4px; margin-top: 6px; border-top: 1px solid var(--grid); }
 /* inbox app-selector — button opens a LAYERED overlay with an icon grid.
    All selectors carry .appmodal / .inbox-appsel so they OUTRANK `.inbox button`
    (index.html: white var(--ink-1) bg + mobile width:100%), which the modal is nested under. */
@@ -643,7 +647,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.18.1'</script>
+<script>window.ERZA_DEPLOY_VER='1.18.2'</script>
 <script>window.ERZA_ICONV='11ebf3f6'</script>
 <script src="data.enc.js?v=fae1f575"></script>
 <script>
@@ -953,6 +957,7 @@ const GH = { owner: 'Erezults', repo: 'ERZA_Orchestrator' };
 const pat = () => localStorage.getItem('erza-pat') || '';
 let mrPrios = {}, mrAppRanks = {}, mrDirty = false, mrLastLive = null, mrApprovals = { items: [] }, mrApprovalsSha = null, mrInstr = { items: [] };
 let mrChat = { messages: [] }, mrChatSig = '';   // live chat with ERZA (registry/chat.json)
+let chatAtBottom = true, chatScrollSave = null;  // preserve scroll across the auto-refresh
 let mrLayout = {}, mrGlobals = { tasks: [] };
 let mrDecDirty = false;      // unsaved decision-dropdown choices (pauses auto-refresh)
 let mrApprovalsErr = false;  // last approvals fetch failed — desk shows last-known + warning
@@ -1244,21 +1249,26 @@ function mrTaskRow(t) {
 }
 
 // ── Live chat with ERZA (Erez 2026-07-18) ──
+const CHAT_RECENT = 25;   // messages shown in the main log; older ones go to the archive
+function chatBubbleHtml(m) {
+  const mine = m.role === 'user', t = (m.at || '').slice(11, 16);
+  return `<div class="chat-msg ${mine ? 'me' : 'erza'}"><div class="chat-bubble">${esc(m.text || '').replace(/\n/g, '<br>')}</div><div class="chat-meta">${mine ? 'אני' : 'ERZA'}${t ? ' · ' + t : ''}</div></div>`;
+}
 function renderChatLog(msgs) {
-  const list = (msgs || []).slice(-40);
-  const bubbles = list.map(m => {
-    const mine = m.role === 'user', t = (m.at || '').slice(11, 16);
-    return `<div class="chat-msg ${mine ? 'me' : 'erza'}"><div class="chat-bubble">${esc(m.text || '').replace(/\n/g, '<br>')}</div><div class="chat-meta">${mine ? 'אני' : 'ERZA'}${t ? ' · ' + t : ''}</div></div>`;
-  }).join('');
-  const last = list[list.length - 1];
-  const waiting = last && last.role === 'user' && !(msgs || []).some(y => y.role === 'erza' && y.replyTo === last.id);
+  const all = msgs || [];
+  const bubbles = all.slice(-CHAT_RECENT).map(chatBubbleHtml).join('');
+  const last = all[all.length - 1];
+  const waiting = last && last.role === 'user' && !all.some(y => y.role === 'erza' && y.replyTo === last.id);
   const dots = waiting ? `<div class="chat-msg erza"><div class="chat-bubble chat-typing"><span></span><span></span><span></span></div><div class="chat-meta">✓ התקבל · ERZA מעבדת…</div></div>` : '';
   return (bubbles + dots) || '<div class="chat-empty">התחל שיחה עם ERZA — כתוב כל שאלה או הוראה, בדיוק כמו בטרמינל.</div>';
 }
 function chatPanelHtml() {
+  const msgs = mrChat.messages || [];
+  const older = msgs.length > CHAT_RECENT ? msgs.slice(0, msgs.length - CHAT_RECENT) : [];
   return `<details class="prio-panel chat-panel" data-mrk="chat" style="--panel-accent:#7c5cff" open>
     <summary>💬 צ׳אט עם ERZA <span class="cat">(שיחה שוטפת — במקביל לכל העבודה)</span></summary>
-    <div class="chat-log" id="chatLog">${renderChatLog(mrChat.messages)}</div>
+    <div class="chat-log" id="chatLog">${renderChatLog(msgs)}</div>
+    ${older.length ? `<div class="chat-arch"><button type="button" id="chatArchToggle" class="chat-arch-toggle">🗄️ הצג ארכיון שיחה (${older.length})</button><div id="chatArchBody" class="chat-arch-body" hidden>${older.map(chatBubbleHtml).join('')}</div></div>` : ''}
     <div class="chat-input">
       <textarea id="chatText" rows="1" placeholder="כתוב הודעה ל-ERZA…  (Enter לשליחה · Shift+Enter שורה חדשה)"></textarea>
       <button id="chatSend" title="שלח">➤</button>
@@ -1267,7 +1277,10 @@ function chatPanelHtml() {
 }
 function updateChatLog() {
   const log = document.getElementById('chatLog'); if (!log) return;
-  log.innerHTML = renderChatLog(mrChat.messages); log.scrollTop = log.scrollHeight;
+  const wasBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
+  const prev = log.scrollTop;
+  log.innerHTML = renderChatLog(mrChat.messages);
+  log.scrollTop = (wasBottom || chatAtBottom) ? log.scrollHeight : prev;   // stay put unless at bottom
 }
 async function chatSendMsg() {
   const ta = document.getElementById('chatText'); if (!ta) return;
@@ -1310,7 +1323,17 @@ function bindChat() {
     ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSendMsg(); } };
   }
   if (send) send.onclick = e => { e.preventDefault(); chatSendMsg(); };
-  const log = document.getElementById('chatLog'); if (log) log.scrollTop = log.scrollHeight;
+  const log = document.getElementById('chatLog');
+  if (log) {
+    // restore scroll after a full mrBody rebuild (the auto-refresh must not yank the chat)
+    if (chatScrollSave && !chatScrollSave.atBottom) log.scrollTop = chatScrollSave.top;
+    else log.scrollTop = log.scrollHeight;
+    chatScrollSave = null;
+    log.onscroll = () => { chatAtBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 60; };
+  }
+  // expand/collapse the chat archive (older messages)
+  const arch = document.getElementById('chatArchToggle');
+  if (arch) arch.onclick = e => { e.preventDefault(); const b = document.getElementById('chatArchBody'); if (b) b.hidden = !b.hidden; arch.textContent = (b && b.hidden ? '🗄️ הצג ארכיון שיחה' : '🗄️ הסתר ארכיון') ; };
 }
 
 function mrRender(live) {
@@ -1964,6 +1987,8 @@ async function mrTick() {
     try { mrInstr = await gh('registry/instructions_log.json'); } catch { mrInstr = { items: [] }; }
     try { const c = await gh('registry/chat.json'); if (c && Array.isArray(c.messages)) mrChat = c; } catch { /* no chat yet */ }
     mrLastLive = live;
+    // capture chat scroll so the full rebuild below doesn't yank the user (restored in bindChat)
+    { const l = document.getElementById('chatLog'); chatScrollSave = l ? { top: l.scrollTop, atBottom: l.scrollHeight - l.scrollTop - l.clientHeight < 60 } : null; }
     mrRender(live);
     // the portfolio tables read STATIC data.js — their only live input is the app-rank
     // order; rebuilding them on every tick collapsed open detail rows mid-read (audit r2)
