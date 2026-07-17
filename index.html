@@ -179,6 +179,14 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 /* dedicated migrations group — purple, distinct from the per-app groups */
 .appr-miggrp { border-color: color-mix(in srgb, #8e44ad 45%, var(--grid)); }
 .appr-miggrp > summary { background: color-mix(in srgb, #8e44ad 12%, transparent); color: color-mix(in srgb, #8e44ad 70%, var(--ink-1)); }
+/* inbox app-selector dropdown — pick the native app the instruction relates to */
+.inbox-appsel { position: relative; display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+.appsel-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-1); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.appsel-btn .appicon, .appsel-menu .appicon { width: 18px; height: 18px; border-radius: 5px; }
+.appsel-caret { color: var(--muted); font-size: 11px; }
+.appsel-menu { position: absolute; top: calc(100% + 4px); inset-inline-start: 0; z-index: 40; min-width: 260px; max-height: 320px; overflow-y: auto; background: var(--surface-1); border: 1px solid var(--grid); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.25); padding: 4px; }
+.appsel-opt { display: flex; align-items: center; gap: 8px; width: 100%; text-align: start; border: none; background: none; color: var(--ink-1); font-size: 13px; padding: 7px 9px; border-radius: 7px; cursor: pointer; }
+.appsel-opt:hover { background: color-mix(in srgb, var(--ink-1) 8%, transparent); }
 /* 4-zone layout — top-level focus zones grouping the machine-room panels */
 .zone { border: 1px solid color-mix(in srgb, var(--panel-accent) 35%, var(--grid)); border-radius: 14px; margin-bottom: 14px; background: color-mix(in srgb, var(--panel-accent) 4%, var(--page)); overflow: hidden; }
 .zone > summary { cursor: pointer; padding: 12px 16px; font-size: 16px; font-weight: 800; list-style: none; display: flex; align-items: center; gap: 8px; color: var(--panel-accent); }
@@ -907,6 +915,7 @@ let mrPrios = {}, mrAppRanks = {}, mrDirty = false, mrLastLive = null, mrApprova
 let mrLayout = {}, mrGlobals = { tasks: [] };
 let mrDecDirty = false;      // unsaved decision-dropdown choices (pauses auto-refresh)
 let mrApprovalsErr = false;  // last approvals fetch failed — desk shows last-known + warning
+let inboxApp = '';           // app the free-instruction relates to ('' = general) — survives re-renders
 
 /* item 2 — panel order editing: ▲▼ on every panel; order persists to registry/ui_layout.json */
 async function saveLayout() {
@@ -1478,6 +1487,14 @@ function mrRender(live) {
 
   const inboxHtml = `<details class="prio-panel inbox-always-open" data-mrk="inbox" style="--panel-accent:#1b6e3c" open><summary>✉️ הוראה חופשית ל־ERZA <span class="cat">(תמיד פתוח)</span></summary><div class="inbox" style="border-top:none;margin-top:0;padding-top:6px">
     <div class="section-sub" style="margin:0 0 6px">כתוב מה שתרצה — אני אפצל למשימות ואבצע לפי הכללים</div>
+    <div class="inbox-appsel">
+      <span class="cat">ההוראה נוגעת ל:</span>
+      <button type="button" id="inboxAppBtn" class="appsel-btn">${inboxApp ? `${icon(inboxApp)}${esc(inboxApp)}` : '🌐 הוראה כללית — לא קשורה לאפליקציה'} <span class="appsel-caret">▾</span></button>
+      <div id="inboxAppMenu" class="appsel-menu" hidden>
+        <button type="button" class="appsel-opt" data-app="">🌐 הוראה כללית — לא קשורה לאפליקציה</button>
+        ${orderedApps.map(a => `<button type="button" class="appsel-opt" data-app="${esc(a)}">${icon(a)}${esc(a)}</button>`).join('')}
+      </div>
+    </div>
     <textarea id="inboxText" placeholder="לדוגמה: תעצור הכל ב-Coin ותתמקד בהגשת Fundiva עוד היום…"></textarea>
     <div class="files" style="margin-top:6px"><input type="file" id="inboxFiles" multiple> 📎 אפשר לצרף מדיה/קבצים להוראה (נשמר בארכיון ומצורף להוראה)</div>
     <div class="row"><button id="inboxSend">📨 שלח ל־ERZA</button><span class="ok" id="inboxOk"></span></div>
@@ -1512,7 +1529,7 @@ function mrRender(live) {
   // default view shows only what needs your response; status / archive / management are one
   // click away. Archives (OTA history + approvals + instructions) are merged into ONE zone.
   const ZONES = [
-    { key: 'z-act',  title: '🔔 דורש את תשומת ליבך', accent: 'var(--green)', open: true,  panels: ['appr', 'inbox'] },
+    { key: 'z-act',  title: '🔔 דורש את תשומת ליבך', accent: 'var(--green)', open: true,  panels: ['appr'] },
     { key: 'z-stat', title: '📊 מצב המערכת',           accent: 'var(--blue)',  open: false, panels: ['acc', 'queue', 'ranks'] },
     { key: 'z-arch', title: '🗄️ ארכיון והיסטוריה',    accent: '#7a8ca3',      open: false, panels: ['rel', 'arch', 'instr'] },
     { key: 'z-mng',  title: '⚙️ ניהול',                accent: '#4a7ba6',      open: false, panels: ['glob'] },
@@ -1531,8 +1548,8 @@ function mrRender(live) {
     return `<details class="zone" data-zone="${z.key}" style="--panel-accent:${z.accent}"${isOpen ? ' open' : ''}>
       <summary>${z.title}</summary><div class="zone-body">${inner}</div></details>`;
   }).join('');
-  // "מבוצע כעת" is the FIRST field on the page (Erez 2026-07-17) — above the 🔔 zone.
-  document.getElementById('mrBody').innerHTML = erzaLine + gateBanner + runPanel + zoneHtml;
+  // Order (Erez 2026-07-17): free-instruction inbox FIRST, then "מבוצע כעת", then the zones.
+  document.getElementById('mrBody').innerHTML = erzaLine + gateBanner + inboxHtml + runPanel + zoneHtml;
   document.querySelectorAll('#mrBody details[data-mrk]').forEach(d => { if (mrOpenKeys.has(d.dataset.mrk) || d.dataset.mrk === 'inbox' || d.dataset.mrk === 'appr') d.open = true; });
   document.querySelectorAll('#mrBody details[data-mrsub]').forEach(d => { if (mrOpenSubs.has(d.dataset.mrsub)) d.open = true; });
   injectMoveButtons('#main > details[data-pgk]');  // zones fix the machine-room order; keep portfolio reordering
@@ -1550,6 +1567,20 @@ function mrRender(live) {
       b.textContent = '⏹ ייעצר בשמירה'; b.disabled = true;
     };
   });
+  // App-selector dropdown for the free instruction (Erez 2026-07-17): pick the relevant
+  // native app (icons + names) or leave as a general instruction.
+  {
+    const appBtn = document.getElementById('inboxAppBtn'), appMenu = document.getElementById('inboxAppMenu');
+    if (appBtn && appMenu) {
+      appBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); appMenu.hidden = !appMenu.hidden; };
+      appMenu.querySelectorAll('.appsel-opt').forEach(o => o.onclick = () => {
+        inboxApp = o.dataset.app || '';
+        appBtn.innerHTML = o.innerHTML + ' <span class="appsel-caret">▾</span>';
+        appMenu.hidden = true;
+      });
+      document.addEventListener('click', e => { if (!appMenu.hidden && !e.target.closest('.inbox-appsel')) appMenu.hidden = true; });
+    }
+  }
   document.getElementById('inboxSend').onclick = async () => {
     const ta = document.getElementById('inboxText'), ok = document.getElementById('inboxOk');
     const fi = document.getElementById('inboxFiles');
@@ -1584,11 +1615,14 @@ function mrRender(live) {
           if (msgs.length === 0 && /"text"\s*:/.test(clean)) throw new Error('inbox unreadable — refusing to overwrite to avoid data loss');
         }
       }
-      msgs.push({ id: msgId, text, files, sentAt: new Date().toISOString() });
+      msgs.push({ id: msgId, text, files, ...(inboxApp ? { app: inboxApp } : {}), sentAt: new Date().toISOString() });
       const body = { message: 'הוראה חדשה מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
         content: btoa(unescape(encodeURIComponent(JSON.stringify({ messages: msgs }, null, 2)))) };
       await gh('registry/inbox.json', undefined, { method: 'PUT', body: JSON.stringify(body) });
-      ta.value = ''; if (fi) fi.value = ''; ok.textContent = 'נקלט ✓' + (files.length ? ` (${files.length} קבצים)` : '') + ' — ERZA תטפל בסבב הקרוב';
+      ta.value = ''; if (fi) fi.value = '';
+      const sentApp = inboxApp; inboxApp = '';
+      const ab = document.getElementById('inboxAppBtn'); if (ab) ab.innerHTML = '🌐 הוראה כללית — לא קשורה לאפליקציה <span class="appsel-caret">▾</span>';
+      ok.textContent = 'נקלט ✓' + (sentApp ? ` (${sentApp})` : '') + (files.length ? ` (${files.length} קבצים)` : '') + ' — ERZA תטפל בסבב הקרוב';
     } catch { ok.textContent = 'שגיאה בשליחה — נסה שוב'; }
   };
 
