@@ -176,6 +176,9 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .appr-appgrp > div { padding: 4px 10px 8px; }
 .appr-appgrp .appgrp-cnt { font-size: 11.5px; font-weight: 600; color: var(--muted); margin-inline-start: 4px; }
 .appr-appgrp .appr-item:last-child { margin-bottom: 2px; }
+/* dedicated migrations group — purple, distinct from the per-app groups */
+.appr-miggrp { border-color: color-mix(in srgb, #8e44ad 45%, var(--grid)); }
+.appr-miggrp > summary { background: color-mix(in srgb, #8e44ad 12%, transparent); color: color-mix(in srgb, #8e44ad 70%, var(--ink-1)); }
 /* 4-zone layout — top-level focus zones grouping the machine-room panels */
 .zone { border: 1px solid color-mix(in srgb, var(--panel-accent) 35%, var(--grid)); border-radius: 14px; margin-bottom: 14px; background: color-mix(in srgb, var(--panel-accent) 4%, var(--page)); overflow: hidden; }
 .zone > summary { cursor: pointer; padding: 12px 16px; font-size: 16px; font-weight: 800; list-style: none; display: flex; align-items: center; gap: 8px; color: var(--panel-accent); }
@@ -592,7 +595,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.16.0'</script>
+<script>window.ERZA_DEPLOY_VER='1.16.1'</script>
 <script>window.ERZA_ICONV='11ebf3f6'</script>
 <script src="data.enc.js?v=43580e99"></script>
 <script>
@@ -1408,9 +1411,13 @@ function mrRender(live) {
   // Group the desk PER APP (Erez 2026-07-17): open an app to see everything awaiting your
   // response there. Cross-app / multi items (harmonization) collect in a general group, last.
   // Sub-groups use data-mrsub so their open/closed state survives the auto-refresh (line ~1464).
+  // Migrations are a DEDICATED group (Erez 2026-07-17): purple, first — approving one
+  // triggers ERZA to run it on the DB + push the OTA. Everything else groups per app.
+  const isMigRow = i => i.type === 'migration' || i.status === 'approved-migration';
+  const migRows = pendItems.filter(isMigRow).sort((a, b) => (mrAppRanks[a.app] ?? 99) - (mrAppRanks[b.app] ?? 99));
   const GENERIC_APP = new Set(['multi', 'general', 'all', '']);
   const pendByApp = {};
-  for (const it of pendItems) { const k = GENERIC_APP.has(it.app || '') ? '__general__' : it.app; (pendByApp[k] = pendByApp[k] || []).push(it); }
+  for (const it of pendItems) { if (isMigRow(it)) continue; const k = GENERIC_APP.has(it.app || '') ? '__general__' : it.app; (pendByApp[k] = pendByApp[k] || []).push(it); }
   const pendAppKeys = Object.keys(pendByApp).sort((a, b) =>
     (a === '__general__' ? 1 : 0) - (b === '__general__' ? 1 : 0)
     || (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99) || a.localeCompare(b));
@@ -1419,9 +1426,11 @@ function mrRender(live) {
     const gated = its.length - ready;
     return `${its.length}` + (gated ? ` · ${ready} לבדיקה · ${gated} בתהליך` : ' לבדיקה');
   };
+  const migGrpHtml = migRows.length ? `<details class="appr-appgrp appr-miggrp" data-mrsub="appr-migs" style="margin:6px 0"><summary>🗄️ מיגרציות נדרשות<span class="appgrp-cnt">${migRows.length} · אישור ⇒ ERZA מריצה על ה-DB ודוחפת OTA</span></summary>
+      <div style="margin-top:8px">${migRows.map(apprItemHtml).join('')}</div></details>` : '';
   const apprHtml = `<details class="prio-panel" data-mrk="appr" style="--panel-accent:var(--green)">
-    <summary>✅ לבדיקתך — ${pendItems.length ? `${pendItems.length} פריטים ב-${pendAppKeys.length} אפליקציות` : 'אין כרגע (שום דבר לא נדחף ל-dev עדיין)'}${mrApprovalsErr ? ' <span style="color:var(--yellow)">⚠️ שליפת האישורים נכשלה — מוצג המצב האחרון הידוע</span>' : ''}</summary>
-    <div style="margin-top:10px">${pendItems.length ? pendAppKeys.map(app => {
+    <summary>✅ לבדיקתך — ${pendItems.length ? `${pendItems.length} פריטים${migRows.length ? ` · ${migRows.length} מיגרציות` : ''} · ${pendAppKeys.length} אפליקציות` : 'אין כרגע (שום דבר לא נדחף ל-dev עדיין)'}${mrApprovalsErr ? ' <span style="color:var(--yellow)">⚠️ שליפת האישורים נכשלה — מוצג המצב האחרון הידוע</span>' : ''}</summary>
+    <div style="margin-top:10px">${pendItems.length ? migGrpHtml + pendAppKeys.map(app => {
       const its = pendByApp[app].slice().sort((a, b) => pendRank(a) - pendRank(b));
       const label = app === '__general__' ? '🌐 כללי / חוצה-אפליקציות' : `${icon(app)}${esc(app)}`;
       return `<details class="appr-appgrp" data-mrsub="appr-${app === '__general__' ? 'general' : esc(app)}" style="margin:6px 0"><summary>${label}<span class="appgrp-cnt">${grpSummary(its)}</span></summary>
@@ -1498,7 +1507,7 @@ function mrRender(live) {
   // click away. Archives (OTA history + approvals + instructions) are merged into ONE zone.
   const ZONES = [
     { key: 'z-act',  title: '🔔 דורש את תשומת ליבך', accent: 'var(--green)', open: true,  panels: ['appr', 'inbox'] },
-    { key: 'z-stat', title: '📊 מצב המערכת',           accent: 'var(--blue)',  open: false, panels: ['acc', 'queue', 'run', 'ranks'] },
+    { key: 'z-stat', title: '📊 מצב המערכת',           accent: 'var(--blue)',  open: false, panels: ['acc', 'queue', 'ranks'] },
     { key: 'z-arch', title: '🗄️ ארכיון והיסטוריה',    accent: '#7a8ca3',      open: false, panels: ['rel', 'arch', 'instr'] },
     { key: 'z-mng',  title: '⚙️ ניהול',                accent: '#4a7ba6',      open: false, panels: ['glob'] },
   ];
@@ -1516,7 +1525,8 @@ function mrRender(live) {
     return `<details class="zone" data-zone="${z.key}" style="--panel-accent:${z.accent}"${isOpen ? ' open' : ''}>
       <summary>${z.title}</summary><div class="zone-body">${inner}</div></details>`;
   }).join('');
-  document.getElementById('mrBody').innerHTML = erzaLine + gateBanner + zoneHtml;
+  // "מבוצע כעת" is the FIRST field on the page (Erez 2026-07-17) — above the 🔔 zone.
+  document.getElementById('mrBody').innerHTML = erzaLine + gateBanner + runPanel + zoneHtml;
   document.querySelectorAll('#mrBody details[data-mrk]').forEach(d => { if (mrOpenKeys.has(d.dataset.mrk) || d.dataset.mrk === 'inbox' || d.dataset.mrk === 'appr') d.open = true; });
   document.querySelectorAll('#mrBody details[data-mrsub]').forEach(d => { if (mrOpenSubs.has(d.dataset.mrsub)) d.open = true; });
   injectMoveButtons('#main > details[data-pgk]');  // zones fix the machine-room order; keep portfolio reordering
