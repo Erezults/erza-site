@@ -627,7 +627,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.17.2'</script>
 <script>window.ERZA_ICONV='11ebf3f6'</script>
-<script src="data.enc.js?v=ae684d02"></script>
+<script src="data.enc.js?v=37c58d69"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1309,7 +1309,7 @@ function mrRender(live) {
   // approved-migration/approved-build are ACTIVE gates awaiting ERZA execution — they live
   // in the pending section, never the archive (audit r2 SM-01/XC-10/status-blind-archive);
   // awaiting-deploy has its own panel.
-  const EXEC_GATES = ['approved-migration', 'approved-build'];
+  const EXEC_GATES = ['approved-migration', 'approved-build', 'approved-prod-ota'];
   const isArchived = i => !['pending', 'decision-pending', 'awaiting-deploy', ...EXEC_GATES].includes(i.status);
   const DEC = [['', '— טרם —'], ['yes', '✅ ליישום'], ['later', '🕓 לעתיד'], ['no', '⏭ דלג']];
   const decItemHtml = it => { const closed = !['pending', 'decision-pending'].includes(it.status); // archived decisions are read-only (audit r2)
@@ -1388,7 +1388,7 @@ function mrRender(live) {
         </div>
         ${pipeStepper()}
         <div class="pushrow">${isExecGate
-          ? `<span class="mdl" style="--bc:#8e44ad">✅ אישרת — ERZA הראשית ${it.status === 'approved-migration' ? 'תריץ את המיגרציה על ה-DB ותדחוף את ה-OTA' : 'תבנה את הבילד'} בסבב הקרוב; הפריט ייסגר אוטומטית בסיום</span>`
+          ? `<span class="mdl" style="--bc:#8e44ad">✅ ${it.autoApproved ? 'אושר אוטומטית (אפליקציה טרם-חנות)' : 'אישרת'} — ERZA הראשית ${it.status === 'approved-migration' ? 'תריץ את המיגרציה על ה-DB ותדחוף את ה-OTA' : it.status === 'approved-prod-ota' ? 'תדחוף את ה-OTA לערוץ ה-prod הייעודי (release-prod.sh)' : 'תבנה את הבילד'} בסבב הקרוב; הפריט ייסגר אוטומטית בסיום</span>`
           : isMig
           ? `<span class="mdl" style="--bc:#8e44ad">🗄️ מיגרציית DB ממתינה לאישורך — אישור ⇒ ERZA מריצה את המיגרציה ודוחפת את ה-OTA אוטומטית</span>`
           : isBuild
