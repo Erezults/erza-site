@@ -152,16 +152,17 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 /* approvals desk */
 .appr-item { border: 1px solid var(--grid); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; background: var(--surface-1); }
 /* consolidated dev-OTA review — changes grouped by the OTA they shipped in */
-.ota-grp { border: 1px solid var(--grid); border-radius: 8px; margin: 6px 0; overflow: hidden; }
-.ota-grp-h { background: var(--surface-2, var(--ink-1)); padding: 5px 9px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.ota-grp { border: 1px solid var(--grid); border-radius: 8px; margin: 6px 0; overflow: hidden; background: var(--surface-1); }
+/* theme-aware subtle tint (was var(--ink-1) → #fff in dark = blinding white bars) */
+.ota-grp-h { background: color-mix(in srgb, var(--ink-1) 7%, transparent); color: var(--ink-1); padding: 5px 9px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .ota-grp-h .ota-cnt { font-size: 10.5px; font-weight: 600; color: var(--muted); }
-.ota-chg { border-top: 1px solid var(--grid); padding: 5px 9px; }
+.ota-chg { border-top: 1px solid var(--grid); padding: 5px 9px; background: var(--surface-1); }
 .ota-chg:first-of-type { border-top: none; }
 .ota-chg > summary { cursor: pointer; font-size: 12.5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; list-style: none; }
 .ota-chg > summary::-webkit-details-marker { display: none; }
 .ota-chg > summary::before { content: '▸'; color: var(--muted); font-size: 11px; }
 .ota-chg[open] > summary::before { content: '▾'; }
-.ota-chg .ota-sha { font-family: ui-monospace, monospace; font-size: 10px; color: var(--muted); background: var(--ink-1); border-radius: 4px; padding: 0 5px; }
+.ota-chg .ota-sha { font-family: ui-monospace, monospace; font-size: 10px; color: var(--muted); background: color-mix(in srgb, var(--ink-1) 12%, transparent); border-radius: 4px; padding: 0 5px; }
 .ota-chg-b { font-size: 12px; margin: 4px 0 4px 16px; color: var(--ink-2, inherit); }
 .ota-chg-b ul { margin: 2px 0; padding-inline-start: 18px; }
 .ota-chg-b b { font-size: 11px; color: var(--muted); }
@@ -570,7 +571,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.15.0'</script>
+<script>window.ERZA_DEPLOY_VER='1.15.1'</script>
 <script>window.ERZA_ICONV='11ebf3f6'</script>
 <script src="data.enc.js?v=032f192e"></script>
 <script>
