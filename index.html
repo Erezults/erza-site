@@ -1235,12 +1235,30 @@ function mrRender(live) {
     const platPill = () => { const p = it.platform || (isBuild ? 'ios' : 'both');
       const t = p === 'ios' ? 'iOS' : p === 'mac' ? 'macOS' : 'iOS + macOS';
       return `<span class="plat-pill" title="פלטפורמה">${t}</span>`; };
+    // Hierarchical pipeline stepper (Erez 2026-07-17): a coupled fix travels
+    // 🗄️ migration → 📤 OTA → 🔍 review. Show only the stages this row actually has,
+    // marking done (✓, green) / current (◉, blue) / waiting (○, grey) from pipelineStage.
+    const pipeStepper = () => {
+      const hasMig = it.pipelineHasMig, hasOta = it.pipelineHasOta;
+      if (!hasMig && !hasOta) return '';
+      const cur = { migration: 0, ota: 1, ready: 2 }[stage || 'ready'];
+      const node = (ic, nm, r, present) => { if (!present) return '';
+        const done = r < cur, curr = r === cur;
+        const col = done ? 'var(--green)' : curr ? 'var(--blue)' : 'var(--muted)';
+        return `<span style="color:${col};font-weight:${curr ? 700 : 500};white-space:nowrap">${done ? '✓' : curr ? '◉' : '○'} ${ic} ${nm}</span>`; };
+      const parts = [node('🗄️', 'מיגרציה', 0, hasMig), node('📤', 'OTA', 1, hasOta), node('🔍', 'בדיקה', 2, true)].filter(Boolean);
+      return `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 2px;font-size:12px" title="שלב הפריט בצינור">${parts.join('<span style="color:var(--muted)">‹</span>')}</div>`; };
     // A build is NOT an OTA — never gate it on OTA. And only apps the auto-OTA pipeline can
     // actually stamp are gated at all (audit r2 XC-01: Coin/general rows were blocked FOREVER
     // because no stamper exists for them).
     const otaCapable = (mrLastLive?.otaApps || ['SalarixNative', 'HealtyNative', 'OwnestNative', 'FundivaNative', 'GroupyNative_New', 'Emoryx', 'HomeNetIP', 'xpensy']).includes(it.app);
     const needsOta = !isBuild && !isMig && otaCapable && (it.type === 'dev-ota-review' || it.type === 'task-review' || !!it.otaChannel);
-    const blocked = needsOta && !otaLive;   // OTA not live yet → cannot approve/test
+    // Authoritative pipeline stage from scripts/gate-approvals.mjs (computed each tick from
+    // ground truth: open migration items + releases.json). When present it WINS over the
+    // local OTA heuristic, so a review row is actionable ONLY at stage 'ready' — never before
+    // its migration+OTA are live (Erez 2026-07-17: don't show a check-row mid-pipeline).
+    const stage = it.pipelineStage;
+    const blocked = stage ? stage !== 'ready' : (needsOta && !otaLive);
     return `
       <div class="appr-item ${esc(it.status)}${isBuild ? ' build' : ''}${isMig ? ' mig' : ''}" data-aid="${esc(it.id)}">
         <div class="appr-head">
@@ -1260,6 +1278,7 @@ function mrRender(live) {
           return `<span class="mdl" style="--bc:var(--blue)" dir="ltr" title="גרסה רלוונטית${it.push?.predicted ? ' (צפי — טרם אומת מול ה-CI)' : ''}">📦 ${ch} ${it.push?.predicted ? '~' : ''}${esc(val)}</span>`; })()}
           <span class="appr-status ${it.status === 'approved' ? 'ok' : it.status === 'rejected' ? 'no' : ''}">${it.status === 'approved' ? '✓ אושר על ידך' : it.status === 'rejected' ? '✗ הוחזר לתיקון' : isExecGate ? '🔧 אושר — ממתין לביצוע ERZA' : 'ממתין לבדיקה'}</span></div>
         </div>
+        ${pipeStepper()}
         <div class="pushrow">${isExecGate
           ? `<span class="mdl" style="--bc:#8e44ad">✅ אישרת — ERZA הראשית ${it.status === 'approved-migration' ? 'תריץ את המיגרציה על ה-DB ותדחוף את ה-OTA' : 'תבנה את הבילד'} בסבב הקרוב; הפריט ייסגר אוטומטית בסיום</span>`
           : isMig
@@ -1285,7 +1304,9 @@ function mrRender(live) {
           <button class="btn-approve savedec" style="margin-top:6px">💾 שמור החלטות</button>` : ''}
         ${(it.feedback || []).map(f => `<div class="appr-fb">🗒️ ${esc(f.text)}${(f.files || []).length ? `<div class="att">${f.files.map(p => `<a href="#" data-file="${esc(p)}">📎 ${esc(p.split('/').pop())}</a>`).join('')}</div>` : ''}</div>`).join('')}
         ${it.status === 'pending' ? (blocked
-          ? (it.gate === "migration"
+          ? (it.prereqLabel
+            ? `<div class="appr-blocked" style="margin-top:8px;color:${it.migVerify ? 'var(--yellow)' : 'var(--red)'};font-size:13px;font-weight:600">${it.migVerify ? '🔍' : '🔒'} ${esc(it.prereqLabel)}</div>`
+            : it.gate === "migration"
             ? `<div class="appr-blocked" style="margin-top:8px;color:var(--red);font-size:13px;font-weight:600">🔒 התיקון מוכן אך כולל מיגרציית DB — אשר את השורה הסגולה 🗄️ של האפליקציה, ו-ERZA תריץ את המיגרציה ותדחוף את ה-OTA אוטומטית.</div>`
             : it.gate === "worker"
             ? `<div class="appr-blocked" style="margin-top:8px;color:var(--blue);font-size:13px;font-weight:600">🔧 worker עדיין עובד על האפליקציה — כדי לא לדחוף חצי-עבודה, ה-OTA ישוחרר אוטומטית ברגע שיסיים.</div>`
@@ -1306,7 +1327,9 @@ function mrRender(live) {
   // then regular test rows by app priority. Gates were getting buried below 20+ rows on mobile.
   // Erez (urgent): line-alignment (HARM) approval items go to the BOTTOM; app-specific items stay up.
   const isHarm = i => /^A-HARM-/.test(i.id || '') || /^HARM/.test(i.refId || '') || (i.type === 'decision' && i.app === 'multi' && /יישור|harmoniz/i.test((i.title || '') + (i.refId || '')));
-  const pendRank = i => isHarm(i) ? 9 : i.type === 'decision' ? 0 : (i.type === 'migration' || /(^|-)build$/.test(String(i.type || '')) || EXEC_GATES.includes(i.status)) ? 1 : 2;
+  // Gated review rows (pipeline not yet live — can't be checked) sink below actionable
+  // ready rows so Erez sees what he CAN check first (Erez 2026-07-17), but stay above HARM.
+  const pendRank = i => isHarm(i) ? 9 : (i.pipelineStage && i.pipelineStage !== 'ready') ? 3 : i.type === 'decision' ? 0 : (i.type === 'migration' || /(^|-)build$/.test(String(i.type || '')) || EXEC_GATES.includes(i.status)) ? 1 : 2;
   const pendItems = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending', ...EXEC_GATES].includes(i.status))
     .sort((a, b) => pendRank(a) - pendRank(b) || (mrAppRanks[a.app] ?? 99) - (mrAppRanks[b.app] ?? 99));
   const awaitItems = (mrApprovals.items || []).filter(i => i.status === 'awaiting-deploy');
