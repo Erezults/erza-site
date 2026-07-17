@@ -166,6 +166,16 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .ota-chg-b { font-size: 12px; margin: 4px 0 4px 16px; color: var(--ink-2, inherit); }
 .ota-chg-b ul { margin: 2px 0; padding-inline-start: 18px; }
 .ota-chg-b b { font-size: 11px; color: var(--muted); }
+/* per-app approval groups — open an app to see all its rows awaiting your response */
+.appr-appgrp { border: 1px solid var(--grid); border-radius: 10px; overflow: hidden; background: var(--surface-1); }
+.appr-appgrp > summary { cursor: pointer; padding: 9px 12px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; list-style: none; background: color-mix(in srgb, var(--green) 9%, transparent); }
+.appr-appgrp > summary::-webkit-details-marker { display: none; }
+.appr-appgrp > summary::after { content: '▾'; margin-inline-start: auto; color: var(--muted); font-size: 12px; font-weight: 400; }
+.appr-appgrp:not([open]) > summary::after { content: '▸'; }
+.appr-appgrp[open] > summary { border-bottom: 1px solid var(--grid); }
+.appr-appgrp > div { padding: 4px 10px 8px; }
+.appr-appgrp .appgrp-cnt { font-size: 11.5px; font-weight: 600; color: var(--muted); margin-inline-start: 4px; }
+.appr-appgrp .appr-item:last-child { margin-bottom: 2px; }
 .appr-item.approved { border-color: color-mix(in srgb, var(--green) 45%, transparent); }
 .appr-item.rejected { border-color: color-mix(in srgb, var(--red) 45%, transparent); }
 /* Title is a full-width row of its own; all pills/labels live on a SEPARATE row below
@@ -1384,9 +1394,28 @@ function mrRender(live) {
       .map(([app, items]) => `<details data-mrsub="arch-${esc(app)}" style="margin:6px 0"><summary>${icon(app)}${esc(app)} · ${items.length}</summary>
         <div style="margin-top:8px">${items.map(apprItemHtml).join('')}</div></details>`).join('')}</div>
   </details>` : '';
+  // Group the desk PER APP (Erez 2026-07-17): open an app to see everything awaiting your
+  // response there. Cross-app / multi items (harmonization) collect in a general group, last.
+  // Sub-groups use data-mrsub so their open/closed state survives the auto-refresh (line ~1464).
+  const GENERIC_APP = new Set(['multi', 'general', 'all', '']);
+  const pendByApp = {};
+  for (const it of pendItems) (pendByApp[it.app || 'general'] = pendByApp[it.app || 'general'] || []).push(it);
+  const pendAppKeys = Object.keys(pendByApp).sort((a, b) =>
+    (GENERIC_APP.has(a) ? 1 : 0) - (GENERIC_APP.has(b) ? 1 : 0)
+    || (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99) || a.localeCompare(b));
+  const grpSummary = its => {
+    const ready = its.filter(i => !i.pipelineStage || i.pipelineStage === 'ready').length;
+    const gated = its.length - ready;
+    return `${its.length}` + (gated ? ` · ${ready} לבדיקה · ${gated} בתהליך` : ' לבדיקה');
+  };
   const apprHtml = `<details class="prio-panel" data-mrk="appr" style="--panel-accent:var(--green)">
-    <summary>✅ לבדיקתך — ${pendItems.length ? pendItems.length + ' פריטים ממתינים' : 'אין כרגע (שום דבר לא נדחף ל-dev עדיין)'}${mrApprovalsErr ? ' <span style="color:var(--yellow)">⚠️ שליפת האישורים נכשלה — מוצג המצב האחרון הידוע</span>' : ''}</summary>
-    <div style="margin-top:10px">${pendItems.length ? pendItems.map(apprItemHtml).join('') : '<div class="mr-setup">שורות יופיעו כאן רק אחרי שהתיקון נדחף ל-dev והגרסה עלתה — אז אפשר לבדוק על האפליקציה.</div>'}</div>
+    <summary>✅ לבדיקתך — ${pendItems.length ? `${pendItems.length} פריטים ב-${pendAppKeys.length} אפליקציות` : 'אין כרגע (שום דבר לא נדחף ל-dev עדיין)'}${mrApprovalsErr ? ' <span style="color:var(--yellow)">⚠️ שליפת האישורים נכשלה — מוצג המצב האחרון הידוע</span>' : ''}</summary>
+    <div style="margin-top:10px">${pendItems.length ? pendAppKeys.map(app => {
+      const its = pendByApp[app].slice().sort((a, b) => pendRank(a) - pendRank(b));
+      const label = GENERIC_APP.has(app) ? '🌐 כללי / חוצה-אפליקציות' : `${icon(app)}${esc(app)}`;
+      return `<details class="appr-appgrp" data-mrsub="appr-${esc(app)}" style="margin:6px 0"><summary>${label}<span class="appgrp-cnt">${grpSummary(its)}</span></summary>
+        <div style="margin-top:8px">${its.map(apprItemHtml).join('')}</div></details>`;
+    }).join('') : '<div class="mr-setup">שורות יופיעו כאן רק אחרי שהתיקון נדחף ל-dev והגרסה עלתה — אז אפשר לבדוק על האפליקציה.</div>'}</div>
   </details>` + awaitHtml;
 
   const taskName = id => { for (const d of Object.values(live.apps || {})) { const all = [...(d.queued || []), ...(d.recent || []), d.running].filter(Boolean); const f = all.find(t => t.id === id); if (f) return f.title; } return id; };
