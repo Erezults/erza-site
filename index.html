@@ -556,7 +556,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.13.0'</script>
+<script>window.ERZA_DEPLOY_VER='1.13.1'</script>
 <script>window.ERZA_ICONV='11ebf3f6'</script>
 <script src="data.enc.js?v=87adf820"></script>
 <script>
@@ -1304,7 +1304,9 @@ function mrRender(live) {
 
   // Order: decisions first, then ACTION GATES (migration/build — Erez's click unblocks work),
   // then regular test rows by app priority. Gates were getting buried below 20+ rows on mobile.
-  const pendRank = i => i.type === 'decision' ? 0 : (i.type === 'migration' || /(^|-)build$/.test(String(i.type || '')) || EXEC_GATES.includes(i.status)) ? 1 : 2;
+  // Erez (urgent): line-alignment (HARM) approval items go to the BOTTOM; app-specific items stay up.
+  const isHarm = i => /^A-HARM-/.test(i.id || '') || /^HARM/.test(i.refId || '') || (i.type === 'decision' && i.app === 'multi' && /יישור|harmoniz/i.test((i.title || '') + (i.refId || '')));
+  const pendRank = i => isHarm(i) ? 9 : i.type === 'decision' ? 0 : (i.type === 'migration' || /(^|-)build$/.test(String(i.type || '')) || EXEC_GATES.includes(i.status)) ? 1 : 2;
   const pendItems = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending', ...EXEC_GATES].includes(i.status))
     .sort((a, b) => pendRank(a) - pendRank(b) || (mrAppRanks[a.app] ?? 99) - (mrAppRanks[b.app] ?? 99));
   const awaitItems = (mrApprovals.items || []).filter(i => i.status === 'awaiting-deploy');
