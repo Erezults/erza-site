@@ -263,6 +263,7 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .appmodal .appmodal-tile:hover { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 10%, transparent); }
 .appmodal-tile .appicon { width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 22px; display: block; }
 .appmodal-tile.appmodal-managed { border-style: dashed; border-color: color-mix(in srgb, #2a9d8f 55%, var(--grid)); }
+.mr-app h3 .appicon { width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0; }
 .appmodal-tile .appmodal-emoji { font-size: 34px; line-height: 1; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; }
 .appmodal-name { font-size: 12px; font-weight: 600; color: var(--ink-1); text-align: center; overflow-wrap: anywhere; line-height: 1.2; }
 /* 4-zone layout — top-level focus zones grouping the machine-room panels */
@@ -682,8 +683,8 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.20.0'</script>
-<script>window.ERZA_ICONV='11ebf3f6'</script>
+<script>window.ERZA_DEPLOY_VER='1.20.1'</script>
+<script>window.ERZA_ICONV='e1286bbf'</script>
 <script src="data.enc.js?v=6b525abd"></script>
 <script>
 /* ---------- constants ---------- */
@@ -1411,7 +1412,7 @@ function chatPanelHtml() {
         <button type="button" class="appmodal-general" data-app="">🌐 כללי — לא קשור לאפליקציה מסוימת</button>
         <div class="appmodal-grid">
           ${apps.map(a => `<button type="button" class="appmodal-tile" data-app="${esc(a)}">${iconOf(a)}<span class="appmodal-name">${esc(labelOf(a))}</span></button>`).join('')}
-          ${((mrLastLive && mrLastLive.managedProjects) || []).map(m => `<button type="button" class="appmodal-tile appmodal-managed" data-app="${esc(m.dir)}"><span class="appmodal-emoji">🏠</span><span class="appmodal-name">${esc(m.label || m.dir)}</span></button>`).join('')}
+          ${((mrLastLive && mrLastLive.managedProjects) || []).map(m => `<button type="button" class="appmodal-tile appmodal-managed" data-app="${esc(m.dir)}">${iconOf(m.dir)}<span class="appmodal-name">${esc(m.label || m.dir)}</span></button>`).join('')}
         </div>
       </div>
     </div>
@@ -1892,7 +1893,7 @@ function mrRender(live) {
         <button type="button" class="appmodal-general" data-app="">🌐 הוראה כללית — לא קשורה לאפליקציה מסוימת</button>
         <div class="appmodal-grid">
           ${orderedApps.map(a => `<button type="button" class="appmodal-tile" data-app="${esc(a)}">${icon(a)}<span class="appmodal-name">${esc(appLabel(a))}</span></button>`).join('')}
-          ${(live.managedProjects || []).map(m => `<button type="button" class="appmodal-tile appmodal-managed" data-app="${esc(m.dir)}"><span class="appmodal-emoji">🏠</span><span class="appmodal-name">${esc(m.label || m.dir)}</span></button>`).join('')}
+          ${(live.managedProjects || []).map(m => `<button type="button" class="appmodal-tile appmodal-managed" data-app="${esc(m.dir)}">${icon(m.dir)}<span class="appmodal-name">${esc(m.label || m.dir)}</span></button>`).join('')}
         </div>
       </div>
     </div>
@@ -1958,7 +1959,7 @@ function mrRender(live) {
       const run = b.running ? 1 : 0, q = (b.queued || []).length, bl = (b.backlog || []).length, rc = (b.recent || []).length;
       const pend = (mrApprovals.items || []).filter(x => x.app === m.dir && x.status === 'pending').length;
       return `<div class="mr-app" style="padding:10px;border:1px solid var(--grid);border-radius:10px;margin-bottom:8px">
-        <h3 style="margin:0">🏠 ${esc(m.label || m.dir)}${m.version ? ` <span class="cat">· ${esc(String(m.version))}</span>` : ''}${m.stage ? ` <span class="cat">· ${esc(m.stage)}</span>` : ''}</h3>
+        <h3 style="margin:0;display:flex;align-items:center;gap:8px">${icon(m.dir)}${esc(m.label || m.dir)}${m.version ? ` <span class="cat">· ${esc(String(m.version))}</span>` : ''}${m.stage ? ` <span class="cat">· ${esc(m.stage)}</span>` : ''}</h3>
         ${m.purposeHe ? `<div class="section-sub" style="margin:4px 0">${esc(m.purposeHe)}</div>` : ''}
         <div class="cat" style="margin-top:4px">🔵 ${run} רץ · 📋 ${q} בתור · 🗂️ ${bl} backlog · 🕓 ${rc} אחרונים · ✅ ${pend} ממתינים לאישורך</div>
         ${m.gitRemote ? `<div class="cat" style="margin-top:2px">📦 ${esc(String(m.gitRemote).replace(/^https:\/\/github.com\//, '').replace(/\.git$/, ''))}</div>` : ''}
