@@ -1303,7 +1303,7 @@ function renderChatLog(msgs) {
   const all = msgs || [];
   const bubbles = all.slice(-CHAT_RECENT).map(chatBubbleHtml).join('');
   const last = all[all.length - 1];
-  const waiting = last && last.role === 'user' && !all.some(y => y.role === 'erza' && y.replyTo === last.id);
+  const waiting = last && last.role === 'user' && !all.some(y => y.role === 'erza' && String(y.replyTo) === String(last.id));
   const dots = waiting ? `<div class="chat-msg erza"><div class="chat-bubble chat-typing"><span></span><span></span><span></span></div><div class="chat-meta">✓ התקבל · ERZA מעבדת…</div></div>` : '';
   return (bubbles + dots) || '<div class="chat-empty">התחל שיחה עם ERZA — כתוב כל שאלה או הוראה, בדיוק כמו בטרמינל.</div>';
 }
@@ -1355,18 +1355,30 @@ async function chatSendMsg() {
   const msg = { id: Date.now(), role: 'user', text, ...(chatApp ? { app: chatApp } : {}), at: new Date().toISOString() };
   mrChat.messages = mrChat.messages || []; mrChat.messages.push(msg);
   ta.value = ''; ta.style.height = 'auto'; updateChatLog();
-  try {
-    let sha, data = { messages: [] };
-    const cur = await gh('registry/chat.json', undefined, { headers: { Accept: 'application/vnd.github+json' } })
-      .catch(e => { if (e && e.status === 404) return null; throw e; });
-    if (cur) { sha = cur.sha; try { data = JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\s/g, ''))))); } catch {} }
-    data.messages = data.messages || [];
-    if (!data.messages.some(m => m.id === msg.id)) data.messages.push(msg);
-    data.updatedAt = new Date().toISOString();
-    await gh('registry/chat.json', undefined, { method: 'PUT', body: JSON.stringify({ message: 'הודעת צ׳אט מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
-      content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))) }) });
-    mrChat = data; mrChatSig = JSON.stringify(data.messages.map(m => m.id));
-  } catch { /* keep optimistic message; the poll reconciles */ }
+  // Deliver with 409-resend. chat.json's sha moves every time the responder/brain/another tab
+  // writes, so the GET→PUT window routinely loses the race and GitHub 409s (also 422 on sha
+  // mismatch). A single unretried PUT would silently drop the message — the responder never sees
+  // it and ERZA never replies (breaks keepalive). Refetch fresh sha+content and retry a few times.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      let sha, data = { messages: [] };
+      const cur = await gh('registry/chat.json', undefined, { headers: { Accept: 'application/vnd.github+json' } })
+        .catch(e => { if (e && e.status === 404) return null; throw e; });
+      if (cur) { sha = cur.sha; try { data = JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\s/g, ''))))); } catch {} }
+      data.messages = data.messages || [];
+      if (!data.messages.some(m => String(m.id) === String(msg.id))) data.messages.push(msg);
+      data.updatedAt = new Date().toISOString();
+      await gh('registry/chat.json', undefined, { method: 'PUT', body: JSON.stringify({ message: 'הודעת צ׳אט מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
+        content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))) }) });
+      mrChat = data; mrChatSig = JSON.stringify(data.messages.map(m => m.id));
+      return;   // delivered
+    } catch (e) {
+      // retry only conflicts / transient network; give up on auth/permission errors.
+      const st = e && e.status;
+      if ((st === 409 || st === 422 || !st) && attempt < 4) { await new Promise(r => setTimeout(r, 300 + attempt * 400)); continue; }
+      break;   // keep the optimistic message; chatPoll re-merges it locally so the text isn't lost
+    }
+  }
 }
 async function chatPoll() {
   if (!pat()) return;
