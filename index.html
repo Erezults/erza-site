@@ -753,6 +753,21 @@ function boot(D, locked) {
   }
   const apps = D.apps || [];
   const byDir = Object.fromEntries(apps.map(a => [a.dir, a]));
+  // Prod/Dev version cells. Apps that are two separate ASC apps (Xpensy iOS + macOS) carry
+  // versions.platforms and render one line per platform; every other app renders a single line.
+  const platLabel = k => k === 'mac' ? 'macOS' : k === 'ios' ? 'iOS' : k;
+  const prodCell = a => {
+    const P = a.versions && a.versions.platforms;
+    if (P) return Object.entries(P).map(([k, p]) =>
+      `<div><span class="cat">${platLabel(k)}</span> ${esc(p.prodDisplay || p.store || '—')}${p.onStore ? ' <span class="cat">בסטור</span>' : ' <span class="cat">מוכן</span>'}</div>`).join('');
+    return a.versions ? esc(a.versions.prod) + (a.versions.onStore ? ' <span class="cat">בסטור</span>' : ' <span class="cat">מוכן</span>') : esc(a.versionShort || '—');
+  };
+  const devCell = a => {
+    const P = a.versions && a.versions.platforms;
+    if (P) return Object.entries(P).map(([k, p]) =>
+      `<div><span class="cat">${platLabel(k)}</span> ${esc(p.devDisplay || '—')}${p.devIsSource ? ' <span class="cat" title="גרסת המקור (הבילד הבא)">קוד</span>' : ' <span class="cat" title="מותקן/חי">חי</span>'}</div>`).join('');
+    return a.versions && a.versions.dev ? esc(a.versions.dev) + (a.versions.devIsSource ? ` <span class="cat" title="גרסת המקור (הבילד הבא); ייתכן שהמותקן ישן יותר">קוד</span>` : ` <span class="cat" title="מותקן/חי${a.versions.deployedSha ? ' · ' + a.versions.deployedSha : ''}">חי</span>`) : '—';
+  };
   const natives = apps.filter(a => a.role === 'native');
   const webs = apps.filter(a => a.role === 'web');
   const rest = apps.filter(a => !['native', 'web', 'marketing-site'].includes(a.role));
@@ -832,6 +847,7 @@ function boot(D, locked) {
           ${a.bundleId ? `<div><b>Bundle:</b> <span dir="ltr">${esc(a.bundleId)}</span></div>` : ''}
           ${a.gitBranch ? `<div><b>Branch:</b> <span dir="ltr">${esc(a.gitBranch)}</span></div>` : ''}
           ${a.ascSummary ? `<div><b>App Store (ASC ✓ ${esc(a.asc?.fetchedAt || '')}):</b> ${esc(a.ascSummary)}</div>` : ''}
+          ${a.asc?.multiApp ? `<div><b>אפליקציות נפרדות (iOS + macOS):</b> ${Object.entries(a.asc.platforms).map(([p, v]) => `${p === 'MAC_OS' ? 'macOS' : p === 'IOS' ? 'iOS' : p}: <span dir="ltr">${esc(v.bundleId || '')}${v.ascAppId ? ` · ASC ${esc(v.ascAppId)}` : ''}</span>`).join(' · ')}</div>` : ''}
           ${a.appStoreStatus ? `<div><b>App Store (מהקוד):</b> ${esc(a.appStoreStatus)}</div>` : ''}
           ${(a.relatedApps || []).length ? `<div><b>קשור ל:</b> <span dir="ltr">${esc(a.relatedApps.join(', '))}</span></div>` : ''}
         </div>
@@ -855,8 +871,8 @@ function boot(D, locked) {
       return `<tr class="approw">
         <td class="appname"><img class="appicon" src="icons/${esc(a.dir)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">${esc(a.displayName || a.name)}<small>${esc(a.purposeHe || a.purpose || '')}</small></td>
         <td>${stageBadge(a)}${a.ascShort ? `<br><span class="cat">${esc(a.ascShort)}</span>` : ''}</td>
-        <td class="num" dir="ltr" style="text-align:right">${a.versions ? esc(a.versions.prod) + (a.versions.onStore ? ' <span class="cat">בסטור</span>' : ' <span class="cat">מוכן</span>') : esc(a.versionShort || '—')}</td>
-        <td class="num" dir="ltr" style="text-align:right">${a.versions?.dev ? esc(a.versions.dev) + (a.versions.devIsSource ? ` <span class="cat" title="גרסת המקור (הבילד הבא); ייתכן שהמותקן ישן יותר">קוד</span>` : ` <span class="cat" title="מותקן/חי${a.versions.deployedSha ? ' · ' + a.versions.deployedSha : ''}">חי</span>`) : '—'}</td>
+        <td class="num" dir="ltr" style="text-align:right">${prodCell(a)}</td>
+        <td class="num" dir="ltr" style="text-align:right">${devCell(a)}</td>
         <td class="num">${fmtDate(a.gitLastCommitDate)}</td>
         <td>${siteCell(a)}</td>
         <td><div class="cover"><div class="track"><div class="fill" style="width:${c.pct}%"></div></div><span class="t">${c.pct}%</span></div></td>
