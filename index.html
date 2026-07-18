@@ -1827,7 +1827,7 @@ function mrRender(live) {
   const mrOpenZones = new Set([...document.querySelectorAll('#mrBody details[data-zone][open]')].map(d => d.dataset.zone));
   // approved gates awaiting ERZA execution — a visible banner so they can't rot silently (audit r2 SM-01)
   const gateBanner = (live.approvedGates || []).length
-    ? `<div style="border:1px solid #8e44ad;background:color-mix(in srgb,#8e44ad 9%,transparent);border-radius:10px;padding:8px 12px;margin:8px 0;font-size:13px;font-weight:600">🗄️ ${live.approvedGates.length} אישורים ממתינים לביצוע ERZA (מיגרציות/בילדים) — ${live.approvedGates.map(g => esc(g.app)).join(', ')}</div>`
+    ? `<div style="border:1px solid #8e44ad;background:color-mix(in srgb,#8e44ad 9%,transparent);border-radius:10px;padding:8px 12px;margin:8px 0;font-size:13px;font-weight:600">🗄️ ${live.approvedGates.length} אישורים ממתינים לביצוע ERZA — ${live.approvedGates.map(g => `${g.type === 'prod-ota' ? '📤' : g.type === 'build' ? '🏗️' : '🗄️'} ${esc(g.app)}${g.ageMin > 90 ? ` <span style="color:#e05252">(${Math.round(g.ageMin / 60)} שע׳!)</span>` : ''}`).join(' · ')}</div>`
     : '';
   const zoneHtml = ZONES.map(z => {
     const inner = z.panels.map(k => PANELS[k] || '').filter(s => s && s.trim()).join('');
