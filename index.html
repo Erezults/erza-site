@@ -1828,14 +1828,39 @@ function mrRender(live) {
   const runPanel = `<details class="prio-panel" data-mrk="run" style="--panel-accent:#1baf7a"><summary>▶️ מבוצע כעת${runningApps.length
     ? ` · ${runningApps.length} <span class="run-now">${runningApps.map(app => `<span class="run-blink" title="${esc(app)} — בעבודה">${icon(app)}</span>`).join('')}</span>`
     : ' — אין עבודה רצה'}</summary><div style="margin-top:8px">` + runningHtml + `</div></details>`;
+  // Conductor-work mirror (audit §3.3): ERZA's OWN tasks (owner:erza / t.conductor) with age.
+  // The dispatcher SKIPS these (hold), so they carry no pid/checkpoint and could stall unseen —
+  // every one is surfaced here with its age; an OPEN one aged >24h ALSO becomes an action row on
+  // the desk (scripts/conductor-escalation.mjs), so nothing rots invisibly.
+  const cond = live.conductorTasks || [];
+  const condOpen = cond.filter(t => t.open), condStale = condOpen.filter(t => t.stale);
+  const fmtAge = m => m == null ? '—' : m >= 1440 ? `${Math.floor(m / 1440)} ימים` : m >= 60 ? `${Math.floor(m / 60)} שע׳` : `${m} דק׳`;
+  const condBadge = t => t.open
+    ? (t.stale ? '<span style="color:#e0b000;font-weight:600">⏳ מעל 24 שעות</span>' : '<span style="color:var(--green);font-weight:600">● פעילה</span>')
+    : '<span style="color:var(--muted)">✓ הושלמה</span>';
+  const condRow = t => `<div class="mr-recent" style="${t.stale ? 'border-right:3px solid #e0b000;padding-right:8px;' : ''}${t.open ? '' : 'opacity:.7;'}">
+      ${icon(t.app)}<span class="refid">${esc(t.refId || t.id)}</span> ${condBadge(t)}
+      <span class="cat" dir="ltr">⏱ ${fmtAge(t.ageMin)}</span>${t.hold ? ' <span class="cat" title="שמורה למנצחת — workers מדלגים עליה">🔒</span>' : ''}
+      <span class="t-title">${esc(t.title)}</span>
+      ${t.ownerNote ? `<div class="cat" style="margin-top:2px">🧭 ${esc(t.ownerNote)}</div>` : ''}
+      ${t.stale ? '<div class="cat" style="margin-top:2px;color:#e0b000">↑ עלתה כשורת החלטה ב״🔔 דורש את תשומת ליבך״ — אשר להשאיר אצל המנצחת, או דחה עם הערה לשחרור/שינוי</div>' : ''}
+    </div>`;
+  const condPanel = cond.length
+    ? `<details class="prio-panel" data-mrk="cond" style="--panel-accent:#b48ead"${condStale.length ? ' open' : ''}>
+        <summary>🎼 עבודת-מנצחת (ERZA) — ${condOpen.length} פתוחות${condStale.length ? ` · <span style="color:#e0b000">⏳ ${condStale.length} מעל 24 שעות</span>` : ''} · ${cond.length} סה״כ</summary>
+        <div style="margin-top:8px">
+          <div class="section-sub" style="margin:0 0 8px">משימות ש-ERZA (המנצחת) מבצעת בעצמה — ה-workers מדלגים עליהן, ולכן הן מוצגות כאן עם הגיל שלהן. פתוחה מעל 24 שעות מקבלת אוטומטית שורת החלטה בשולחן האישורים.</div>
+          ${cond.map(condRow).join('')}
+        </div></details>`
+    : '';
   // item 2 — Erez's saved panel order (registry/ui_layout.json), unknown keys appended
-  const PANELS = { appr: apprHtml, glob: globPanel, acc: accPanel, run: runPanel, queue: queuePanel, backlog: backlogPanel, ranks: ranksHtml, inbox: inboxHtml, rel: relHtml, arch: archHtml, instr: instrHtml };
+  const PANELS = { appr: apprHtml, glob: globPanel, acc: accPanel, run: runPanel, queue: queuePanel, backlog: backlogPanel, ranks: ranksHtml, cond: condPanel, inbox: inboxHtml, rel: relHtml, arch: archHtml, instr: instrHtml };
   // 4-ZONE LAYOUT (Erez 2026-07-17): group the machine-room panels into focused zones so the
   // default view shows only what needs your response; status / archive / management are one
   // click away. Archives (OTA history + approvals + instructions) are merged into ONE zone.
   const ZONES = [
     { key: 'z-act',  title: '🔔 דורש את תשומת ליבך', accent: 'var(--green)', open: true,  panels: ['appr'] },
-    { key: 'z-mng',  title: '⚙️ ניהול',                accent: '#4a7ba6',      open: false, panels: ['queue', 'backlog', 'acc', 'ranks', 'glob'] },
+    { key: 'z-mng',  title: '⚙️ ניהול',                accent: '#4a7ba6',      open: false, panels: ['cond', 'queue', 'backlog', 'acc', 'ranks', 'glob'] },
     { key: 'z-arch', title: '🗄️ ארכיון והיסטוריה',    accent: '#7a8ca3',      open: false, panels: ['rel', 'arch', 'instr'] },
   ];
   // first render → zone defaults (act open); later re-renders → keep whatever Erez toggled.
