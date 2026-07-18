@@ -221,6 +221,26 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
    specificity) — so without this it renders permanently expanded. This restores collapse-by-default;
    the toggle removes/re-adds `hidden`, and every auto-refresh re-emits it → re-collapses. */
 .chat-arch-body[hidden] { display: none; }
+/* per-session accordion cards inside the archive — each a native <details>, collapsed by default
+   (no `open` attr) and re-collapsed on every rebuild, exactly like the outer archive. */
+.chat-sess-card { border: 1px solid var(--grid); border-radius: 10px; background: color-mix(in srgb, #7c5cff 4%, var(--surface-1)); overflow: hidden; }
+.chat-sess-card > .chat-sess-sum { list-style: none; cursor: pointer; display: flex; align-items: flex-start; gap: 8px; padding: 9px 11px; }
+.chat-sess-card > .chat-sess-sum::-webkit-details-marker { display: none; }
+.chat-sess-card[open] > .chat-sess-sum { border-bottom: 1px solid var(--grid); }
+.chat-sess-caret { color: #7c5cff; font-size: 12px; line-height: 1.6; flex-shrink: 0; transition: transform .15s; }
+.chat-sess-card[open] > .chat-sess-sum .chat-sess-caret { transform: rotate(90deg); }
+.chat-sess-head { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
+.chat-sess-title { font-size: 12.5px; font-weight: 700; color: var(--ink-1); }
+.chat-sess-badges { display: flex; flex-wrap: wrap; gap: 5px; }
+.chat-sess-badge { font-size: 10.5px; font-weight: 600; color: var(--ink-2); background: var(--surface-1); border: 1px solid var(--grid); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.chat-sess-badge-task { color: #7c5cff; border-color: color-mix(in srgb, #7c5cff 40%, var(--grid)); background: color-mix(in srgb, #7c5cff 10%, transparent); }
+.chat-sess-content { display: flex; flex-direction: column; gap: 8px; padding: 10px 11px; }
+.chat-sess-current { border-style: dashed; }
+.chat-sess-tasks { border-top: 1px dashed var(--grid); padding-top: 8px; margin-top: 2px; display: flex; flex-direction: column; gap: 5px; }
+.chat-sess-tasks-h { font-size: 11px; font-weight: 700; color: var(--muted); }
+.chat-sess-task { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; font-size: 12px; }
+.chat-task-id { font-family: ui-monospace, monospace; font-size: 10.5px; font-weight: 700; color: #7c5cff; background: color-mix(in srgb, #7c5cff 10%, transparent); border-radius: 5px; padding: 1px 6px; flex-shrink: 0; }
+.chat-task-title { color: var(--ink-1); min-width: 0; overflow-wrap: anywhere; }
 /* inbox app-selector — button opens a LAYERED overlay with an icon grid.
    All selectors carry .appmodal / .inbox-appsel so they OUTRANK `.inbox button`
    (index.html: white var(--ink-1) bg + mobile width:100%), which the modal is nested under. */
@@ -1295,13 +1315,65 @@ function chatSessionSplit(msgs) {
   const startT = b.length ? Date.parse(b[b.length - 1]) : -Infinity;
   return { current: msgs.filter(m => tOf(m) >= startT), past: msgs.filter(m => tOf(m) < startT), boundaries: b, tOf };
 }
-function chatArchiveHtml(archived, boundaries, tOf) {
-  const bt = boundaries.map(Date.parse);
-  let html = '', bi = 0;
-  for (const m of archived) {
-    while (bi < bt.length && tOf(m) >= bt[bi]) { html += `<div class="chat-sess-sep">— סשן חדש —</div>`; bi++; }
-    html += chatBubbleHtml(m);
+// group a run of messages into per-session objects, split at each boundary. Each session carries
+// its time window [start,end) so we can attribute the chat-spawned tasks that fell inside it.
+// Empty sessions (a "new session" pressed with nothing said) yield no group.
+function chatSessionGroups(msgs, boundaries, tOf) {
+  const bt = boundaries.map(Date.parse).filter(n => !isNaN(n)).sort((a, b) => a - b);
+  const groups = []; let cur = null, bi = 0;
+  for (const m of msgs) {
+    while (bi < bt.length && tOf(m) >= bt[bi]) { cur = null; bi++; }   // crossed a boundary ⇒ new session
+    if (!cur) { cur = { msgs: [], start: bi > 0 ? bt[bi - 1] : null, end: bi < bt.length ? bt[bi] : null }; groups.push(cur); }
+    cur.msgs.push(m);
   }
+  return groups.filter(g => g.msgs.length);
+}
+// id→task index (title) from live data: the authoritative flat chatTasks list (added to
+// live_status.json), plus a fallback scan of every app bucket for the window before a fresh
+// live push lands. Keyed by the C<ms> chat-task id.
+function chatTaskIndex() {
+  const map = new Map(); const live = mrLastLive || {};
+  const add = t => { const id = t && String(t.id || ''); if (id && /^C\d{10,}$/.test(id) && !map.has(id)) map.set(id, { id, title: t.title || t.titleEn || t.titleHe || null, createdAt: t.createdAt || null }); };
+  (live.chatTasks || []).forEach(add);
+  for (const a of Object.values(live.apps || {})) { if (a && a.running) add(a.running); for (const k of ['queued', 'recent', 'parked', 'backlog']) (a && a[k] || []).forEach(add); }
+  return map;
+}
+// tasks derived from a session: chat-request tasks whose C<ms> id (== reply time) fell in the
+// session window, UNION any task ids ERZA announced in that session's replies (replyTo linkage).
+function chatSessionTasks(group, taskIdx) {
+  const ids = new Set(); const s = group.start ?? -Infinity, e = group.end ?? Infinity;
+  for (const [id, t] of taskIdx) { const ms = parseInt(id.slice(1), 10); const at = !isNaN(ms) ? ms : Date.parse(t.createdAt || 0); if (at >= s && at < e) ids.add(id); }
+  for (const m of group.msgs) { if (m.role !== 'erza') continue; const mm = String(m.text || '').match(/\bC\d{10,}\b/g); if (mm) mm.forEach(x => ids.add(x)); }
+  return [...ids].map(id => taskIdx.get(id) || { id, title: null }).sort((a, b) => a.id.localeCompare(b.id));
+}
+const chatNoun = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+function chatSessionCardHtml(group, taskIdx) {
+  const msgs = group.msgs, first = msgs[0], last = msgs[msgs.length - 1];
+  // date/time from the raw ISO slice — SAME basis the bubbles use (chatBubbleHtml: .slice(11,16)),
+  // so the header time always matches the message times inside, on any viewer's timezone.
+  const dmy = a => { const d = String(a || '').slice(0, 10); return /^\d{4}-\d\d-\d\d$/.test(d) ? d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4) : ''; };
+  const hm = a => String(a || '').slice(11, 16);
+  const dateStr = dmy(first.at) || dmy(last.at);
+  const t0 = hm(first.at), t1 = hm(last.at);
+  const timeRange = t0 && t1 && t0 !== t1 ? `${t0}–${t1}` : t0;
+  const tasks = chatSessionTasks(group, taskIdx);
+  const taskList = tasks.length
+    ? `<div class="chat-sess-tasks"><div class="chat-sess-tasks-h">📋 ${chatNoun(tasks.length, 'משימה שנגזרה', 'משימות שנגזרו')}</div>${tasks.map(t => `<div class="chat-sess-task"><span class="chat-task-id">${esc(t.id)}</span>${t.title ? `<span class="chat-task-title">${esc(t.title)}</span>` : ''}</div>`).join('')}</div>`
+    : '';
+  return `<details class="chat-sess-card">
+    <summary class="chat-sess-sum"><span class="chat-sess-caret">▸</span>
+      <span class="chat-sess-head"><span class="chat-sess-title">💬 שיחה · ${esc(dateStr)}</span>
+        <span class="chat-sess-badges"><span class="chat-sess-badge">${chatNoun(msgs.length, 'הודעה', 'הודעות')}</span><span class="chat-sess-badge">🕐 ${esc(timeRange)}</span>${tasks.length ? `<span class="chat-sess-badge chat-sess-badge-task">📋 ${chatNoun(tasks.length, 'משימה', 'משימות')}</span>` : ''}</span></span>
+    </summary>
+    <div class="chat-sess-content">${msgs.map(chatBubbleHtml).join('')}${taskList}</div>
+  </details>`;
+}
+// the archive = one accordion card per PAST session (newest first). If the live log overflowed
+// its window, the current session's older messages lead as their own card so nothing is lost.
+function chatArchiveHtml(pastGroups, overflow, taskIdx) {
+  let html = '';
+  if (overflow.length) html += `<details class="chat-sess-card chat-sess-current"><summary class="chat-sess-sum"><span class="chat-sess-caret">▸</span><span class="chat-sess-head"><span class="chat-sess-title">💬 הסשן הנוכחי — הודעות קודמות</span><span class="chat-sess-badges"><span class="chat-sess-badge">${chatNoun(overflow.length, 'הודעה', 'הודעות')}</span></span></span></summary><div class="chat-sess-content">${overflow.map(chatBubbleHtml).join('')}</div></details>`;
+  for (let i = pastGroups.length - 1; i >= 0; i--) html += chatSessionCardHtml(pastGroups[i], taskIdx);
   return html;
 }
 function renderChatLog(msgs) {
@@ -1316,7 +1388,10 @@ function chatPanelHtml() {
   const msgs = mrChat.messages || [];
   const { current, past, boundaries, tOf } = chatSessionSplit(msgs);
   const overflow = current.length > CHAT_RECENT ? current.slice(0, current.length - CHAT_RECENT) : [];
-  const archived = [...past, ...overflow];
+  const pastGroups = chatSessionGroups(past, boundaries, tOf);   // one accordion card per past session
+  const taskIdx = chatTaskIndex();
+  const nCards = pastGroups.length + (overflow.length ? 1 : 0);
+  const archLabel = pastGroups.length ? `🗄️ ארכיון שיחות (${chatNoun(pastGroups.length, 'סשן קודם', 'סשנים קודמים')})` : '🗄️ הסשן הנוכחי — הודעות קודמות';
   const iconOf = a => `<img class="appicon" src="icons/${esc(a)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
   const labelOf = a => String(a).replace(/Native/g, '').replace(/_New/g, '').trim() || String(a);
   const apps = [...((mrLastLive && mrLastLive.nativeApps) || [])].sort((a, b) => (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99));
@@ -1339,7 +1414,7 @@ function chatPanelHtml() {
       </div>
     </div>
     <div class="chat-log" id="chatLog">${renderChatLog(current)}</div>
-    ${archived.length ? `<div class="chat-arch"><button type="button" id="chatArchToggle" class="chat-arch-toggle">🗄️ ארכיון שיחות קודמות (${archived.length})</button><div id="chatArchBody" class="chat-arch-body" hidden>${chatArchiveHtml(archived, boundaries, tOf)}</div></div>` : ''}
+    ${nCards ? `<div class="chat-arch"><button type="button" id="chatArchToggle" class="chat-arch-toggle" data-label="${esc(archLabel)}">${esc(archLabel)}</button><div id="chatArchBody" class="chat-arch-body" hidden>${chatArchiveHtml(pastGroups, overflow, taskIdx)}</div></div>` : ''}
     ${chatApp ? `<div class="chat-ctx-chip">✳️ השיחה בהקשר: ${esc(labelOf(chatApp))}</div>` : ''}
     <div class="chat-input">
       <textarea id="chatText" rows="1" placeholder="כתוב הודעה ל-ERZA…  (Enter לשליחה · Shift+Enter שורה חדשה)"></textarea>
@@ -1415,9 +1490,10 @@ function bindChat() {
     chatScrollSave = null;
     log.onscroll = () => { chatAtBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 60; };
   }
-  // expand/collapse the chat archive (previous sessions + older messages)
+  // expand/collapse the whole chat archive (each session inside is its own <details> accordion).
+  // Re-emitted hidden on every rebuild ⇒ re-collapses by default on refresh (C1784363823847).
   const arch = document.getElementById('chatArchToggle');
-  if (arch) arch.onclick = e => { e.preventDefault(); const b = document.getElementById('chatArchBody'); if (b) b.hidden = !b.hidden; arch.textContent = (b && b.hidden ? '🗄️ ארכיון שיחות קודמות' : '🗄️ הסתר ארכיון') ; };
+  if (arch) arch.onclick = e => { e.preventDefault(); const b = document.getElementById('chatArchBody'); if (b) b.hidden = !b.hidden; arch.textContent = (b && b.hidden ? (arch.dataset.label || '🗄️ ארכיון שיחות') : '🗄️ הסתר ארכיון'); };
 
   // in-chat app-focus selector (Erez 2026-07-18) — mirrors the free-instruction picker.
   // focus PERSISTS across messages (a conversation stays in one app's context) — unlike the
