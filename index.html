@@ -716,7 +716,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.20.8'</script>
+<script>window.ERZA_DEPLOY_VER='1.21.0'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
 <script src="data.enc.js?v=6b525abd"></script>
 <script>
@@ -2024,12 +2024,53 @@ function mrRender(live) {
         <div class="cat" style="margin-top:2px">💬 שלח לו עבודה: בחר "${esc(m.label || m.dir)}" בבורר ההתמקדות של הצ׳אט או בהוראה החופשית</div>
       </div>`;
     }).join('')}</div></details>` : '';
-  const PANELS = { appr: apprHtml, glob: globPanel, acc: accPanel, run: runPanel, queue: queuePanel, backlog: backlogPanel, ranks: ranksHtml, cond: condPanel, inbox: inboxHtml, rel: relHtml, arch: archHtml, instr: instrHtml, managed: managedPanel };
+  // 🏗️ Builds (Erez 2026-07-19): dedicated section — every native build sent to the App Store, per
+  // app × platform LANE (xpensy iOS + macOS are SEPARATE submissions → separate lanes + platform-strip
+  // icons), dev/prod badge, version, what's included, a real-time phase feed while building, + history.
+  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading', 'processing']);
+  const bMeta = { queued: ['בתור', '#8a949e'], building: ['בונה', '#58a6dc'], exporting: ['מייצא', '#58a6dc'], uploading: ['מעלה ל-ASC', '#3fb6c9'], processing: ['עיבוד ASC', '#e0b000'], valid: ['זמין ב-ASC', '#5aa469'], live: ['חי בסטור', '#3fb950'], failed: ['נכשל', '#e05252'], cancelled: ['בוטל', '#8a949e'] };
+  const chBadge = ch => `<span class="ch-badge" style="--c:${ch === 'prod' ? '#8e5bd0' : '#3b82c4'}">${ch === 'prod' ? 'PROD' : 'DEV'}</span>`;
+  const platIcon = (app, pf) => `<span class="picon ${pf === 'macos' ? 'macos' : 'ios'}">${icon(app)}<span class="pstrip">${pf === 'macos' ? 'macOS' : 'iOS'}</span></span>`;
+  const bAgo = t => { if (!t) return ''; const m = Math.max(0, Math.round((Date.now() - Date.parse(t)) / 6e4)); return m < 1 ? 'עכשיו' : m < 60 ? `לפני ${m} דק׳` : m < 1440 ? `לפני ${Math.round(m / 60)} שע׳` : `לפני ${Math.round(m / 1440)} ימים`; };
+  const buildCard = b => {
+    const [lbl, col] = bMeta[b.status] || [b.status, '#8a949e'];
+    const act = B_ACTIVE.has(b.status);
+    const feed = act && (b.log || []).length ? `<div class="b-feed">${(b.log || []).slice(-4).map(l => `<div class="b-feedline"><span class="b-ft">${esc(String(l.at || '').slice(11, 16))}</span> ${esc(l.phase || '')}${l.msg && l.msg !== l.phase ? ` <span class="b-fm" dir="ltr">${esc(String(l.msg).slice(0, 72))}</span>` : ''}</div>`).join('')}</div>` : '';
+    const inc = (b.includes || []).length ? `<details class="b-inc"><summary>מה כלול בבילד (${b.includes.length})</summary><ul>${b.includes.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : '';
+    return `<div class="b-card${act ? ' b-active' : ''} b-${esc(b.status)}">
+      <div class="b-top">${chBadge(b.channel)}<span class="b-ver" dir="ltr">${esc(b.version)}${b.buildNumber ? ` (${esc(String(b.buildNumber))})` : ''}</span>
+        <span class="b-status" style="--c:${col}">${act ? '<span class="b-pulse"></span>' : ''}${esc(lbl)}</span>
+        <span class="b-ago">${esc(bAgo(b.updatedAt || b.completedAt || b.startedAt))}</span></div>
+      ${act && b.phase ? `<div class="b-phase">⏳ ${esc(b.phase)}</div>` : ''}${feed}
+      ${b.error ? `<div class="b-err" dir="ltr">${esc(String(b.error).slice(0, 140))}</div>` : ''}${inc}</div>`;
+  };
+  const bLanes = {};
+  for (const b of (live.builds || [])) { const k = `${b.app}||${b.platform}`; (bLanes[k] = bLanes[k] || []).push(b); }
+  const bLaneKeys = Object.keys(bLanes).sort((a, z) => { const [aa, ap] = a.split('||'), [za, zp] = z.split('||'); return ((mrAppRanks[aa] ?? 99) - (mrAppRanks[za] ?? 99)) || aa.localeCompare(za) || (ap === 'ios' ? 0 : 1) - (zp === 'ios' ? 0 : 1); });
+  const bLaneHtml = k => {
+    const [app, pf] = k.split('||');
+    const list = bLanes[k].slice().sort((a, z) => (B_ACTIVE.has(z.status) - B_ACTIVE.has(a.status)) || String(z.updatedAt || z.completedAt || '').localeCompare(String(a.updatedAt || a.completedAt || '')));
+    const act = list.filter(b => B_ACTIVE.has(b.status));
+    const hist = list.filter(b => !B_ACTIVE.has(b.status)).slice(0, 8);
+    const liveB = list.find(b => b.status === 'live');
+    return `<details class="b-lane" data-mrsub="bl-${esc(k)}"${act.length ? ' open' : ''}>
+      <summary>${platIcon(app, pf)}<span class="b-lane-nm">${esc(appLabel(app))} · ${pf === 'macos' ? 'macOS' : 'iOS'}</span>
+        <span class="b-lane-cnt">${act.length ? `<span class="b-pulse"></span>${act.length} רץ · ` : ''}${liveB ? `חי ${esc(liveB.version)} · ` : ''}${list.length} סה״כ</span></summary>
+      <div class="b-lane-body">${act.map(buildCard).join('')}${hist.length ? `<div class="b-hist-h">היסטוריה</div>${hist.map(buildCard).join('')}` : ''}</div></details>`;
+  };
+  const bActiveCount = (live.builds || []).filter(b => B_ACTIVE.has(b.status)).length;
+  const buildsHtml = `<details class="prio-panel" data-mrk="builds" style="--panel-accent:#d6893f"${bActiveCount ? ' open' : ''}>
+    <summary>🏗️ בילדים${bActiveCount ? ` — <span class="b-pulse"></span> ${bActiveCount} בבנייה` : ` — ${bLaneKeys.length} מסלולים`}</summary>
+    <div style="margin-top:8px"><div class="section-sub" style="margin:0 0 8px">כל בילד נייטיב שנשלח ל-App Store — לפי אפליקציה, dev/prod, iOS/macOS, גרסה ומה כלול. בזמן בנייה מופיע כאן פיד חי. xpensy iOS ו-xpensy macOS מנוהלים בנפרד.</div>
+    ${bLaneKeys.map(bLaneHtml).join('') || '<div class="mr-setup">אין בילדים עדיין — יופיעו כאן ברגע שיתחיל בילד</div>'}</div></details>`;
+
+  const PANELS = { appr: apprHtml, builds: buildsHtml, glob: globPanel, acc: accPanel, run: runPanel, queue: queuePanel, backlog: backlogPanel, ranks: ranksHtml, cond: condPanel, inbox: inboxHtml, rel: relHtml, arch: archHtml, instr: instrHtml, managed: managedPanel };
   // 4-ZONE LAYOUT (Erez 2026-07-17): group the machine-room panels into focused zones so the
   // default view shows only what needs your response; status / archive / management are one
   // click away. Archives (OTA history + approvals + instructions) are merged into ONE zone.
   const ZONES = [
     { key: 'z-act',  title: '🔔 דורש את תשומת ליבך', accent: 'var(--green)', open: true,  panels: ['appr'] },
+    { key: 'z-builds', title: '🏗️ בילדים',            accent: '#d6893f',      open: bActiveCount > 0, panels: ['builds'] },
     { key: 'z-mng',  title: '⚙️ ניהול',                accent: '#4a7ba6',      open: false, panels: ['cond', 'managed', 'queue', 'backlog', 'acc', 'ranks', 'glob'] },
     { key: 'z-arch', title: '🗄️ ארכיון והיסטוריה',    accent: '#7a8ca3',      open: false, panels: ['rel', 'arch', 'instr'] },
   ];
