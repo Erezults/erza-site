@@ -1739,13 +1739,14 @@ function mrRender(live) {
           const byOta = {}; for (const c of it.changes) (byOta[c.otaVersion || '—'] = byOta[c.otaVersion || '—'] || []).push(c);
           const vers = Object.keys(byOta).sort();
           const latest = it.latestOta || vers[vers.length - 1] || '';
-          return `<div class="mdl" style="--bc:var(--blue);margin:6px 0">📦 ${it.changes.length} שינויים מצטברים על פני ${vers.length} גרסאות OTA — בדוק על הגרסה האחרונה <b dir="ltr">${esc(latest)}</b> (מצטברת: כוללת את כל השינויים למטה). לכל שינוי מצוינת גרסת ה-OTA שבה נכנס, לשחזור/רול-בק.</div>
+          return `<div class="mdl" style="--bc:var(--blue);margin:6px 0">📦 ${it.changes.length} שינויים מצטברים על פני ${vers.length} גרסאות OTA — בדוק פעם אחת על הגרסה האחרונה <b dir="ltr">${esc(latest)}</b> (מצטברת: כוללת את כל השינויים).</div>
+          ${(it.check || []).length ? `<div class="mdl" style="--bc:var(--green);margin:6px 0"><b style="font-size:13px">✅ מה לבדוק (פעם אחת, על הגרסה האחרונה):</b><ul style="margin:4px 0 0;padding-inline-start:20px;font-size:13px;line-height:1.6">${it.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
+          <div style="font-size:11px;color:var(--muted);margin:2px 0 4px">הפירוט הטכני של כל שינוי (לשחזור/רול-בק) — פתח כל שורה:</div>
           ${vers.map(v => `<div class="ota-grp">
             <div class="ota-grp-h">📦 OTA <b dir="ltr">${esc(v)}</b> <span class="ota-cnt">${byOta[v].length} שינויים</span></div>
             ${byOta[v].map(c => `<details class="ota-chg">
               <summary><span class="refid">${esc(c.refId)}</span> ${esc((c.title || '').replace(/^[✅⚠️🔒📦🎨🔧🚀🖼️🧬📲🔍]+\s*/, ''))}${c.sha ? `<span class="ota-sha" dir="ltr" title="commit — לשחזור/רול-בק של שינוי זה">· ${esc(String(c.sha).slice(0, 7))}</span>` : ''}</summary>
-              ${(c.done || []).length ? `<div class="ota-chg-b"><b>מה בוצע</b><ul>${c.done.map(d => `<li>${esc(d)}</li>`).join('')}</ul></div>` : ''}
-              ${(c.check || []).length ? `<div class="ota-chg-b"><b>מה לבדוק</b><ul>${c.check.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+              ${(c.done || []).length ? `<div class="ota-chg-b"><b>מה בוצע (טכני)</b><ul>${c.done.map(d => `<li>${esc(d)}</li>`).join('')}</ul></div>` : ''}
             </details>`).join('')}
           </div>`).join('')}`;
         })() : `<h5>מה בוצע</h5><ul>${(it.done || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>
