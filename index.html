@@ -1792,9 +1792,13 @@ function mrRender(live) {
   // into the "🔧 בתהליך" panel and returns automatically the instant gate-approvals marks it 'ready'
   // (its OTA pushed). Trigger rows (migration/build/prod-ota/decision) carry no pipelineStage → they
   // stay actionable: approving them IS the action that starts their pipeline step.
-  const isBlockedReview = i => i.pipelineStage && i.pipelineStage !== 'ready';
-  const pendItems = allPend.filter(i => !isBlockedReview(i));
-  const blockedReviews = allPend.filter(isBlockedReview);
+  // Actionable = Erez can approve/reject it NOW: status pending/decision-pending AND its pipeline is
+  // live (ready). Already-approved exec gates (approved-migration/build/prod-ota — incl. auto pre-store
+  // prod-OTA) are ERZA's to EXECUTE — Erez can't act on them; a blocked review isn't live yet. Both are
+  // non-actionable → they leave the desk for "🔧 בתהליך" (Erez 2026-07-18: "אני לא יכול להשפיע על זה").
+  const isActionable = i => ['pending', 'decision-pending'].includes(i.status) && !(i.pipelineStage && i.pipelineStage !== 'ready');
+  const pendItems = allPend.filter(isActionable);
+  const blockedReviews = allPend.filter(i => !isActionable(i));
   const awaitItems = (mrApprovals.items || []).filter(i => i.status === 'awaiting-deploy');
   // 🔧 בתהליך — everything in the pipeline that Erez CANNOT check yet (fix committed but not live on
   // dev): blocked review rows (pipelineStage migration/ota) + awaiting-deploy rows. ONE collapsed
@@ -1804,9 +1808,12 @@ function mrRender(live) {
   const prepByApp = {};
   for (const it of prepItems) (prepByApp[it.app] ??= []).push(it);
   const prepReason = it => it.prereqLabel ? esc(it.prereqLabel)
+    : it.status === 'approved-migration' ? 'אישרת — ERZA מריצה את המיגרציה על ה-DB ותדחוף OTA; ייסגר אוטומטית בסיום'
+    : it.status === 'approved-build' ? 'אישרת — ERZA בונה את הבילד; ייסגר אוטומטית בסיום'
+    : it.status === 'approved-prod-ota' ? (it.autoApproved ? 'אושר אוטומטית (אפליקציה טרם-חנות) — ERZA תדחוף את ה-prod-OTA; ייסגר אוטומטית בסיום' : 'אישרת — ERZA תדחוף ל-prod בסבב הקרוב; ייסגר אוטומטית בסיום')
     : it.status === 'awaiting-deploy' ? 'ממתין לדחיפת OTA — התיקון מוכן (commit מקומי) אבל הגרסה עוד לא עלתה עליו'
     : 'בהכנה';
-  const prepIcon = it => it.migVerify ? '🔍' : (it.pipelineStage === 'migration') ? '🗄️' : '⏳';
+  const prepIcon = it => it.migVerify ? '🔍' : (it.pipelineStage === 'migration' || it.status === 'approved-migration') ? '🗄️' : it.status === 'approved-build' ? '🏗️' : it.status === 'approved-prod-ota' ? '🚀' : '⏳';
   const awaitHtml = prepItems.length ? `<details class="prio-panel" data-mrk="await" style="--panel-accent:#6aa84f">
     <summary>🔧 בתהליך — ${prepItems.length} תיקונים בצנרת שעדיין לא ניתן לבדוק (ממתינים למיגרציה/דחיפת OTA). יעברו ל״לבדיקתך״ אוטומטית ברגע שיידחפו ל-dev</summary>
     <div style="margin-top:8px">${Object.entries(prepByApp)
