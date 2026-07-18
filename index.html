@@ -1785,17 +1785,34 @@ function mrRender(live) {
   // Gated review rows (pipeline not yet live — can't be checked) sink below actionable
   // ready rows so Erez sees what he CAN check first (Erez 2026-07-17), but stay above HARM.
   const pendRank = i => isHarm(i) ? 9 : (i.pipelineStage && i.pipelineStage !== 'ready') ? 3 : i.type === 'decision' ? 0 : (i.type === 'migration' || /(^|-)build$/.test(String(i.type || '')) || EXEC_GATES.includes(i.status)) ? 1 : 2;
-  const pendItems = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending', ...EXEC_GATES].includes(i.status))
+  const allPend = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending', ...EXEC_GATES].includes(i.status))
     .sort((a, b) => pendRank(a) - pendRank(b) || (mrAppRanks[a.app] ?? 99) - (mrAppRanks[b.app] ?? 99));
+  // Erez 2026-07-18: the "לבדיקתך" field must show ONLY rows he can act on. A review row whose fix
+  // isn't live on dev yet (pipelineStage migration/ota) is NOT checkable — it drops out of the desk
+  // into the "🔧 בתהליך" panel and returns automatically the instant gate-approvals marks it 'ready'
+  // (its OTA pushed). Trigger rows (migration/build/prod-ota/decision) carry no pipelineStage → they
+  // stay actionable: approving them IS the action that starts their pipeline step.
+  const isBlockedReview = i => i.pipelineStage && i.pipelineStage !== 'ready';
+  const pendItems = allPend.filter(i => !isBlockedReview(i));
+  const blockedReviews = allPend.filter(isBlockedReview);
   const awaitItems = (mrApprovals.items || []).filter(i => i.status === 'awaiting-deploy');
-  const awaitByApp = {};
-  for (const it of awaitItems) (awaitByApp[it.app] ??= []).push(it);
-  const awaitHtml = awaitItems.length ? `<details class="prio-panel" data-mrk="await" style="--panel-accent:#6aa84f">
-    <summary>⏳ ממתין לדחיפת OTA — ${awaitItems.length} תיקונים מוכנים (commit מקומי) שהגרסה עוד לא עלתה עליהם. לא ניתן לבדוק עד שיידחפו ל-dev</summary>
-    <div style="margin-top:8px">${Object.entries(awaitByApp)
+  // 🔧 בתהליך — everything in the pipeline that Erez CANNOT check yet (fix committed but not live on
+  // dev): blocked review rows (pipelineStage migration/ota) + awaiting-deploy rows. ONE collapsed
+  // panel so the action desk above stays purely actionable; each row shows WHY it's not ready and
+  // self-promotes to "לבדיקתך" when its OTA pushes. (Erez: "אין טעם להציג לי נתונים שאין לי מה לעשות איתם".)
+  const prepItems = [...blockedReviews, ...awaitItems];
+  const prepByApp = {};
+  for (const it of prepItems) (prepByApp[it.app] ??= []).push(it);
+  const prepReason = it => it.prereqLabel ? esc(it.prereqLabel)
+    : it.status === 'awaiting-deploy' ? 'ממתין לדחיפת OTA — התיקון מוכן (commit מקומי) אבל הגרסה עוד לא עלתה עליו'
+    : 'בהכנה';
+  const prepIcon = it => it.migVerify ? '🔍' : (it.pipelineStage === 'migration') ? '🗄️' : '⏳';
+  const awaitHtml = prepItems.length ? `<details class="prio-panel" data-mrk="await" style="--panel-accent:#6aa84f">
+    <summary>🔧 בתהליך — ${prepItems.length} תיקונים בצנרת שעדיין לא ניתן לבדוק (ממתינים למיגרציה/דחיפת OTA). יעברו ל״לבדיקתך״ אוטומטית ברגע שיידחפו ל-dev</summary>
+    <div style="margin-top:8px">${Object.entries(prepByApp)
       .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
       .map(([app, items]) => `<div class="mr-app"><h3>${icon(app)}${esc(app)} · ${items.length}</h3>
-        ${items.map(it => `<div class="mr-recent"><span class="refid">${esc(it.refId || it.id)}</span> ${esc(it.title)}</div>`).join('')}
+        ${items.map(it => `<div class="mr-recent"><span class="refid">${esc(it.refId || it.id)}</span> ${esc(it.title || '')}<div class="cat" style="margin-top:3px;color:var(--muted);font-weight:600">${prepIcon(it)} ${prepReason(it)}</div></div>`).join('')}
       </div>`).join('')}</div>
   </details>` : '';
   const archItems = (mrApprovals.items || []).filter(isArchived);
