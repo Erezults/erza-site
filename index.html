@@ -2090,6 +2090,10 @@ async function mrTick() {
         const n = al.stall.nextReturn;
         el.innerHTML = `<div style="border:1px solid var(--red);background:color-mix(in srgb,var(--red) 9%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;font-weight:600;color:var(--red)">🛑 ${al.stall.queued} משימות ממתינות ואין עבודה — ${esc(al.stall.reason)}.${n ? ` החשבון הקרוב חוזר: <b>${esc(n.id)}</b> בעוד <b class="cd" dir="ltr" data-until="${esc(n.at)}"></b>` : ''} <span class="cat">(העבודה תתחדש אוטומטית; המנצחת ממשיכה בעבודות-ניהול)</span></div>`;
       } else el.innerHTML = '';
+      // T464: per-account alerts (auth failure / instant-death circuit breaker) — expired entries hidden even before the scripts clear them
+      const ab = document.getElementById('accAlertBanner') || (() => { const d = document.createElement('div'); d.id = 'accAlertBanner'; document.getElementById('mrBody').parentElement.insertBefore(d, document.getElementById('mrBody')); return d; })();
+      const accAl = Object.entries((al && al.accounts) || {}).filter(([, v]) => v && (!v.until || Date.parse(v.until) > Date.now()));
+      ab.innerHTML = accAl.map(([id, v]) => `<div style="border:1px solid var(--yellow);background:color-mix(in srgb,var(--yellow) 9%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;font-weight:600;color:var(--yellow)">${esc(v.he || (id + ': ' + (v.kind || 'auth')))}${v.until ? ` <span class="cat">· נפתח בעוד <b class="cd" dir="ltr" data-until="${esc(v.until)}"></b></span>` : ''}</div>`).join('');
     } catch { /* אין קובץ התרעות */ }
     try { renderCompat(await gh('registry/compat_matrix.json')); }
     catch { const g = (mrGlobals.tasks || []).find(t => t.id === 'G2');
