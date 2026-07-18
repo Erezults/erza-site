@@ -216,6 +216,11 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .chat-arch-toggle { width: 100%; border: 1px dashed var(--grid); background: color-mix(in srgb, #7c5cff 6%, transparent); color: var(--ink-2); border-radius: 10px; padding: 7px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .chat-arch-toggle:hover { border-color: #7c5cff; }
 .chat-arch-body { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 4px; margin-top: 6px; border-top: 1px solid var(--grid); }
+/* the archive starts collapsed via the `hidden` attribute. `.chat-arch-body { display:flex }` is an
+   author rule and would override the UA `[hidden]{display:none}` (author beats UA regardless of
+   specificity) — so without this it renders permanently expanded. This restores collapse-by-default;
+   the toggle removes/re-adds `hidden`, and every auto-refresh re-emits it → re-collapses. */
+.chat-arch-body[hidden] { display: none; }
 /* inbox app-selector — button opens a LAYERED overlay with an icon grid.
    All selectors carry .appmodal / .inbox-appsel so they OUTRANK `.inbox button`
    (index.html: white var(--ink-1) bg + mobile width:100%), which the modal is nested under. */
