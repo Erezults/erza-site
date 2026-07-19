@@ -659,6 +659,28 @@ footer a { color: var(--muted); }
 .glance-card .l { font-size: 12.5px; color: var(--ink-2); }
 .glance-card .go { font-size: 11px; color: var(--blue); margin-top: 4px; }
 
+/* ----- Tab 1: app grid (centerpiece) — 🔴 awaiting approval · 🔵 queued · ⚙️ work running ----- */
+.ov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 12px; margin-bottom: 6px; }
+.ov-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 7px;
+  border: 1px solid var(--grid); background: var(--surface-1); border-radius: 16px; padding: 16px 8px 11px; cursor: pointer;
+  transition: border-color .12s, background .12s, transform .08s; }
+.ov-tile:hover { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 6%, transparent); transform: translateY(-1px); }
+.ov-tile .appicon { width: 56px; height: 56px; border-radius: 15px; }
+.ov-tile .nm { font-size: 12px; font-weight: 650; text-align: center; overflow-wrap: anywhere; line-height: 1.2; }
+.ov-badge { position: absolute; top: 7px; min-width: 21px; height: 21px; padding: 0 6px; border-radius: 999px;
+  color: #fff; font-size: 11.5px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 6px rgba(0,0,0,.4); z-index: 2; }
+.ov-badge.red { inset-inline-end: 7px; background: var(--red); animation: ovbreathe 2.2s ease-in-out infinite; }
+.ov-badge.blue { inset-inline-start: 7px; background: var(--blue); animation: ovbreathe 2.6s ease-in-out infinite; }
+@keyframes ovbreathe { 0%, 100% { transform: scale(1); opacity: .9; } 50% { transform: scale(1.17); opacity: 1; } }
+.ov-gear { position: absolute; bottom: 7px; inset-inline-end: 7px; font-size: 15px; line-height: 1; z-index: 2;
+  animation: ovspin 3.2s linear infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+@keyframes ovspin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+.ov-tile.wip { border-color: color-mix(in srgb, var(--aqua) 55%, var(--grid)); background: color-mix(in srgb, var(--aqua) 8%, transparent); }
+.ov-tile.wip .appicon { animation: ovicon 3.4s ease-in-out infinite; }
+@keyframes ovicon { 0%, 100% { transform: scale(1); opacity: .95; } 50% { transform: scale(1.07); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ov-badge.red, .ov-badge.blue, .ov-gear, .ov-tile.wip .appicon { animation: none; } }
+
 /* ----- Tab 4: native-app info grid + overlay lanes ----- */
 .appgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; }
 .appgrid-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 7px;
@@ -1758,6 +1780,26 @@ function updateTabBadges(itemsCount, infoCount) {
   set('tabBadgeInfo', infoCount || 0);
 }
 
+// Tab 1 — app grid centerpiece: per-app 🔴 (awaiting Erez's approval) + 🔵 (queued/backlog) breathing
+// badges; ⚙️ spinning gear + slow-breathing icon when a task is running on the app.
+function overviewGridHtml(live) {
+  const natives = ((window.ERZA_DATA || {}).apps || []).filter(a => a.role === 'native');
+  const items = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending'].includes(i.status) && !(i.pipelineStage && i.pipelineStage !== 'ready'));
+  const GENERIC = new Set(['multi', 'general', 'all', '']);
+  const pendByApp = {};
+  for (const it of items) { const k = GENERIC.has(it.app || '') ? '__general__' : it.app; pendByApp[k] = (pendByApp[k] || 0) + 1; }
+  const tiles = natives.map(a => {
+    const al = (live.apps || {})[a.name] || {};
+    const red = pendByApp[a.name] || 0;
+    const blue = (al.queued || []).length + (al.backlog || []).length;
+    const wip = !!al.running;
+    return `<button type="button" class="ov-tile${wip ? ' wip' : ''}" data-ovapp="${esc(a.name)}" data-ovred="${red}" title="${esc(mrLabel(a.name))}${wip ? ' — עבודה רצה' : ''}">
+      ${red ? `<span class="ov-badge red" title="${red} ממתינים לאישורך">${red}</span>` : ''}${blue ? `<span class="ov-badge blue" title="${blue} בתור לביצוע">${blue}</span>` : ''}${wip ? '<span class="ov-gear" title="עבודה רצה">⚙️</span>' : ''}${mrIcon(a.name)}<span class="nm">${esc(mrLabel(a.name))}</span></button>`;
+  }).join('');
+  return `<div class="tab-h">📱 האפליקציות שלי <span class="tab-h-sub">🔴 ממתין לאישורך · 🔵 בתור · ⚙️ בעבודה כעת</span></div>
+    <div class="ov-grid">${tiles || '<div class="exec-empty">אין אפליקציות נייטיב</div>'}</div>`;
+}
+
 // Tab 1 — executive summary: pending approvals grouped by app, click jumps to Tab 3.
 function execSummaryHtml() {
   const items = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending'].includes(i.status) && !(i.pipelineStage && i.pipelineStage !== 'ready'));
@@ -2423,7 +2465,7 @@ function mrRender(live) {
   { const s = document.getElementById('mrSetup'); if (s) s.innerHTML = ''; }         // clear setup/error once we have a render
   const setDyn = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
   setDyn('dynErza', erzaLine + accPanel);                                             // Tab 1 — ERZA state + accounts
-  setDyn('dynOverview', execSummaryHtml() + runPanel + glanceHtml(live));             // Tab 1 — exec summary + running + glance
+  setDyn('dynOverview', overviewGridHtml(live) + execSummaryHtml() + runPanel + glanceHtml(live)); // Tab 1 — app grid centerpiece + exec summary + running + glance
   setDyn('dynInstr', chatPanelHtml() + inboxHtml + instrHtml);                        // Tab 2 — chat + free instruction + archive
   setDyn('dynItems', migBanner + gateBanner + apprHtml + condPanel + queuePanel + backlogPanel + globPanel + ranksHtml + archHtml); // Tab 3
   setDyn('dynInfo', infoGridHtml(live) + buildsHtml + relHtml + managedPanel);        // Tab 4 — app grid + builds + push history
