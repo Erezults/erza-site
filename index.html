@@ -721,7 +721,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.21.3'</script>
+<script>window.ERZA_DEPLOY_VER='1.21.4'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
 <script src="data.enc.js?v=0d101452"></script>
 <script>
@@ -2032,8 +2032,10 @@ function mrRender(live) {
   // 🏗️ Builds (Erez 2026-07-19): dedicated section — every native build sent to the App Store, per
   // app × platform LANE (xpensy iOS + macOS are SEPARATE submissions → separate lanes + platform-strip
   // icons), dev/prod badge, version, what's included, a real-time phase feed while building, + history.
-  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading', 'processing']);
-  const bMeta = { queued: ['בתור', '#8a949e'], building: ['בונה', '#58a6dc'], exporting: ['מייצא', '#58a6dc'], uploading: ['מעלה ל-ASC', '#3fb6c9'], processing: ['עיבוד ASC', '#e0b000'], valid: ['זמין ב-ASC', '#5aa469'], live: ['חי בסטור', '#3fb950'], failed: ['נכשל', '#e05252'], cancelled: ['בוטל', '#8a949e'] };
+  // "active" = still working on OUR machine (Erez can't ack yet). 'processing' = uploaded, Apple-side
+  // passive wait → treated as DONE (ackable, green + ✓) so it doesn't sit open forever (Erez 2026-07-19).
+  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading']);
+  const bMeta = { queued: ['בתור', '#8a949e'], building: ['בונה', '#58a6dc'], exporting: ['מייצא', '#58a6dc'], uploading: ['מעלה ל-ASC', '#3fb6c9'], processing: ['עלה — בעיבוד אפל', '#5aa469'], valid: ['זמין ב-ASC', '#5aa469'], live: ['חי בסטור', '#3fb950'], failed: ['נכשל', '#e05252'], cancelled: ['בוטל', '#8a949e'] };
   const chBadge = ch => `<span class="ch-badge" style="--c:${ch === 'prod' ? '#8e5bd0' : '#3b82c4'}">${ch === 'prod' ? 'PROD' : 'DEV'}</span>`;
   const platIcon = (app, pf) => `<span class="picon ${pf === 'macos' ? 'macos' : 'ios'}">${icon(app)}<span class="pstrip">${pf === 'macos' ? 'macOS' : 'iOS'}</span></span>`;
   const bAgo = t => { if (!t) return ''; const m = Math.max(0, Math.round((Date.now() - Date.parse(t)) / 6e4)); return m < 1 ? 'עכשיו' : m < 60 ? `לפני ${m} דק׳` : m < 1440 ? `לפני ${Math.round(m / 60)} שע׳` : `לפני ${Math.round(m / 1440)} ימים`; };
