@@ -155,6 +155,9 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .b-card { border: 1px solid var(--grid); border-radius: 9px; padding: 8px 10px; margin: 6px 0; background: color-mix(in srgb, var(--grid) 14%, transparent); }
 .b-card.b-active { border-color: color-mix(in srgb, #d6893f 55%, var(--grid)); background: color-mix(in srgb, #d6893f 9%, transparent); }
 .b-card.b-failed { border-color: color-mix(in srgb, var(--red) 45%, var(--grid)); }
+.b-card.b-done-new { border-color: color-mix(in srgb, #3fb950 55%, var(--grid)); background: color-mix(in srgb, #3fb950 11%, transparent); }
+.backbtn { margin-inline-start: 6px; border: 1px solid color-mix(in srgb, #3fb950 50%, transparent); background: color-mix(in srgb, #3fb950 15%, transparent); color: #3fb950; border-radius: 6px; padding: 1px 9px; font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.backbtn:hover { background: color-mix(in srgb, #3fb950 26%, transparent); }
 .b-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ch-badge { font-size: 10px; font-weight: 800; letter-spacing: .4px; padding: 1px 6px; border-radius: 5px; color: #fff; background: var(--c); }
 .b-ver { font-weight: 700; font-size: 14px; }
@@ -718,7 +721,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.21.2'</script>
+<script>window.ERZA_DEPLOY_VER='1.21.3'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
 <script src="data.enc.js?v=0d101452"></script>
 <script>
