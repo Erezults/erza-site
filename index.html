@@ -2034,15 +2034,22 @@ function mrRender(live) {
   const chBadge = ch => `<span class="ch-badge" style="--c:${ch === 'prod' ? '#8e5bd0' : '#3b82c4'}">${ch === 'prod' ? 'PROD' : 'DEV'}</span>`;
   const platIcon = (app, pf) => `<span class="picon ${pf === 'macos' ? 'macos' : 'ios'}">${icon(app)}<span class="pstrip">${pf === 'macos' ? 'macOS' : 'iOS'}</span></span>`;
   const bAgo = t => { if (!t) return ''; const m = Math.max(0, Math.round((Date.now() - Date.parse(t)) / 6e4)); return m < 1 ? 'עכשיו' : m < 60 ? `לפני ${m} דק׳` : m < 1440 ? `לפני ${Math.round(m / 60)} שע׳` : `לפני ${Math.round(m / 1440)} ימים`; };
+  // Acknowledge (Erez 2026-07-19): a build ERZA RAN (not ASC-history backfill) that just finished
+  // shows green + prominent with a "✓ ראיתי" button; once Erez marks it seen (localStorage) it
+  // collapses into history on the next open. Active (running) builds are always shown expanded.
+  const _ackedB = (() => { try { return new Set(JSON.parse(localStorage.getItem('erza-acked-builds') || '[]')); } catch { return new Set(); } })();
+  const bNeedsAck = b => !B_ACTIVE.has(b.status) && b.source !== 'asc-backfill' && !_ackedB.has(b.id);
   const buildCard = b => {
     const [lbl, col] = bMeta[b.status] || [b.status, '#8a949e'];
     const act = B_ACTIVE.has(b.status);
+    const na = bNeedsAck(b);
     const feed = act && (b.log || []).length ? `<div class="b-feed">${(b.log || []).slice(-4).map(l => `<div class="b-feedline"><span class="b-ft">${esc(String(l.at || '').slice(11, 16))}</span> ${esc(l.phase || '')}${l.msg && l.msg !== l.phase ? ` <span class="b-fm" dir="ltr">${esc(String(l.msg).slice(0, 72))}</span>` : ''}</div>`).join('')}</div>` : '';
     const inc = (b.includes || []).length ? `<details class="b-inc"><summary>מה כלול בבילד (${b.includes.length})</summary><ul>${b.includes.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : '';
-    return `<div class="b-card${act ? ' b-active' : ''} b-${esc(b.status)}">
+    return `<div class="b-card${act ? ' b-active' : ''}${na ? ' b-done-new' : ''} b-${esc(b.status)}">
       <div class="b-top">${chBadge(b.channel)}<span class="b-ver" dir="ltr">${esc(b.version)}${b.buildNumber ? ` (${esc(String(b.buildNumber))})` : ''}</span>
-        <span class="b-status" style="--c:${col}">${act ? '<span class="b-pulse"></span>' : ''}${esc(lbl)}</span>
-        <span class="b-ago">${esc(bAgo(b.updatedAt || b.completedAt || b.startedAt))}</span></div>
+        <span class="b-status" style="--c:${col}">${act ? '<span class="b-pulse"></span>' : na ? '✅ ' : ''}${esc(lbl)}</span>
+        <span class="b-ago">${esc(bAgo(b.updatedAt || b.completedAt || b.startedAt))}</span>
+        ${na ? `<button class="backbtn" data-bid="${esc(b.id)}" title="סמן שראית — יתכווץ בפתיחה הבאה">✓ ראיתי</button>` : ''}</div>
       ${act && b.phase ? `<div class="b-phase">⏳ ${esc(b.phase)}${b.pct != null ? ` · <b>${b.pct}%</b>` : ''}</div>${b.pct != null ? `<div class="b-bar"><span style="width:${Math.max(3, Math.min(100, b.pct))}%"></span></div>` : ''}` : ''}${feed}
       ${b.error ? `<div class="b-err" dir="ltr">${esc(String(b.error).slice(0, 140))}</div>` : ''}${inc}</div>`;
   };
@@ -2053,16 +2060,19 @@ function mrRender(live) {
     const [app, pf] = k.split('||');
     const list = bLanes[k].slice().sort((a, z) => (B_ACTIVE.has(z.status) - B_ACTIVE.has(a.status)) || String(z.updatedAt || z.completedAt || '').localeCompare(String(a.updatedAt || a.completedAt || '')));
     const act = list.filter(b => B_ACTIVE.has(b.status));
-    const hist = list.filter(b => !B_ACTIVE.has(b.status)).slice(0, 8);
+    const doneNew = list.filter(bNeedsAck);                                            // finished, awaiting Erez's ✓
+    const hist = list.filter(b => !B_ACTIVE.has(b.status) && !bNeedsAck(b)).slice(0, 8); // acked + ASC history
     const liveB = list.find(b => b.status === 'live');
-    return `<details class="b-lane" data-mrsub="bl-${esc(k)}"${act.length ? ' open' : ''}>
+    return `<details class="b-lane" data-mrsub="bl-${esc(k)}"${(act.length || doneNew.length) ? ' open' : ''}>
       <summary>${platIcon(app, pf)}<span class="b-lane-nm">${esc(appLabel(app))} · ${pf === 'macos' ? 'macOS' : 'iOS'}</span>
-        <span class="b-lane-cnt">${act.length ? `<span class="b-pulse"></span>${act.length} רץ · ` : ''}${liveB ? `חי ${esc(liveB.version)} · ` : ''}${list.length} סה״כ</span></summary>
-      <div class="b-lane-body">${act.map(buildCard).join('')}${hist.length ? `<div class="b-hist-h">היסטוריה</div>${hist.map(buildCard).join('')}` : ''}</div></details>`;
+        <span class="b-lane-cnt">${act.length ? `<span class="b-pulse"></span>${act.length} רץ · ` : ''}${doneNew.length ? `<span style="color:#3fb950;font-weight:700">✅ ${doneNew.length} הושלם · </span>` : ''}${liveB ? `חי ${esc(liveB.version)} · ` : ''}${list.length} סה״כ</span></summary>
+      <div class="b-lane-body">${act.map(buildCard).join('')}${doneNew.map(buildCard).join('')}${hist.length ? `<div class="b-hist-h">היסטוריה</div>${hist.map(buildCard).join('')}` : ''}</div></details>`;
   };
   const bActiveCount = (live.builds || []).filter(b => B_ACTIVE.has(b.status)).length;
-  const buildsHtml = `<details class="prio-panel" data-mrk="builds" style="--panel-accent:#d6893f"${bActiveCount ? ' open' : ''}>
-    <summary>🏗️ בילדים${bActiveCount ? ` — <span class="b-pulse"></span> ${bActiveCount} בבנייה` : ` — ${bLaneKeys.length} מסלולים`}</summary>
+  const bAckCount = (live.builds || []).filter(bNeedsAck).length;
+  const bAttention = bActiveCount + bAckCount;
+  const buildsHtml = `<details class="prio-panel" data-mrk="builds" style="--panel-accent:#d6893f"${bAttention ? ' open' : ''}>
+    <summary>🏗️ בילדים${bActiveCount ? ` — <span class="b-pulse"></span> ${bActiveCount} בבנייה` : ''}${bAckCount ? ` — <span style="color:#3fb950;font-weight:700">✅ ${bAckCount} הושלמו — סמן שראית</span>` : bActiveCount ? '' : ` — ${bLaneKeys.length} מסלולים`}</summary>
     <div style="margin-top:8px"><div class="section-sub" style="margin:0 0 8px">כל בילד נייטיב שנשלח ל-App Store — לפי אפליקציה, dev/prod, iOS/macOS, גרסה ומה כלול. בזמן בנייה מופיע כאן פיד חי. xpensy iOS ו-xpensy macOS מנוהלים בנפרד.</div>
     ${bLaneKeys.map(bLaneHtml).join('') || '<div class="mr-setup">אין בילדים עדיין — יופיעו כאן ברגע שיתחיל בילד</div>'}</div></details>`;
 
@@ -2072,7 +2082,7 @@ function mrRender(live) {
   // click away. Archives (OTA history + approvals + instructions) are merged into ONE zone.
   const ZONES = [
     { key: 'z-act',  title: '🔔 דורש את תשומת ליבך', accent: 'var(--green)', open: true,  panels: ['appr'] },
-    { key: 'z-builds', title: '🏗️ בילדים',            accent: '#d6893f',      open: bActiveCount > 0, panels: ['builds'] },
+    { key: 'z-builds', title: '🏗️ בילדים',            accent: '#d6893f',      open: bAttention > 0, panels: ['builds'] },
     { key: 'z-mng',  title: '⚙️ ניהול',                accent: '#4a7ba6',      open: false, panels: ['cond', 'managed', 'queue', 'backlog', 'acc', 'ranks', 'glob'] },
     { key: 'z-arch', title: '🗄️ ארכיון והיסטוריה',    accent: '#7a8ca3',      open: false, panels: ['rel', 'arch', 'instr'] },
   ];
@@ -2118,6 +2128,15 @@ function mrRender(live) {
       mrPrios[b.dataset.id] = { hold: true };
       mrDirty = true; document.getElementById('mrSaveBtn').hidden = false;
       b.textContent = '⏹ ייעצר בשמירה'; b.disabled = true;
+    };
+  });
+  // ✓ ראיתי — acknowledge a finished build (Erez 2026-07-19): persist to localStorage; the card
+  // fades now and collapses into history on the next render. Cap the set so it can't grow forever.
+  document.querySelectorAll('#mrBody .backbtn').forEach(b => {
+    b.onclick = () => {
+      try { const s = new Set(JSON.parse(localStorage.getItem('erza-acked-builds') || '[]')); s.add(b.dataset.bid); localStorage.setItem('erza-acked-builds', JSON.stringify([...s].slice(-300))); } catch { /* ignore */ }
+      const card = b.closest('.b-card'); if (card) { card.style.opacity = '.35'; card.classList.remove('b-done-new'); }
+      b.remove();
     };
   });
   // App-selector overlay for the free instruction (Erez 2026-07-17): a layered modal with a
