@@ -663,7 +663,7 @@ footer a { color: var(--muted); }
 .ov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 12px; margin-bottom: 6px; }
 .ov-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 7px;
   border: 1px solid var(--grid); background: var(--surface-1); border-radius: 16px; padding: 16px 8px 11px; cursor: pointer;
-  transition: border-color .12s, background .12s, transform .08s; }
+  color: var(--ink-1); font-family: inherit; transition: border-color .12s, background .12s, transform .08s; }
 .ov-tile:hover { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 6%, transparent); transform: translateY(-1px); }
 .ov-tile .appicon { width: 56px; height: 56px; border-radius: 15px; }
 .ov-tile .nm { font-size: 12px; font-weight: 650; text-align: center; overflow-wrap: anywhere; line-height: 1.2; }
@@ -2479,7 +2479,7 @@ function mrRender(live) {
   { const s = document.getElementById('mrSetup'); if (s) s.innerHTML = ''; }         // clear setup/error once we have a render
   const setDyn = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
   setDyn('dynErza', erzaLine + accPanel);                                             // Tab 1 — ERZA state + accounts
-  setDyn('dynOverview', overviewGridHtml(live) + execSummaryHtml() + runPanel + glanceHtml(live)); // Tab 1 — app grid centerpiece + exec summary + running + glance
+  setDyn('dynOverview', overviewGridHtml(live) + runPanel + glanceHtml(live)); // Tab 1 — app grid centerpiece (exec summary removed — its info is on the grid) + running + glance
   setDyn('dynInstr', chatPanelHtml() + inboxHtml + instrHtml);                        // Tab 2 — chat + free instruction + archive
   setDyn('dynItems', migBanner + gateBanner + apprHtml + condPanel + queuePanel + backlogPanel + globPanel + ranksHtml + archHtml); // Tab 3
   setDyn('dynInfo', infoGridHtml(live) + buildsHtml + relHtml + managedPanel);        // Tab 4 — app grid + builds + push history
