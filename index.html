@@ -163,6 +163,8 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .b-pulse { width: 8px; height: 8px; border-radius: 50%; background: #d6893f; display: inline-block; animation: bpulse 1.2s ease-in-out infinite; flex: none; }
 @keyframes bpulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .25; transform: scale(.65); } }
 .b-phase { margin-top: 5px; font-size: 13px; font-weight: 600; }
+.b-bar { height: 4px; background: color-mix(in srgb, var(--grid) 45%, transparent); border-radius: 3px; margin-top: 5px; overflow: hidden; }
+.b-bar span { display: block; height: 100%; background: #d6893f; border-radius: 3px; transition: width .6s ease; }
 .b-feed { margin-top: 5px; border-inline-start: 2px solid color-mix(in srgb, #d6893f 40%, var(--grid)); padding-inline-start: 8px; }
 .b-feedline { font-size: 11.5px; color: var(--muted); line-height: 1.55; }
 .b-ft { font-variant-numeric: tabular-nums; opacity: .7; }
@@ -2041,7 +2043,7 @@ function mrRender(live) {
       <div class="b-top">${chBadge(b.channel)}<span class="b-ver" dir="ltr">${esc(b.version)}${b.buildNumber ? ` (${esc(String(b.buildNumber))})` : ''}</span>
         <span class="b-status" style="--c:${col}">${act ? '<span class="b-pulse"></span>' : ''}${esc(lbl)}</span>
         <span class="b-ago">${esc(bAgo(b.updatedAt || b.completedAt || b.startedAt))}</span></div>
-      ${act && b.phase ? `<div class="b-phase">⏳ ${esc(b.phase)}</div>` : ''}${feed}
+      ${act && b.phase ? `<div class="b-phase">⏳ ${esc(b.phase)}${b.pct != null ? ` · <b>${b.pct}%</b>` : ''}</div>${b.pct != null ? `<div class="b-bar"><span style="width:${Math.max(3, Math.min(100, b.pct))}%"></span></div>` : ''}` : ''}${feed}
       ${b.error ? `<div class="b-err" dir="ltr">${esc(String(b.error).slice(0, 140))}</div>` : ''}${inc}</div>`;
   };
   const bLanes = {};
