@@ -1190,7 +1190,7 @@ let inboxApp = '';           // app the free-instruction relates to ('' = genera
 /* item 2 — panel order editing: ▲▼ on every panel; order persists to registry/ui_layout.json */
 async function saveLayout() {
   const mrDom = [...document.querySelectorAll('#mrBody details[data-mrk]')].map(d => d.dataset.mrk);
-  const pageDom = [...document.querySelectorAll('#main > details[data-pgk]')].map(d => d.dataset.pgk);
+  const pageDom = [...document.querySelectorAll('#main details[data-pgk]')].map(d => d.dataset.pgk);
   // audit r2: while the machine room shows an error/token-setup message it has no panels —
   // never persist an EMPTY snapshot over Erez's saved order.
   mrLayout = { ...mrLayout,
@@ -1209,7 +1209,7 @@ function movePanel(el, dir) {
   clearTimeout(movePanel._t); movePanel._t = setTimeout(() => saveLayout().catch(() => {}), 800);
 }
 function injectMoveButtons(scope) {
-  document.querySelectorAll(scope || '#mrBody details[data-mrk], #main > details[data-pgk]').forEach(d => {
+  document.querySelectorAll(scope || '#mrBody details[data-mrk], #main details[data-pgk]').forEach(d => {
     const sum = d.querySelector('summary');
     if (!sum || sum.querySelector('.mvbtns')) return;
     const sp = document.createElement('span'); sp.className = 'mvbtns';
@@ -1219,16 +1219,22 @@ function injectMoveButtons(scope) {
   });
 }
 function applyPageOrder() {
+  // portfolio panels now live inside tab sections (info + common) — reorder WITHIN each parent
+  // group only, so a saved order can never move a panel across tabs (Erez 2026-07-19 redesign).
   const want = Array.isArray(mrLayout.page) ? mrLayout.page : [];
-  const els = [...document.querySelectorAll('#main > details[data-pgk]')];
-  if (!els.length || !want.length) return;
-  const anchor = els[0];
-  const sorted = [...els].sort((a, b) => {
-    const ia = want.indexOf(a.dataset.pgk), ib = want.indexOf(b.dataset.pgk);
-    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-  });
-  let ref = anchor.previousElementSibling;
-  sorted.forEach(el => { ref ? ref.after(el) : anchor.parentElement.prepend(el); ref = el; });
+  if (!want.length) return;
+  const els = [...document.querySelectorAll('#main details[data-pgk]')];
+  if (!els.length) return;
+  const groups = new Map();
+  for (const el of els) { const p = el.parentElement; if (!groups.has(p)) groups.set(p, []); groups.get(p).push(el); }
+  for (const [parent, group] of groups) {
+    const sorted = [...group].sort((a, b) => {
+      const ia = want.indexOf(a.dataset.pgk), ib = want.indexOf(b.dataset.pgk);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    });
+    let ref = group[0].previousElementSibling;   // keep the pgk block in place among non-pgk siblings
+    sorted.forEach(el => { ref ? ref.after(el) : parent.prepend(el); ref = el; });
+  }
 }
 /* item 8 — mark a global task as requested (Erez chose to run it now) */
 async function saveGlobalRequest(gid) {
@@ -1723,6 +1729,191 @@ function bindChat() {
   };
 }
 
+/* ============================================================
+   5-TAB SYSTEM + Tab-1/Tab-4 builders (Erez 2026-07-19 redesign)
+   ============================================================ */
+const mrIcon = app => `<img class="appicon" src="icons/${esc(app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
+const mrLabel = app => String(app).replace(/Native/g, '').replace(/_New/g, '').trim() || String(app);
+const TABS = ['overview', 'instructions', 'items', 'info', 'common'];
+
+function switchTab(name, opts = {}) {
+  if (!TABS.includes(name)) name = 'overview';
+  document.querySelectorAll('#tabbar .tab-btn').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  document.querySelectorAll('#mrBody .tab-panel').forEach(s => { s.hidden = s.dataset.tab !== name; });
+  try { localStorage.setItem('erza-tab', name); } catch {}
+  if (opts.hash !== false) { try { history.replaceState(null, '', location.pathname + location.search + '#tab=' + name); } catch {} }
+  if (!opts.noScroll) window.scrollTo({ top: 0, behavior: 'auto' });
+}
+function initTabs() {
+  const bar = document.getElementById('tabbar'); if (bar) bar.hidden = false;
+  document.querySelectorAll('#tabbar .tab-btn').forEach(b => { b.onclick = () => switchTab(b.dataset.tab); });
+  const fromHash = (location.hash.match(/tab=(\w+)/) || [])[1];
+  let start = fromHash || (() => { try { return localStorage.getItem('erza-tab'); } catch { return null; } })() || 'overview';
+  switchTab(start, { noScroll: true, hash: false });
+}
+function updateTabBadges(itemsCount, infoCount) {
+  const set = (id, n) => { const el = document.getElementById(id); if (!el) return; if (n > 0) { el.textContent = n; el.hidden = false; } else { el.hidden = true; } };
+  set('tabBadgeItems', itemsCount || 0);
+  set('tabBadgeInfo', infoCount || 0);
+}
+
+// Tab 1 — executive summary: pending approvals grouped by app, click jumps to Tab 3.
+function execSummaryHtml() {
+  const items = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending'].includes(i.status) && !(i.pipelineStage && i.pipelineStage !== 'ready'));
+  const GENERIC = new Set(['multi', 'general', 'all', '']);
+  const isMig = i => i.type === 'migration' || i.status === 'approved-migration';
+  const byApp = {};
+  for (const it of items) { const k = GENERIC.has(it.app || '') ? '__general__' : it.app; (byApp[k] = byApp[k] || []).push(it); }
+  const keys = Object.keys(byApp).sort((a, b) => (a === '__general__' ? 1 : 0) - (b === '__general__' ? 1 : 0) || (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99) || a.localeCompare(b));
+  const rows = keys.map(app => {
+    const its = byApp[app];
+    const migs = its.filter(isMig).length;
+    const label = app === '__general__' ? '🌐 כללי / חוצה-אפליקציות' : `${mrIcon(app)}<span>${esc(mrLabel(app))}</span>`;
+    return `<tr class="exec-row" data-execapp="${app === '__general__' ? '__general__' : esc(app)}">
+      <td><div class="exec-app">${label}</div></td>
+      <td><span class="exec-count">${its.length}</span>${migs ? ` <span class="exec-pill" style="--bc:#8e44ad">🗄️ ${migs}</span>` : ''}</td>
+      <td class="exec-go">פתח לטיפול ←</td></tr>`;
+  }).join('');
+  return `<div class="tab-h">🧑‍💼 תקציר מנהלים <span class="tab-h-sub">מה ממתין לאישורך, לפי אפליקציה</span></div>
+    <div class="exec-card">${items.length
+      ? `<table class="exec-tbl"><thead><tr><th>אפליקציה</th><th>ממתינים</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+      : '<div class="exec-empty">🎉 אין פריטים שממתינים לך כרגע — הכול מטופל.</div>'}</div>`;
+}
+
+// Tab 1 — at-a-glance quick cards that jump to the relevant tab.
+function glanceHtml(live) {
+  const pend = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending'].includes(i.status) && !(i.pipelineStage && i.pipelineStage !== 'ready')).length;
+  const migs = (live.pendingMigrations || []).length;
+  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading']);
+  const buildsRun = (live.builds || []).filter(b => B_ACTIVE.has(b.status)).length;
+  const running = Object.values(live.apps || {}).filter(d => d.running).length;
+  const queued = (live.totals && live.totals.queued) || 0;
+  const cards = [
+    { v: pend, l: 'ממתינים לאישורך', tab: 'items' },
+    ...(migs ? [{ v: migs, l: 'מיגרציות לאישור', tab: 'items' }] : []),
+    { v: running, l: 'משימות רצות כעת', tab: 'overview' },
+    { v: queued, l: 'משימות בתור', tab: 'items' },
+    { v: buildsRun, l: 'בילדים בבנייה', tab: 'info' },
+  ];
+  return `<div class="tab-h">🔎 נתונים נוספים במבט-על <span class="tab-h-sub">לחיצה קופצת לטאב הרלוונטי</span></div>
+    <div class="glance">${cards.map(c => `<div class="glance-card" data-gototab="${c.tab}"><div class="v">${c.v}</div><div class="l">${esc(c.l)}</div><div class="go">מעבר →</div></div>`).join('')}</div>`;
+}
+
+// Tab 4 — native-app info grid (icons + unseen badge). Click opens the overlay.
+function infoSeenMap() { try { return JSON.parse(localStorage.getItem('erza-app-seen') || '{}'); } catch { return {}; } }
+function markAppSeen(app) { try { const m = infoSeenMap(); m[app] = new Date().toISOString(); localStorage.setItem('erza-app-seen', JSON.stringify(m)); } catch {} }
+function ackedBuildSet() { try { return new Set(JSON.parse(localStorage.getItem('erza-acked-builds') || '[]')); } catch { return new Set(); } }
+function appUnseenCount(app, live, seen) {
+  const since = Date.parse(seen[app] || 0) || 0;
+  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading']);
+  const acked = ackedBuildSet();
+  const pend = (mrApprovals.items || []).filter(i => i.app === app && ['pending', 'decision-pending'].includes(i.status) && (Date.parse(i.at || 0) || 0) > since).length;
+  const builds = (live.builds || []).filter(b => b.app === app && !B_ACTIVE.has(b.status) && b.source !== 'asc-backfill' && !acked.has(b.id) && (Date.parse(b.updatedAt || b.completedAt || 0) || 0) > since).length;
+  return pend + builds;
+}
+function infoGridHtml(live) {
+  const natives = ((window.ERZA_DATA || {}).apps || []).filter(a => a.role === 'native');
+  const seen = infoSeenMap();
+  const tiles = natives.map(a => {
+    const n = appUnseenCount(a.name, live, seen);
+    const sub = a.ascShort ? String(a.ascShort).replace(/^🍎\s*/, '') : (a.stage || '');
+    return `<button type="button" class="appgrid-tile" data-infoapp="${esc(a.name)}">
+      ${n ? `<span class="appgrid-badge">${n}</span>` : ''}${mrIcon(a.name)}
+      <span class="nm">${esc(mrLabel(a.name))}</span><span class="stg">${esc(sub)}</span></button>`;
+  }).join('');
+  return `<div class="tab-h">📱 מידע על האפליקציות <span class="tab-h-sub">לחץ אפליקציה למידע מלא — פלטפורמה, dev/prod, גרסאות והיסטוריה</span></div>
+    <div class="appgrid">${tiles || '<div class="info-empty">אין אפליקציות נייטיב בנתונים</div>'}</div>`;
+}
+
+const ASC_STATE_MAP = {
+  READY_FOR_SALE: ['חי בסטור', 'var(--green)'], PROCESSING_FOR_APP_STORE: ['בעיבוד אפל', 'var(--yellow)'],
+  PENDING_DEVELOPER_RELEASE: ['ממתין לשחרור שלך', 'var(--aqua)'], PENDING_APPLE_RELEASE: ['ממתין לשחרור אפל', 'var(--aqua)'],
+  IN_REVIEW: ['בביקורת אפל', 'var(--blue)'], WAITING_FOR_REVIEW: ['ממתין לביקורת', 'var(--blue)'],
+  PREPARE_FOR_SUBMISSION: ['בהכנה להגשה', 'var(--muted)'], REJECTED: ['נדחה', 'var(--red)'],
+  DEVELOPER_REJECTED: ['נדחה על ידך', 'var(--red)'], METADATA_REJECTED: ['מטא-דאטה נדחתה', 'var(--red)'],
+  INVALID_BINARY: ['בינארי לא תקין', 'var(--red)'], DEVELOPER_REMOVED_FROM_SALE: ['הוסר מהמכירה', 'var(--muted)'],
+};
+const B_META_L = { queued: 'בתור', building: 'בונה', exporting: 'מייצא', uploading: 'מעלה ל-ASC', processing: 'בעיבוד אפל', valid: 'זמין ב-ASC', live: 'חי בסטור', failed: 'נכשל', cancelled: 'בוטל' };
+
+function appInfoBodyHtml(a, live) {
+  const v = a.versions || {};
+  const plats = v.platforms ? Object.entries(v.platforms)
+    : [['ios', { store: v.prod, onStore: v.onStore, prodDisplay: v.prod, latest: null, latestState: null, devDisplay: v.dev, devIsSource: v.devIsSource }]];
+  const appLive = (live.apps || {})[a.name] || {};
+  const tasksQ = appLive.queued || [];
+  const running = !!appLive.running;
+  const builds = (live.builds || []).filter(b => b.app === a.name);
+  const rels = (live.releases || []).filter(r => r.app === a.name);
+  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading']);
+  const acked = ackedBuildSet();
+  const platName = k => k === 'mac' ? 'macOS' : 'iOS';
+  const platCls = k => k === 'mac' ? 'mac' : 'ios';
+  const laneFor = (pk, pdata, ch) => {
+    const isProd = ch === 'prod';
+    const chBuilds = builds.filter(b => (v.platforms ? b.platform === pk : !!b.platform) && (b.channel || 'dev') === ch)
+      .sort((x, y) => String(y.updatedAt || y.completedAt || '').localeCompare(String(x.updatedAt || x.completedAt || '')));
+    const chRels = rels.filter(r => (r.channel || 'dev') === ch).slice().reverse();
+    const ver = isProd ? (pdata.prodDisplay || pdata.store || v.prod || '—') : (pdata.devDisplay || v.dev || '—');
+    const stH = isProd ? (pdata.onStore ? ['חי בסטור', 'var(--green)'] : (ASC_STATE_MAP[pdata.latestState] || [pdata.latestState || 'טרם הוגש', 'var(--muted)'])) : ['בפיתוח (dev)', 'var(--blue)'];
+    const unack = chBuilds.filter(b => !B_ACTIVE.has(b.status) && b.source !== 'asc-backfill' && !acked.has(b.id));
+    const active = chBuilds.some(b => B_ACTIVE.has(b.status));
+    const cur = `<div class="info-kv"><span class="k">גרסה:</span> <span class="val" dir="ltr">${esc(ver)}</span></div>
+      <div class="info-kv"><span class="k">מצב:</span> <span class="info-state" style="--bc:${stH[1]}">${esc(stH[0])}</span></div>
+      ${isProd && pdata.latest && pdata.latest !== pdata.store ? `<div class="info-kv"><span class="k">גרסה שהוכנה:</span> <span class="val" dir="ltr">${esc(pdata.latest)}</span></div>` : ''}
+      <div class="info-kv"><span class="k">משימות בתור לאפליקציה:</span> <span class="val">${tasksQ.length}</span>${running ? ' <span class="info-state" style="--bc:var(--aqua)">▶ עבודה רצה</span>' : ''}</div>`;
+    const histBuilds = chBuilds.slice(0, 12).map(b => `<div class="info-hist-row" dir="ltr">🏗️ <b>${esc(b.version)}${b.buildNumber ? ` (${esc(String(b.buildNumber))})` : ''}</b> · ${esc(B_META_L[b.status] || b.status)} · ${esc(String(b.updatedAt || b.completedAt || '').slice(0, 10))}${(!B_ACTIVE.has(b.status) && b.source !== 'asc-backfill' && !acked.has(b.id)) ? ` <button class="info-seen" data-bid="${esc(b.id)}">✓ ראיתי</button>` : ''}</div>`).join('');
+    const histRels = chRels.slice(0, 8).map(r => `<div class="info-hist-row" dir="ltr">📤 <b>${esc(r.version)}</b>${r.sha ? ` · ${esc(r.sha)}` : ''} · ${esc(String(r.at || '').slice(0, 10))}</div>`).join('');
+    const hist = (histBuilds || histRels) || '<div class="info-empty">אין היסטוריה עדיין</div>';
+    return `<details class="info-lane"${active ? ' open' : ''}>
+      <summary><span class="info-plat ${platCls(pk)}">${platName(pk)}</span> <span class="chan-pill ${isProd ? 'chan-prod' : 'chan-dev'}">${isProd ? 'PROD' : 'DEV'}</span>${unack.length ? `<span class="tab-badge" style="margin-inline-start:6px">${unack.length}</span>` : ''}</summary>
+      <div class="info-lane-body">
+        <details class="info-lvl" open><summary>מצב נוכחי</summary><div class="info-lvl-body">${cur}</div></details>
+        <details class="info-lvl"><summary>היסטוריה</summary><div class="info-lvl-body">${hist}</div></details>
+      </div></details>`;
+  };
+  const lanes = plats.map(([pk, pdata]) => laneFor(pk, pdata, 'prod') + laneFor(pk, pdata, 'dev')).join('');
+  const head = `${(a.purposeHe || a.purpose) ? `<div class="section-sub" style="margin:0 0 10px">${esc(a.purposeHe || a.purpose)}</div>` : ''}
+    ${a.ascSummary ? `<div class="info-kv"><span class="k">App Store:</span> <span class="val">${esc(a.ascSummary)}</span></div>` : ''}`;
+  return head + lanes;
+}
+
+function openAppInfo(appName) {
+  const a = ((window.ERZA_DATA || {}).apps || []).find(x => x.name === appName); if (!a) return;
+  markAppSeen(appName);
+  let modal = document.getElementById('appInfoModal');
+  if (!modal) {
+    modal = document.createElement('div'); modal.id = 'appInfoModal'; modal.className = 'appmodal'; modal.hidden = true;
+    modal.innerHTML = '<div class="appmodal-backdrop"></div><div class="appmodal-card" role="dialog" aria-modal="true"><div class="appmodal-head"><div class="info-modal-app" id="appInfoTitle"></div><button type="button" class="appmodal-x" id="appInfoClose">✕</button></div><div id="appInfoBody"></div></div>';
+    document.body.appendChild(modal);
+    const close = () => { modal.hidden = true; };
+    modal.querySelector('.appmodal-backdrop').onclick = close;
+    modal.querySelector('#appInfoClose').onclick = close;
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) close(); });
+  }
+  document.getElementById('appInfoTitle').innerHTML = `${mrIcon(a.name)}<span>${esc(a.displayName || mrLabel(a.name))}</span>`;
+  document.getElementById('appInfoBody').innerHTML = appInfoBodyHtml(a, mrLastLive || {});
+  modal.hidden = false;
+  modal.querySelectorAll('.info-seen[data-bid]').forEach(b => b.onclick = () => {
+    try { const s = ackedBuildSet(); s.add(b.dataset.bid); localStorage.setItem('erza-acked-builds', JSON.stringify([...s].slice(-300))); } catch {}
+    b.textContent = '✓ סומן'; b.disabled = true;
+  });
+}
+
+// bind the Tab-1 exec rows / glance cards / Tab-4 grid tiles after each render.
+function bindDynamicExtras() {
+  document.querySelectorAll('#dynOverview .exec-row').forEach(tr => tr.onclick = () => {
+    const app = tr.dataset.execapp; switchTab('items');
+    setTimeout(() => {
+      const apprPanel = document.querySelector('#dynItems details[data-mrk="appr"]'); if (apprPanel) apprPanel.open = true;
+      const sub = app === '__general__' ? 'appr-general' : 'appr-' + app;
+      const grp = document.querySelector(`#dynItems [data-mrsub="${sub}"]`) || document.querySelector('#dynItems [data-mrsub="appr-migs"]');
+      if (grp) { grp.open = true; grp.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    }, 60);
+  });
+  document.querySelectorAll('#dynOverview .glance-card').forEach(c => c.onclick = () => switchTab(c.dataset.gototab));
+  document.querySelectorAll('#dynInfo .appgrid-tile').forEach(t => t.onclick = () => { const b = t.querySelector('.appgrid-badge'); if (b) b.remove(); openAppInfo(t.dataset.infoapp); });
+}
+
 function mrRender(live) {
   const ago = Math.round((Date.now() - Date.parse(live.updatedAt)) / 60e3);
   // failures/parked are NOT "finished" (audit r2 SM-05/SM-09) — they get their own counters
@@ -2215,18 +2406,8 @@ function mrRender(live) {
     ${bLaneKeys.map(bLaneHtml).join('') || '<div class="mr-setup">אין בילדים עדיין — יופיעו כאן ברגע שיתחיל בילד</div>'}</div></details>`;
 
   const PANELS = { appr: apprHtml, builds: buildsHtml, glob: globPanel, acc: accPanel, run: runPanel, queue: queuePanel, backlog: backlogPanel, ranks: ranksHtml, cond: condPanel, inbox: inboxHtml, rel: relHtml, arch: archHtml, instr: instrHtml, managed: managedPanel };
-  // 4-ZONE LAYOUT (Erez 2026-07-17): group the machine-room panels into focused zones so the
-  // default view shows only what needs your response; status / archive / management are one
-  // click away. Archives (OTA history + approvals + instructions) are merged into ONE zone.
-  const ZONES = [
-    { key: 'z-act',  title: '🔔 דורש את תשומת ליבך', accent: 'var(--green)', open: true,  panels: ['appr'] },
-    { key: 'z-builds', title: '🏗️ בילדים',            accent: '#d6893f',      open: bAttention > 0, panels: ['builds'] },
-    { key: 'z-mng',  title: '⚙️ ניהול',                accent: '#4a7ba6',      open: false, panels: ['cond', 'managed', 'queue', 'backlog', 'acc', 'ranks', 'glob'] },
-    { key: 'z-arch', title: '🗄️ ארכיון והיסטוריה',    accent: '#7a8ca3',      open: false, panels: ['rel', 'arch', 'instr'] },
-  ];
-  // first render → zone defaults (act open); later re-renders → keep whatever Erez toggled.
-  const hadZones = !!document.querySelector('#mrBody details[data-zone]');
-  const mrOpenZones = new Set([...document.querySelectorAll('#mrBody details[data-zone][open]')].map(d => d.dataset.zone));
+  // The former 4-zone wrapper is retired — panels are distributed across the 5 tabs below
+  // (Erez 2026-07-19 redesign). The PANELS map above stays the single source per panel.
   // approved gates awaiting ERZA execution — a visible banner so they can't rot silently (audit r2 SM-01)
   const gateBanner = (live.approvedGates || []).length
     ? `<div style="border:1px solid #8e44ad;background:color-mix(in srgb,#8e44ad 9%,transparent);border-radius:10px;padding:8px 12px;margin:8px 0;font-size:13px;font-weight:600">🗄️ ${live.approvedGates.length} אישורים ממתינים לביצוע ERZA — ${live.approvedGates.map(g => `${g.type === 'prod-ota' ? '📤' : g.type === 'build' ? '🏗️' : '🗄️'} ${esc(g.app)}${g.ageMin > 90 ? ` <span style="color:#e05252">(${Math.round(g.ageMin / 60)} שע׳!)</span>` : ''}`).join(' · ')}</div>`
@@ -2235,18 +2416,21 @@ function mrRender(live) {
   const migBanner = (live.pendingMigrations || []).length
     ? `<div style="border:1px solid #d98c1f;background:color-mix(in srgb,#d98c1f 12%,transparent);border-radius:10px;padding:9px 12px;margin:8px 0;font-size:13px;font-weight:700">🗄️ ${live.pendingMigrations.length} מיגרציות DB ממתינות לאישורך — <span style="font-weight:600">אישורן משחרר את ה-OTA התקוע של:</span> ${live.pendingMigrations.map(m => `${esc(String(m.app).replace(/Native|_New/g, ''))}${m.ageMin > 120 ? ` <span style="color:#e05252">(${Math.round(m.ageMin / 60)}ש׳)</span>` : ''}`).join(' · ')}. <span style="font-weight:600">אשר כל שורת 🗄️ סגולה למטה ⇒ ERZA מריצה את המיגרציה ודוחפת את ה-OTA אוטומטית.</span></div>`
     : '';
-  const zoneHtml = ZONES.map(z => {
-    const inner = z.panels.map(k => PANELS[k] || '').filter(s => s && s.trim()).join('');
-    if (!inner.trim()) return '';
-    const isOpen = hadZones ? mrOpenZones.has(z.key) : z.open;
-    return `<details class="zone" data-zone="${z.key}" style="--panel-accent:${z.accent}"${isOpen ? ' open' : ''}>
-      <summary>${z.title}</summary><div class="zone-body">${inner}</div></details>`;
-  }).join('');
-  // Order: live chat FIRST, then free-instruction inbox, then "מבוצע כעת", then the zones.
-  document.getElementById('mrBody').innerHTML = erzaLine + migBanner + gateBanner + chatPanelHtml() + inboxHtml + runPanel + zoneHtml;
+  // 5-TAB DISTRIBUTION (Erez 2026-07-19): split the machine-room panels across the tabs instead
+  // of one long scroll. Each tab writes into its own #dyn* container — all still INSIDE #mrBody,
+  // so every #mrBody-scoped binding + open-state query below keeps working unchanged.
+  { const s = document.getElementById('mrSetup'); if (s) s.innerHTML = ''; }         // clear setup/error once we have a render
+  const setDyn = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  setDyn('dynErza', erzaLine + accPanel);                                             // Tab 1 — ERZA state + accounts
+  setDyn('dynOverview', execSummaryHtml() + runPanel + glanceHtml(live));             // Tab 1 — exec summary + running + glance
+  setDyn('dynInstr', chatPanelHtml() + inboxHtml + instrHtml);                        // Tab 2 — chat + free instruction + archive
+  setDyn('dynItems', migBanner + gateBanner + apprHtml + condPanel + queuePanel + backlogPanel + globPanel + ranksHtml + archHtml); // Tab 3
+  setDyn('dynInfo', infoGridHtml(live) + buildsHtml + relHtml + managedPanel);        // Tab 4 — app grid + builds + push history
+  bindDynamicExtras();
+  updateTabBadges(pendItems.length, bAckCount);
   document.querySelectorAll('#mrBody details[data-mrk]').forEach(d => { if (mrOpenKeys.has(d.dataset.mrk) || d.dataset.mrk === 'inbox' || d.dataset.mrk === 'appr') d.open = true; });
   document.querySelectorAll('#mrBody details[data-mrsub]').forEach(d => { if (mrOpenSubs.has(d.dataset.mrsub)) d.open = true; });
-  injectMoveButtons('#main > details[data-pgk]');  // zones fix the machine-room order; keep portfolio reordering
+  injectMoveButtons('#main details[data-pgk]');  // tabs fix the machine-room order; keep portfolio reordering
   document.querySelectorAll('#mrBody .globrun').forEach(b => { b.onclick = async (e) => {
     e.preventDefault(); b.disabled = true; b.textContent = 'שולח…';
     try { await saveGlobalRequest(b.dataset.gid); b.textContent = '⏳ הופעל'; }
@@ -2443,8 +2627,9 @@ async function mrTick() {
   if (userBusy()) return; // guard: never rebuild while typing
   const box = document.getElementById('machineRoom');
   box.hidden = false;
+  { const bar = document.getElementById('tabbar'); if (bar) bar.hidden = false; }
   if (!pat()) {
-    document.getElementById('mrBody').innerHTML = `<div class="mr-setup">
+    document.getElementById('mrSetup').innerHTML = `<div class="mr-setup" style="margin:8px 0">
       כדי לראות סטטוס חי ולקבוע עדיפויות, צריך טוקן GitHub (חד־פעמי, נשמר רק במכשיר הזה):<br>
       1. github.com ← Settings ← Developer settings ← Fine-grained tokens ← Generate new token<br>
       2. Repository access: רק <b>ERZA_Orchestrator</b> · Permissions: <b>Contents → Read and write</b><br>
@@ -2515,7 +2700,7 @@ async function mrTick() {
         : g && g.status === 'done' ? 'הנתונים בדרך — רענן בעוד רגע.'
         : 'טרם הופעל — הפעל את "מטריצת תאימות" בפאנל המשימות הגלובליות בחדר המכונות.') + '</div>'; }
     try { mrGlobals = await gh('registry/global_tasks.json') || { tasks: [] }; } catch { mrGlobals = { tasks: [] }; }
-    applyPageOrder(); injectMoveButtons('#main > details[data-pgk]');
+    applyPageOrder(); injectMoveButtons('#main details[data-pgk]');
     try {
       const meta = await gh('registry/approvals.json', undefined, { headers: { Accept: 'application/vnd.github+json' } });
       // parse FIRST — a transient failure (or a >1MB empty-content response) must keep the
@@ -2540,7 +2725,7 @@ async function mrTick() {
       document.getElementById('mrUpdated').textContent = `⚠️ רענון נכשל (${e.status || esc(String(e.message))}) — מציג את המצב האחרון; ינוסה שוב אוטומטית`;
       return;
     }
-    document.getElementById('mrBody').innerHTML = `<div class="mr-setup">${e.status === 404 ? 'עדיין אין סטטוס חי — הדחיפה הראשונה תופיע תוך ~5 דקות.' : e.status === 401 || e.status === 403 ? 'הטוקן לא תקין או חסרות הרשאות — לחץ ⚙️ והדבק טוקן חדש.' : 'שגיאה בשליפת סטטוס (' + esc(String(e.message)) + ')'}</div>`;
+    document.getElementById('mrSetup').innerHTML = `<div class="mr-setup" style="margin:8px 0">${e.status === 404 ? 'עדיין אין סטטוס חי — הדחיפה הראשונה תופיע תוך ~5 דקות.' : e.status === 401 || e.status === 403 ? 'הטוקן לא תקין או חסרות הרשאות — לחץ ⚙️ והדבק טוקן חדש.' : 'שגיאה בשליפת סטטוס (' + esc(String(e.message)) + ')'}</div>`;
   }
 }
 
@@ -2550,6 +2735,7 @@ function mrInit() {
     if (v !== null) { localStorage.setItem('erza-pat', v.trim()); mrDirty = false; mrTick(); }
   };
   document.getElementById('mrSaveBtn').onclick = savePriorities;
+  initTabs();                          // 5-tab bar: wire buttons, restore active tab (localStorage / #tab=)
   mrTick();
   setInterval(tickCountdown, 1000);   // 1s countdown; refreshes only every REFRESH_SECS and never while typing
   setInterval(chatPoll, 8000);        // live chat: poll ERZA's replies every 8s (light — one small file)
