@@ -877,7 +877,7 @@ footer a { color: var(--muted); }
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_DEPLOY_VER='1.22.2'</script>
+<script>window.ERZA_DEPLOY_VER='1.23.0'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
 <script src="data.enc.js?v=0d101452"></script>
 <script>
@@ -1954,6 +1954,17 @@ function bindDynamicExtras() {
     }, 60);
   });
   document.querySelectorAll('#dynOverview .glance-card').forEach(c => c.onclick = () => switchTab(c.dataset.gototab));
+  document.querySelectorAll('#dynOverview .ov-tile').forEach(t => t.onclick = () => {
+    const app = t.dataset.ovapp;
+    if (+t.dataset.ovred > 0) {                                   // has approvals waiting → jump to that app's items
+      switchTab('items');
+      setTimeout(() => {
+        const apprPanel = document.querySelector('#dynItems details[data-mrk="appr"]'); if (apprPanel) apprPanel.open = true;
+        const grp = document.querySelector(`#dynItems [data-mrsub="appr-${app}"]`);
+        if (grp) { grp.open = true; grp.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      }, 60);
+    } else { openAppInfo(app); }                                  // otherwise → the app's info overlay (Tab 4)
+  });
   document.querySelectorAll('#dynInfo .appgrid-tile').forEach(t => t.onclick = () => { const b = t.querySelector('.appgrid-badge'); if (b) b.remove(); openAppInfo(t.dataset.infoapp); });
 }
 
