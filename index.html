@@ -2343,6 +2343,10 @@ async function mrTick() {
       // T463: git-sync push failure (3+ consecutive ticks) — the dashboard is going stale. Red banner.
       const pf = document.getElementById('pushFailBanner') || (() => { const d = document.createElement('div'); d.id = 'pushFailBanner'; document.getElementById('mrBody').parentElement.insertBefore(d, document.getElementById('mrBody')); return d; })();
       pf.innerHTML = (al && al.pushFail) ? `<div style="border:1px solid var(--red);background:color-mix(in srgb,var(--red) 9%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;font-weight:600;color:var(--red)">🔴 ${esc(al.pushFail.he || ('סנכרון git של הרישום נכשל ' + (al.pushFail.count || '') + ' טיקים ברצף — הדשבורד לא מתעדכן'))}${al.pushFail.at ? ` <span class="cat">· ${esc(fmtDate(al.pushFail.at))}</span>` : ''}</div>` : '';
+      // d3: brain kill-streak — a brain mode kept hitting its wall-clock cap without finishing. Red banner.
+      const bk = document.getElementById('brainKillsBanner') || (() => { const d = document.createElement('div'); d.id = 'brainKillsBanner'; document.getElementById('mrBody').parentElement.insertBefore(d, document.getElementById('mrBody')); return d; })();
+      const kills = (al && al.brainKills) ? Object.values(al.brainKills) : [];
+      bk.innerHTML = kills.length ? `<div style="border:1px solid var(--red);background:color-mix(in srgb,var(--red) 9%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;font-weight:600;color:var(--red)">${kills.map(k => `🧠🔴 ${esc(k.he || ('מוח ERZA נהרג ' + (k.count || '') + ' פעמים ברצף בתקרת הזמן'))}${k.at ? ` <span class="cat">· ${esc(fmtDate(k.at))}</span>` : ''}`).join('<br>')}</div>` : '';
     } catch { /* אין קובץ התרעות */ }
     try { renderCompat(await gh('registry/compat_matrix.json')); }
     catch { const g = (mrGlobals.tasks || []).find(t => t.id === 'G2');
