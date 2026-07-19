@@ -726,25 +726,48 @@ footer a { color: var(--muted); }
     <button id="lockBtn" title="נעילה" hidden>🔒</button>
   </header>
 
-  <div id="machineRoom" class="mr" hidden>
-    <div class="mr-head">
-      <div class="section-title" style="margin:0">🏭 חדר מכונות — סטטוס חי</div>
+  <nav class="tabbar" id="tabbar" hidden>
+    <button class="tab-btn on" data-tab="overview"><span class="tab-ico">🏠</span>ראשי</button>
+    <button class="tab-btn" data-tab="instructions"><span class="tab-ico">💬</span>הוראות</button>
+    <button class="tab-btn" data-tab="items"><span class="tab-ico">🔔</span>נושאים לטיפולך<span class="tab-badge" id="tabBadgeItems" hidden></span></button>
+    <button class="tab-btn" data-tab="info"><span class="tab-ico">📊</span>אינפורמציה<span class="tab-badge" id="tabBadgeInfo" hidden></span></button>
+    <button class="tab-btn" data-tab="common"><span class="tab-ico">🧩</span>קומונליות</button>
+  </nav>
+
+  <div id="machineRoom" class="mrwrap" hidden>
+    <div class="subbar" id="subbar">
       <span class="mr-updated" id="mrUpdated"></span>
       <span class="mr-updated" id="refreshCounter" style="opacity:.75"></span>
       <div class="hdr-spacer"></div>
       <button id="mrSaveBtn" class="mr-save" hidden>💾 שמור עדיפויות</button>
       <button id="patBtn" title="הגדרת טוקן GitHub">⚙️</button>
     </div>
-    <div id="mrBody"></div>
-  </div>
+    <div id="mrSetup"></div>
+    <div id="mrBody">
 
-  <div class="tiles" id="tiles"></div>
+    <section class="tab-panel" data-tab="overview">
+      <div id="dynErza"></div>
+      <div class="stagebar-wrap">
+        <div class="stagebar-title">אפליקציות הנייטיב לפי שלב</div>
+        <div class="stagebar" id="stagebar"></div>
+        <div class="stagebar-legend" id="stagelegend"></div>
+      </div>
+      <div id="dynOverview"></div>
+      <div class="tab-h">📊 מדדים מהירים</div>
+      <div class="tiles" id="tiles"></div>
+    </section>
 
-  <div class="stagebar-wrap">
-    <div class="stagebar-title">אפליקציות הנייטיב לפי שלב</div>
-    <div class="stagebar" id="stagebar"></div>
-    <div class="stagebar-legend" id="stagelegend"></div>
-  </div>
+    <section class="tab-panel" data-tab="instructions" hidden>
+      <div id="dynInstr"></div>
+    </section>
+
+    <section class="tab-panel" data-tab="items" hidden>
+      <div id="dynItems"></div>
+    </section>
+
+    <section class="tab-panel" data-tab="info" hidden>
+      <div id="dynInfo"></div>
+      <div class="tab-h">📋 טבלת פורטפוליו מלאה <span class="tab-h-sub">כל האפליקציות — נייטיב · ווב · אחר</span></div>
 
   <details class="prio-panel desktop-only" data-pgk="native" style="--panel-accent:var(--blue)">
   <summary>📱 אפליקציות נייטיב</summary>
@@ -797,6 +820,9 @@ footer a { color: var(--muted); }
   <div class="filters"><input id="searchM" type="search" placeholder="חיפוש / סינון אפליקציות…"></div>
   <div class="cards" id="cards"></div>
   </details>
+    </section>
+
+    <section class="tab-panel" data-tab="common" hidden>
 
   <details class="prio-panel" data-pgk="skills" style="--panel-accent:#2a9d8f">
   <summary>🛠️ קטלוג הסקילים</summary>
@@ -820,6 +846,10 @@ footer a { color: var(--muted); }
   <div class="section-sub">כל נושא פונקציונלי משותף · ציון 0-5 לכל אפליקציה · המימוש הטוב ביותר בכל שורה</div>
   <div id="compatBody"><div class="mr-setup">טוען…</div></div>
   </details>
+    </section>
+
+    </div><!-- /#mrBody (tab wrapper) -->
+  </div><!-- /#machineRoom -->
 
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
