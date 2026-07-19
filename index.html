@@ -230,8 +230,9 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .chat-msg.me { align-self: flex-start; align-items: flex-start; }
 .chat-msg.erza { align-self: flex-end; align-items: flex-end; }
 .chat-bubble { padding: 8px 12px; border-radius: 14px; font-size: 13.5px; line-height: 1.55; overflow-wrap: anywhere; }
-.chat-msg.me .chat-bubble { background: color-mix(in srgb, var(--green) 24%, var(--surface-1)); color: var(--ink-1); border-start-end-radius: 4px; }
-.chat-msg.erza .chat-bubble { background: color-mix(in srgb, #7c5cff 24%, var(--surface-1)); color: var(--ink-1); border-start-start-radius: 4px; }
+/* WhatsApp-style (Erez 2026-07-19): outgoing = green, incoming (ERZA) = neutral bubble — easy on the eyes */
+.chat-msg.me .chat-bubble { background: color-mix(in srgb, var(--green) 30%, var(--surface-1)); color: var(--ink-1); border-start-end-radius: 4px; }
+.chat-msg.erza .chat-bubble { background: color-mix(in srgb, var(--ink-1) 8%, var(--surface-1)); color: var(--ink-1); border: 1px solid var(--grid); border-start-start-radius: 4px; }
 .chat-meta { font-size: 10px; color: var(--muted); margin: 2px 6px 0; }
 .chat-typing { display: inline-flex; gap: 4px; align-items: center; }
 .chat-typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: chatdot 1.2s infinite; }
