@@ -111,7 +111,7 @@ h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.2px; }
 h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2); }
 .hdr-spacer { flex: 1; }
 .updated { font-size: 12px; color: var(--muted); text-align: left; }
-#themeBtn, #lockBtn {
+#patBtn, #themeBtn, #lockBtn {
   border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-2);
   border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 14px;
 }
@@ -120,7 +120,6 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .mr { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
 .mr-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 .mr-updated { font-size: 12px; color: var(--muted); }
-#patBtn { border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-2); border-radius: 8px; padding: 5px 9px; cursor: pointer; font-size: 13px; }
 .mr-save { border: none; background: var(--blue); color: #fff; border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .mr-erzaline { font-size: 12.5px; color: var(--ink-2); background: var(--tint); border-radius: 8px; padding: 7px 10px; margin-bottom: 10px; overflow-wrap: anywhere; }
 .mr-erzaline b { color: var(--ink-1); }
@@ -606,13 +605,15 @@ footer a { color: var(--muted); }
 /* the machine-room card becomes a transparent wrapper for the tabs */
 #machineRoom.mrwrap { background: none; border: none; border-radius: 0; padding: 0; margin: 0; }
 .tabbar {
-  position: sticky; top: 0; z-index: 30; display: flex; gap: 4px; flex-wrap: wrap; align-items: center;
+  position: sticky; top: 0; z-index: 30; display: flex; gap: 4px; flex-wrap: nowrap; align-items: center;
+  overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none;
   background: color-mix(in srgb, var(--page) 90%, transparent); backdrop-filter: saturate(1.4) blur(10px);
   -webkit-backdrop-filter: saturate(1.4) blur(10px);
   border-bottom: 1px solid var(--grid); padding: 6px 0; margin: 0 0 4px;
 }
+.tabbar::-webkit-scrollbar { height: 0; display: none; }
 .tab-btn {
-  position: relative; border: 1px solid transparent; background: transparent; color: var(--ink-2);
+  position: relative; flex-shrink: 0; border: 1px solid transparent; background: transparent; color: var(--ink-2);
   border-radius: 10px; padding: 8px 13px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
   display: inline-flex; align-items: center; gap: 6px; transition: background .12s, color .12s;
 }
@@ -745,6 +746,7 @@ footer a { color: var(--muted); }
     <span id="orchVer" hidden></span>
     <div class="hdr-spacer"></div>
     <div class="updated" id="updated"></div>
+    <button id="patBtn" title="הגדרת טוקן GitHub">⚙️</button>
     <button id="themeBtn" title="מצב תצוגה">◐</button>
     <button id="lockBtn" title="נעילה" hidden>🔒</button>
   </header>
@@ -752,8 +754,8 @@ footer a { color: var(--muted); }
   <nav class="tabbar" id="tabbar" hidden>
     <button class="tab-btn on" data-tab="overview"><span class="tab-ico">🏠</span>ראשי</button>
     <button class="tab-btn" data-tab="instructions"><span class="tab-ico">💬</span>הוראות</button>
-    <button class="tab-btn" data-tab="items"><span class="tab-ico">🔔</span>נושאים לטיפולך<span class="tab-badge" id="tabBadgeItems" hidden></span></button>
-    <button class="tab-btn" data-tab="info"><span class="tab-ico">📊</span>אינפורמציה<span class="tab-badge" id="tabBadgeInfo" hidden></span></button>
+    <button class="tab-btn" data-tab="items"><span class="tab-ico">🔔</span>לטיפולך<span class="tab-badge" id="tabBadgeItems" hidden></span></button>
+    <button class="tab-btn" data-tab="info"><span class="tab-ico">📊</span>אינפו<span class="tab-badge" id="tabBadgeInfo" hidden></span></button>
     <button class="tab-btn" data-tab="common"><span class="tab-ico">🧩</span>קומונליות</button>
   </nav>
 
@@ -763,12 +765,12 @@ footer a { color: var(--muted); }
       <span class="mr-updated" id="refreshCounter" style="opacity:.75"></span>
       <div class="hdr-spacer"></div>
       <button id="mrSaveBtn" class="mr-save" hidden>💾 שמור עדיפויות</button>
-      <button id="patBtn" title="הגדרת טוקן GitHub">⚙️</button>
     </div>
     <div id="mrSetup"></div>
     <div id="mrBody">
 
     <section class="tab-panel" data-tab="overview">
+      <div id="dynGrid"></div>
       <div id="dynErza"></div>
       <div class="stagebar-wrap">
         <div class="stagebar-title">אפליקציות הנייטיב לפי שלב</div>
@@ -1957,7 +1959,7 @@ function bindDynamicExtras() {
     }, 60);
   });
   document.querySelectorAll('#dynOverview .glance-card').forEach(c => c.onclick = () => switchTab(c.dataset.gototab));
-  document.querySelectorAll('#dynOverview .ov-tile').forEach(t => t.onclick = () => {
+  document.querySelectorAll('#dynGrid .ov-tile').forEach(t => t.onclick = () => {
     const app = t.dataset.ovapp;
     if (+t.dataset.ovred > 0) {                                   // has approvals waiting → jump to that app's items
       switchTab('items');
@@ -2479,7 +2481,8 @@ function mrRender(live) {
   { const s = document.getElementById('mrSetup'); if (s) s.innerHTML = ''; }         // clear setup/error once we have a render
   const setDyn = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
   setDyn('dynErza', erzaLine + accPanel);                                             // Tab 1 — ERZA state + accounts
-  setDyn('dynOverview', overviewGridHtml(live) + runPanel + glanceHtml(live)); // Tab 1 — app grid centerpiece (exec summary removed — its info is on the grid) + running + glance
+  setDyn('dynGrid', overviewGridHtml(live));                        // Tab 1 — app grid centerpiece, FIRST thing under the tabs
+  setDyn('dynOverview', runPanel + glanceHtml(live));               // then running work + quick-glance cards
   setDyn('dynInstr', chatPanelHtml() + inboxHtml + instrHtml);                        // Tab 2 — chat + free instruction + archive
   setDyn('dynItems', migBanner + gateBanner + apprHtml + condPanel + queuePanel + backlogPanel + globPanel + ranksHtml + archHtml); // Tab 3
   setDyn('dynInfo', infoGridHtml(live) + buildsHtml + relHtml + managedPanel);        // Tab 4 — app grid + builds + push history
