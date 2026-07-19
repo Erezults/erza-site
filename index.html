@@ -966,6 +966,9 @@ async function init() {
 }
 
 function boot(D, locked) {
+  window.ERZA_DATA = D;   // expose globally: Tab-1 app grid, Tab-4 info grid + openAppInfo read window.ERZA_DATA,
+                          // which was only ever set by the local data.js path — on the encrypted live site the
+                          // decrypted data arrived as this local param, so those grids silently showed empty.
   document.getElementById('main').hidden = false;
   if (locked) {
     const lb = document.getElementById('lockBtn');
