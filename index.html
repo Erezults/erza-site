@@ -1796,7 +1796,7 @@ function overviewGridHtml(live) {
   const GENERIC = new Set(['multi', 'general', 'all', '']);
   const pendByApp = {};
   for (const it of items) { const k = GENERIC.has(it.app || '') ? '__general__' : it.app; pendByApp[k] = (pendByApp[k] || 0) + 1; }
-  const tiles = natives.map(a => {
+  const tileFor = (a, plat) => {
     const al = (live.apps || {})[a.name] || {};
     const red = pendByApp[a.name] || 0;
     const blue = (al.queued || []).length + (al.backlog || []).length;
@@ -1804,9 +1804,12 @@ function overviewGridHtml(live) {
     const wipModel = wip && al.running.model ? String(al.running.model) : '';
     const MODEL_C = { Fable: 'var(--aqua)', Opus: 'var(--violet)', Sonnet: 'var(--blue)', Haiku: 'var(--muted)' };
     const mc = MODEL_C[wipModel] || 'var(--aqua)';
-    return `<button type="button" class="ov-tile${wip ? ' wip' : ''}" data-ovapp="${esc(a.name)}" data-ovred="${red}" title="${esc(mrLabel(a.name))}${wip ? ' — עבודה רצה' + (wipModel ? ' (' + esc(wipModel) + ')' : '') : ''}">
-      ${red ? `<span class="ov-badge red" title="${red} ממתינים לאישורך">${red}</span>` : ''}${blue ? `<span class="ov-badge blue" title="${blue} בתור לביצוע">${blue}</span>` : ''}${mrIcon(a.name)}<span class="nm">${esc(mrLabel(a.name))}</span>${wip ? `<span class="ov-wip"><span class="ov-gear" title="עבודה רצה">⚙️</span>${wipModel ? `<span class="ov-model" style="--mc:${mc}">${esc(wipModel)}</span>` : ''}</span>` : ''}</button>`;
-  }).join('');
+    // xpensy = TWO separate store apps (iOS + macOS desktop, NOT Catalyst — T503/GEN-034): platform-strip icon per tile
+    const iconHtml = plat ? `<span class="picon ${plat === 'macos' ? 'macos' : 'ios'}">${mrIcon(a.name)}<span class="pstrip">${plat === 'macos' ? 'macOS' : 'iOS'}</span></span>` : mrIcon(a.name);
+    return `<button type="button" class="ov-tile${wip ? ' wip' : ''}" data-ovapp="${esc(a.name)}" data-ovred="${red}" title="${esc(mrLabel(a.name))}${plat ? ' ' + (plat === 'macos' ? 'macOS' : 'iOS') : ''}${wip ? ' — עבודה רצה' + (wipModel ? ' (' + esc(wipModel) + ')' : '') : ''}">
+      ${red ? `<span class="ov-badge red" title="${red} ממתינים לאישורך">${red}</span>` : ''}${blue ? `<span class="ov-badge blue" title="${blue} בתור לביצוע">${blue}</span>` : ''}${iconHtml}<span class="nm">${esc(mrLabel(a.name))}</span>${wip ? `<span class="ov-wip"><span class="ov-gear" title="עבודה רצה">⚙️</span>${wipModel ? `<span class="ov-model" style="--mc:${mc}">${esc(wipModel)}</span>` : ''}</span>` : ''}</button>`;
+  };
+  const tiles = natives.map(a => a.name === 'xpensy' ? tileFor(a, 'ios') + tileFor(a, 'macos') : tileFor(a)).join('');
   return `<div class="tab-h">📱 האפליקציות שלי <span class="tab-h-sub">🔴 ממתין לאישורך · 🔵 בתור · ⚙️ בעבודה כעת</span></div>
     <div class="ov-grid">${tiles || '<div class="exec-empty">אין אפליקציות נייטיב</div>'}</div>`;
 }
@@ -1868,13 +1871,16 @@ function appUnseenCount(app, live, seen) {
 function infoGridHtml(live) {
   const natives = ((window.ERZA_DATA || {}).apps || []).filter(a => a.role === 'native');
   const seen = infoSeenMap();
-  const tiles = natives.map(a => {
+  const infoTile = (a, plat) => {
     const n = appUnseenCount(a.name, live, seen);
     const sub = a.ascShort ? String(a.ascShort).replace(/^🍎\s*/, '') : (a.stage || '');
+    const iconHtml = plat ? `<span class="picon ${plat === 'macos' ? 'macos' : 'ios'}">${mrIcon(a.name)}<span class="pstrip">${plat === 'macos' ? 'macOS' : 'iOS'}</span></span>` : mrIcon(a.name);
     return `<button type="button" class="appgrid-tile" data-infoapp="${esc(a.name)}">
-      ${n ? `<span class="appgrid-badge">${n}</span>` : ''}${mrIcon(a.name)}
-      <span class="nm">${esc(mrLabel(a.name))}</span><span class="stg">${esc(sub)}</span></button>`;
-  }).join('');
+      ${n ? `<span class="appgrid-badge">${n}</span>` : ''}${iconHtml}
+      <span class="nm">${esc(mrLabel(a.name))}${plat ? ' · ' + (plat === 'macos' ? 'macOS' : 'iOS') : ''}</span><span class="stg">${esc(sub)}</span></button>`;
+  };
+  // xpensy = two separate store apps (iOS + macOS, not Catalyst — T503): one tile per platform
+  const tiles = natives.map(a => a.name === 'xpensy' ? infoTile(a, 'ios') + infoTile(a, 'macos') : infoTile(a)).join('');
   return `<div class="tab-h">📱 מידע על האפליקציות <span class="tab-h-sub">לחץ אפליקציה למידע מלא — פלטפורמה, dev/prod, גרסאות והיסטוריה</span></div>
     <div class="appgrid">${tiles || '<div class="info-empty">אין אפליקציות נייטיב בנתונים</div>'}</div>`;
 }
