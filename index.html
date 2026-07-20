@@ -2150,7 +2150,9 @@ function mrRender(live) {
         </div>
         ${pipeStepper()}
         <div class="pushrow">${isExecGate
-          ? `<span class="mdl" style="--bc:#8e44ad">✅ ${it.autoApproved ? 'אושר אוטומטית (אפליקציה טרם-חנות)' : 'אישרת'} — ERZA הראשית ${it.status === 'approved-migration' ? 'תריץ את המיגרציה על ה-DB ותדחוף את ה-OTA' : it.status === 'approved-prod-ota' ? 'תדחוף את ה-OTA לערוץ ה-prod הייעודי (release-prod.sh)' : 'תבנה את הבילד'} בסבב הקרוב; הפריט ייסגר אוטומטית בסיום</span>`
+          ? (it.execBlocked && it.execNote
+            ? `<span class="mdl" style="--bc:var(--yellow)">⏸️ ${it.autoApproved ? 'אושר אוטומטית' : 'אישרת'} — אך חסום כרגע: ${esc(it.execNote)}</span>`
+            : `<span class="mdl" style="--bc:#8e44ad">✅ ${it.autoApproved ? 'אושר אוטומטית (אפליקציה טרם-חנות)' : 'אישרת'} — ERZA הראשית ${it.status === 'approved-migration' ? 'תריץ את המיגרציה על ה-DB ותדחוף את ה-OTA' : it.status === 'approved-prod-ota' ? 'תדחוף את ה-OTA לערוץ ה-prod הייעודי (release-prod.sh)' : 'תבנה את הבילד'} בסבב הקרוב; הפריט ייסגר אוטומטית בסיום</span>`)
           : isMig
           ? `<span class="mdl" style="--bc:#8e44ad">🗄️ מיגרציית DB ממתינה לאישורך — אישור ⇒ ERZA מריצה את המיגרציה ודוחפת את ה-OTA אוטומטית</span>`
           : isBuild
