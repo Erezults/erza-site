@@ -778,8 +778,6 @@ footer a { color: var(--muted); }
         <div class="stagebar-legend" id="stagelegend"></div>
       </div>
       <div id="dynOverview"></div>
-      <div class="tab-h">📊 מדדים מהירים</div>
-      <div class="tiles" id="tiles"></div>
     </section>
 
     <section class="tab-panel" data-tab="instructions" hidden>
@@ -1010,7 +1008,8 @@ function boot(D, locked) {
   /* tiles */
   const nLive = natives.filter(a => ['Live', 'Maintenance'].includes(a.stage)).length;
   const nStore = natives.filter(a => ['Ready for App Store', 'Testing'].includes(a.stage)).length;
-  document.getElementById('tiles').innerHTML = [
+  const _tilesEl = document.getElementById('tiles'); // removed from Tab-1 overview (redundant portfolio counts) — guard so legacy boot doesn't throw
+  if (_tilesEl) _tilesEl.innerHTML = [
     [natives.length, 'אפליקציות נייטיב'],
     [nLive, 'באוויר / תחזוקה'],
     [nStore, 'בדרך לסטור'],
