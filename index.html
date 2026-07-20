@@ -1908,9 +1908,16 @@ function appInfoBodyHtml(a, live) {
       <div class="info-kv"><span class="k">מצב:</span> <span class="info-state" style="--bc:${stH[1]}">${esc(stH[0])}</span></div>
       ${isProd && pdata.latest && pdata.latest !== pdata.store ? `<div class="info-kv"><span class="k">גרסה שהוכנה:</span> <span class="val" dir="ltr">${esc(pdata.latest)}</span></div>` : ''}
       <div class="info-kv"><span class="k">משימות בתור לאפליקציה:</span> <span class="val">${tasksQ.length}</span>${running ? ' <span class="info-state" style="--bc:var(--aqua)">▶ עבודה רצה</span>' : ''}</div>`;
+    // Apple submission + rejection timeline (prod only) — from asc_status history per platform.
+    const ascKey = pk === 'mac' ? 'MAC_OS' : 'IOS';
+    const ascHist = isProd && a.asc && a.asc.platforms && a.asc.platforms[ascKey] ? (a.asc.platforms[ascKey].history || []) : [];
+    const histSubs = ascHist.slice(0, 12).map(s => {
+      const st = ASC_STATE_MAP[s.state] || [s.state, 'var(--muted)'];
+      return `<div class="info-hist-row" dir="ltr">🍎 <b>${esc(s.version)}</b> · <span class="info-state" style="--bc:${st[1]}">${esc(st[0])}</span> · ${esc(String(s.createdDate || '').slice(0, 10))}</div>`;
+    }).join('');
     const histBuilds = chBuilds.slice(0, 12).map(b => `<div class="info-hist-row" dir="ltr">🏗️ <b>${esc(b.version)}${b.buildNumber ? ` (${esc(String(b.buildNumber))})` : ''}</b> · ${esc(B_META_L[b.status] || b.status)} · ${esc(String(b.updatedAt || b.completedAt || '').slice(0, 10))}${(!B_ACTIVE.has(b.status) && b.source !== 'asc-backfill' && !acked.has(b.id)) ? ` <button class="info-seen" data-bid="${esc(b.id)}">✓ ראיתי</button>` : ''}</div>`).join('');
     const histRels = chRels.slice(0, 8).map(r => `<div class="info-hist-row" dir="ltr">📤 <b>${esc(r.version)}</b>${r.sha ? ` · ${esc(r.sha)}` : ''} · ${esc(String(r.at || '').slice(0, 10))}</div>`).join('');
-    const hist = (histBuilds || histRels) || '<div class="info-empty">אין היסטוריה עדיין</div>';
+    const hist = (histSubs + histBuilds + histRels) || '<div class="info-empty">אין היסטוריה עדיין</div>';
     return `<details class="info-lane"${active ? ' open' : ''}>
       <summary><span class="info-plat ${platCls(pk)}">${platName(pk)}</span> <span class="chan-pill ${isProd ? 'chan-prod' : 'chan-dev'}">${isProd ? 'PROD' : 'DEV'}</span>${unack.length ? `<span class="tab-badge" style="margin-inline-start:6px">${unack.length}</span>` : ''}</summary>
       <div class="info-lane-body">
