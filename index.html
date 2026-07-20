@@ -676,10 +676,10 @@ footer a { color: var(--muted); }
 .ov-badge.red { inset-inline-end: 7px; background: var(--red); animation: ovbreathe 2.2s ease-in-out infinite; }
 .ov-badge.blue { inset-inline-start: 7px; background: var(--blue); animation: ovbreathe 2.6s ease-in-out infinite; }
 @keyframes ovbreathe { 0%, 100% { transform: scale(1); opacity: .9; } 50% { transform: scale(1.17); opacity: 1; } }
-.ov-wip { position: absolute; bottom: 6px; inset-inline-end: 7px; display: inline-flex; align-items: center; gap: 4px; z-index: 2; }
-.ov-model { font-size: 9.5px; font-weight: 800; line-height: 1; padding: 2px 6px; border-radius: 999px;
+.ov-wip { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; }
+.ov-model { font-size: 10px; font-weight: 800; line-height: 1; padding: 2px 7px; border-radius: 999px;
   background: color-mix(in srgb, var(--mc) 22%, transparent); color: var(--mc); border: 1px solid color-mix(in srgb, var(--mc) 45%, transparent); }
-.ov-gear { font-size: 15px; line-height: 1; animation: ovspin 3.2s linear infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+.ov-gear { font-size: 14px; line-height: 1; animation: ovspin 3.2s linear infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
 @keyframes ovspin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 .ov-tile.wip { border-color: color-mix(in srgb, var(--aqua) 55%, var(--grid)); background: color-mix(in srgb, var(--aqua) 8%, transparent); }
 .ov-tile.wip .appicon { animation: ovicon 3.4s ease-in-out infinite; }
@@ -1805,7 +1805,7 @@ function overviewGridHtml(live) {
     const MODEL_C = { Fable: 'var(--aqua)', Opus: 'var(--violet)', Sonnet: 'var(--blue)', Haiku: 'var(--muted)' };
     const mc = MODEL_C[wipModel] || 'var(--aqua)';
     return `<button type="button" class="ov-tile${wip ? ' wip' : ''}" data-ovapp="${esc(a.name)}" data-ovred="${red}" title="${esc(mrLabel(a.name))}${wip ? ' — עבודה רצה' + (wipModel ? ' (' + esc(wipModel) + ')' : '') : ''}">
-      ${red ? `<span class="ov-badge red" title="${red} ממתינים לאישורך">${red}</span>` : ''}${blue ? `<span class="ov-badge blue" title="${blue} בתור לביצוע">${blue}</span>` : ''}${wip ? `<span class="ov-wip">${wipModel ? `<span class="ov-model" style="--mc:${mc}">${esc(wipModel)}</span>` : ''}<span class="ov-gear" title="עבודה רצה">⚙️</span></span>` : ''}${mrIcon(a.name)}<span class="nm">${esc(mrLabel(a.name))}</span></button>`;
+      ${red ? `<span class="ov-badge red" title="${red} ממתינים לאישורך">${red}</span>` : ''}${blue ? `<span class="ov-badge blue" title="${blue} בתור לביצוע">${blue}</span>` : ''}${mrIcon(a.name)}<span class="nm">${esc(mrLabel(a.name))}</span>${wip ? `<span class="ov-wip"><span class="ov-gear" title="עבודה רצה">⚙️</span>${wipModel ? `<span class="ov-model" style="--mc:${mc}">${esc(wipModel)}</span>` : ''}</span>` : ''}</button>`;
   }).join('');
   return `<div class="tab-h">📱 האפליקציות שלי <span class="tab-h-sub">🔴 ממתין לאישורך · 🔵 בתור · ⚙️ בעבודה כעת</span></div>
     <div class="ov-grid">${tiles || '<div class="exec-empty">אין אפליקציות נייטיב</div>'}</div>`;
