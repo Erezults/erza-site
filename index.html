@@ -676,8 +676,10 @@ footer a { color: var(--muted); }
 .ov-badge.red { inset-inline-end: 7px; background: var(--red); animation: ovbreathe 2.2s ease-in-out infinite; }
 .ov-badge.blue { inset-inline-start: 7px; background: var(--blue); animation: ovbreathe 2.6s ease-in-out infinite; }
 @keyframes ovbreathe { 0%, 100% { transform: scale(1); opacity: .9; } 50% { transform: scale(1.17); opacity: 1; } }
-.ov-gear { position: absolute; bottom: 7px; inset-inline-end: 7px; font-size: 15px; line-height: 1; z-index: 2;
-  animation: ovspin 3.2s linear infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+.ov-wip { position: absolute; bottom: 6px; inset-inline-end: 7px; display: inline-flex; align-items: center; gap: 4px; z-index: 2; }
+.ov-model { font-size: 9.5px; font-weight: 800; line-height: 1; padding: 2px 6px; border-radius: 999px;
+  background: color-mix(in srgb, var(--mc) 22%, transparent); color: var(--mc); border: 1px solid color-mix(in srgb, var(--mc) 45%, transparent); }
+.ov-gear { font-size: 15px; line-height: 1; animation: ovspin 3.2s linear infinite; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
 @keyframes ovspin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 .ov-tile.wip { border-color: color-mix(in srgb, var(--aqua) 55%, var(--grid)); background: color-mix(in srgb, var(--aqua) 8%, transparent); }
 .ov-tile.wip .appicon { animation: ovicon 3.4s ease-in-out infinite; }
@@ -1799,8 +1801,11 @@ function overviewGridHtml(live) {
     const red = pendByApp[a.name] || 0;
     const blue = (al.queued || []).length + (al.backlog || []).length;
     const wip = !!al.running;
-    return `<button type="button" class="ov-tile${wip ? ' wip' : ''}" data-ovapp="${esc(a.name)}" data-ovred="${red}" title="${esc(mrLabel(a.name))}${wip ? ' — עבודה רצה' : ''}">
-      ${red ? `<span class="ov-badge red" title="${red} ממתינים לאישורך">${red}</span>` : ''}${blue ? `<span class="ov-badge blue" title="${blue} בתור לביצוע">${blue}</span>` : ''}${wip ? '<span class="ov-gear" title="עבודה רצה">⚙️</span>' : ''}${mrIcon(a.name)}<span class="nm">${esc(mrLabel(a.name))}</span></button>`;
+    const wipModel = wip && al.running.model ? String(al.running.model) : '';
+    const MODEL_C = { Fable: 'var(--aqua)', Opus: 'var(--violet)', Sonnet: 'var(--blue)', Haiku: 'var(--muted)' };
+    const mc = MODEL_C[wipModel] || 'var(--aqua)';
+    return `<button type="button" class="ov-tile${wip ? ' wip' : ''}" data-ovapp="${esc(a.name)}" data-ovred="${red}" title="${esc(mrLabel(a.name))}${wip ? ' — עבודה רצה' + (wipModel ? ' (' + esc(wipModel) + ')' : '') : ''}">
+      ${red ? `<span class="ov-badge red" title="${red} ממתינים לאישורך">${red}</span>` : ''}${blue ? `<span class="ov-badge blue" title="${blue} בתור לביצוע">${blue}</span>` : ''}${wip ? `<span class="ov-wip">${wipModel ? `<span class="ov-model" style="--mc:${mc}">${esc(wipModel)}</span>` : ''}<span class="ov-gear" title="עבודה רצה">⚙️</span></span>` : ''}${mrIcon(a.name)}<span class="nm">${esc(mrLabel(a.name))}</span></button>`;
   }).join('');
   return `<div class="tab-h">📱 האפליקציות שלי <span class="tab-h-sub">🔴 ממתין לאישורך · 🔵 בתור · ⚙️ בעבודה כעת</span></div>
     <div class="ov-grid">${tiles || '<div class="exec-empty">אין אפליקציות נייטיב</div>'}</div>`;
@@ -2743,9 +2748,13 @@ async function mrTick() {
         const sb = document.getElementById('sessBanner') || (() => { const d = document.createElement('div'); d.id = 'sessBanner'; document.getElementById('mrBody').parentElement.insertBefore(d, document.getElementById('mrBody')); return d; })();
         sb.innerHTML = `<div style="border:1px solid var(--blue);background:color-mix(in srgb,var(--blue) 9%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;color:var(--blue)">🧠 ${esc(sa.message)} כדי שהסשן האינטראקטיבי של ERZA יעבוד על Fable — הפעל בטרמינל: <code style="background:color-mix(in srgb,var(--blue) 14%,transparent);padding:1px 6px;border-radius:4px">${esc(sa.command)}</code> <span class="cat">(העבודה האוטומטית — workers + brain — כבר רצה על Fable)</span></div>`;
       } else { const sb = document.getElementById('sessBanner'); if (sb) sb.innerHTML = ''; }
+      const runningNow = (live && live.totals && live.totals.running) || 0;
       if (al && al.stall) {
         const n = al.stall.nextReturn;
-        el.innerHTML = `<div style="border:1px solid var(--red);background:color-mix(in srgb,var(--red) 9%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;font-weight:600;color:var(--red)">🛑 ${al.stall.queued} משימות ממתינות ואין עבודה — ${esc(al.stall.reason)}.${n ? ` החשבון הקרוב חוזר: <b>${esc(n.id)}</b> בעוד <b class="cd" dir="ltr" data-until="${esc(n.at)}"></b>` : ''} <span class="cat">(העבודה תתחדש אוטומטית; המנצחת ממשיכה בעבודות-ניהול)</span></div>`;
+        // NOT "waiting for you" and NOT "no work": these are EXECUTION tasks queued for the worker
+        // engine (paused while accounts are usage-locked); show what's actually running now (Erez 2026-07-20).
+        const c = runningNow ? 'var(--aqua)' : 'var(--red)';
+        el.innerHTML = `<div style="border:1px solid ${c};background:color-mix(in srgb,${c} 9%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;font-weight:600;color:${c}">${runningNow ? '⚙️' : '⏳'} ${al.stall.queued} משימות בתור לביצוע אוטומטי — מנוע ה-workers מושהה (${esc(al.stall.reason)})${runningNow ? ` · <b>${runningNow} רצות כעת על המנצח</b>` : ''}.${n ? ` חשבון worker קרוב חוזר: <b>${esc(n.id)}</b> בעוד <b class="cd" dir="ltr" data-until="${esc(n.at)}"></b>` : ''} <span class="cat">(משימות ביצוע — לא ממתינות לאישורך; יתחדשו אוטומטית)</span></div>`;
       } else el.innerHTML = '';
       // T464: per-account alerts (auth failure / instant-death circuit breaker) — expired entries hidden even before the scripts clear them
       const ab = document.getElementById('accAlertBanner') || (() => { const d = document.createElement('div'); d.id = 'accAlertBanner'; document.getElementById('mrBody').parentElement.insertBefore(d, document.getElementById('mrBody')); return d; })();
