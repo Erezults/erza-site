@@ -181,7 +181,9 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .prio-panel summary { cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--ink-1); }
 #appOrder { list-style: none; margin-top: 8px; }
 #appOrder li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; border: 1px solid var(--grid); border-radius: 8px; padding: 7px 10px; margin-bottom: 6px; background: var(--surface-1); cursor: grab; }
-#appOrder li.dragging { opacity: .4; }
+#appOrder li.dragging { opacity: .4; border-color: var(--blue); }
+#appOrder .grip { color: var(--muted); font-size: 16px; cursor: grab; flex: none; letter-spacing: -2px; user-select: none; }
+#appOrder li:active { cursor: grabbing; }
 #appOrder .rank-num { width: 22px; height: 22px; border-radius: 50%; background: var(--tint); color: var(--ink-2); font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 #appOrder .nm { flex: 1; }
 #appOrder .mv button { border: 1px solid var(--grid); background: var(--page); color: var(--ink-2); border-radius: 6px; padding: 1px 8px; cursor: pointer; font-size: 12px; margin-inline-start: 4px; }
@@ -2021,9 +2023,9 @@ function mrRender(live) {
   const appLabel = app => String(app).replace(/Native/g, '').replace(/_New/g, '').trim() || String(app);
   const orderedApps = [...(live.nativeApps || [])].sort((a, b) => (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99));
   const ranksHtml = orderedApps.length
-    ? `<details class="prio-panel" data-mrk="ranks" style="--panel-accent:#58a6dc"><summary>🎯 סדר עדיפויות בין האפליקציות — לחץ לפתיחה וסדר מהחשובה ביותר לנמוכה</summary>
+    ? `<details class="prio-panel" data-mrk="ranks" style="--panel-accent:#58a6dc"><summary>🎯 סדר עדיפויות בין האפליקציות — גרור לסידור (מהחשובה לנמוכה); נשמר אוטומטית</summary>
        <ul id="appOrder">${orderedApps.map((app, i) => `<li draggable="true" data-app="${esc(app)}">
-         <span class="rank-num">${i + 1}</span>${icon(app)}<span class="nm">${esc(app)}</span>
+         <span class="grip" title="גרור לסידור">⠿</span><span class="rank-num">${i + 1}</span>${icon(app)}<span class="nm">${esc(app)}</span>
          <span class="mv"><button class="up" title="העלה">▲</button><button class="dn" title="הורד">▼</button></span>
        </li>`).join('')}</ul></details>`
     : '';
@@ -2615,6 +2617,11 @@ function mrRender(live) {
         li.querySelector('.rank-num').textContent = i + 1;
       });
       touch();
+      // Auto-persist (Erez 2026-07-20): the save button lives in the subbar, far from this Tab-3 panel,
+      // so reorders were left unsaved and reverted on the next reload. Debounced save = a reorder always
+      // sticks; no button to miss. ERZA never changes the order — only this user action writes it.
+      clearTimeout(window._erzaPrioSaveT);
+      window._erzaPrioSaveT = setTimeout(() => { savePriorities(); }, 1000);
     };
     orderUl.querySelectorAll('li').forEach(li => {
       li.querySelector('.up').onclick = e => { e.preventDefault(); const p = li.previousElementSibling; if (p) { orderUl.insertBefore(li, p); applyOrder(); } };
