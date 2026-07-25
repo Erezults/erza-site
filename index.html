@@ -2128,7 +2128,7 @@ function mrRender(live) {
   const appLabel = app => displayApp(app);
   // Machine-room card header name: native/alias keys keep their RAW key (byte-for-byte as before);
   // only the synthetic 'ERZA' entity gets its Hebrew infra label (Erez 2026-07-25).
-  const cardName = app => app === 'ERZA' ? 'ERZA — תשתית' : app;
+  const cardName = app => displayApp(app);
   const orderedApps = [...(live.nativeApps || [])].sort((a, b) => (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99));
   const ranksHtml = orderedApps.length
     ? `<details class="prio-panel" data-mrk="ranks" style="--panel-accent:#58a6dc"><summary>🎯 סדר עדיפויות בין האפליקציות — גרור לסידור (מהחשובה לנמוכה); נשמר אוטומטית</summary>
@@ -2447,7 +2447,7 @@ function mrRender(live) {
     <summary>📤 היסטוריית דחיפות OTA/Build — ${rels.length} (לפי אפליקציה, מהחדש לישן)</summary>
     <div style="margin-top:8px">${Object.entries(relByApp)
       .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
-      .map(([app, list]) => `<div class="mr-app"><h3>${icon(app)}${esc(app)}</h3>
+      .map(([app, list]) => `<div class="mr-app"><h3>${icon(app)}${esc(displayApp(app))}</h3>
         ${[...list].reverse().map(r => `<div class="mr-recent" dir="ltr" style="text-align:right">
           <span class="mdl" style="--bc:${r.channel === 'prod' ? 'var(--red)' : 'var(--blue)'}">${esc(r.channel)}</span>
           <b>${esc(r.version)}</b>${r.sha ? ` · ${esc(r.sha)}` : ''} · ${esc((r.at || '').slice(0, 10))}
