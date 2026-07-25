@@ -147,7 +147,7 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .q-recent { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--grid); }
 .q-recent-h { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
 .q-recent .mr-recent .appicon { width: 14px; height: 14px; border-radius: 4px; margin: 0 2px; vertical-align: middle; }
-.mr-task select.lvl, .mr-app select.apprank, .apprank-row select {
+.mr-task select.lvl, .mr-task select.mdlsel, .mr-app select.apprank, .apprank-row select {
   border: 1px solid var(--grid); background: var(--page); color: var(--ink-1);
   border-radius: 6px; padding: 3px 6px; font-size: 12px;
 }
@@ -1402,6 +1402,12 @@ async function savePriorities() {
 
 const modelBadge = m => { if (!m) return ''; const c = { Opus: 'var(--violet)', Fable: 'var(--aqua)', Sonnet: 'var(--blue)', Haiku: 'var(--muted)' }[m] || 'var(--muted)';
   return `<span class="mdl" style="--bc:${c}">${esc(m)}</span>`; };
+// Per-task model picker (Erez 2026-07-25): choose the model a task runs on — queued OR running.
+// A pinned model is honored exactly and ERZA never swaps it; a running task is relaunched with the
+// pick on the next tick. Empty = "אוטו" → ERZA decides per the model doctrine (the default).
+const MDLS = [['', '🤖 אוטו'], ['claude-fable-5', 'Fable'], ['claude-opus-4-8', 'Opus'], ['claude-sonnet-5', 'Sonnet']];
+const modelSel = t => { const pin = (mrPrios[t.id] && mrPrios[t.id].pinnedModel) || t.pinnedModel || '';
+  return `<select class="mdlsel" title="בחר מודל למשימה זו — ERZA לא תחליף אותו עד שהמשימה תסתיים">${MDLS.map(([v, l]) => `<option value="${v}" ${v === pin ? 'selected' : ''}>${l}</option>`).join('')}</select>${pin ? '<span class="mdl-pin" title="מודל ננעץ ידנית">📌</span>' : ''}`; };
 const lvlOf = p => !p ? '' : p.hold ? 'hold' : (p.star || p.p === 1) ? '1' : p.p === 2 ? '2' : p.p === 3 ? '3' : '';
 const LVLS = [['', '— עדיפות —'], ['1', '🔴 דחוף — בצע ראשון'], ['2', '🟡 רגיל'], ['3', '🟢 נמוך'], ['hold', '⏸ מושהה']];
 async function saveApprovals() {
@@ -2143,7 +2149,7 @@ function mrRender(live) {
   const appTag = app => `<span class="q-app" title="${esc(mrLabel(app))}">${mrIcon(app)}<span class="q-appnm">${esc(mrLabel(app))}</span></span>`;
   const qRunRow = t => `<div class="mr-task q-run" data-id="${esc(t.id)}">
       <span class="q-mark run" title="רצה כעת${t.account ? ' · ' + esc((live.accounts[t.account] || {}).label || t.account) : ''}">⚙️ רץ</span>
-      ${appTag(t.app)}<span class="refid">${esc(t.refId || t.id)}</span>${modelBadge(t.model)}${t.isVerify ? '<span class="mdl" style="--bc:var(--violet)" title="משימת אימות">✓ אימות</span>' : ''}
+      ${appTag(t.app)}<span class="refid">${esc(t.refId || t.id)}</span>${modelBadge(t.model)}${modelSel(t)}${t.isVerify ? '<span class="mdl" style="--bc:var(--violet)" title="משימת אימות">✓ אימות</span>' : ''}
       <span class="t-title">${esc(t.title)}</span>
       <span class="cat q-acct">${esc((live.accounts[t.account] || {}).label || t.account || '')}${t.lastCommit ? ` · checkpoint: "${esc(t.lastCommit.msg)}" לפני ${t.lastCommit.minutesAgo} דק'` : ' · טרם checkpoint'}</span>
       <button class="stopbtn" data-id="${esc(t.id)}">⏹ עצור</button>
@@ -2152,7 +2158,7 @@ function mrRender(live) {
     return `<div class="mr-task ${t.held ? 'q-held' : 'q-wait'}" data-id="${esc(t.id)}">
       <span class="q-mark ${t.held ? 'held' : 'wait'}">${t.held ? '⏸ מושהה' : '⏳ בתור'}</span>
       <select class="lvl">${LVLS.map(([v, l]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${l}</option>`).join('')}</select>
-      ${appTag(t.app)}<span class="refid">${esc(t.refId || t.id)}</span>${modelBadge(t.model)}${t.isVerify ? '<span class="mdl" style="--bc:var(--violet)" title="משימת אימות">✓ אימות</span>' : ''}
+      ${appTag(t.app)}<span class="refid">${esc(t.refId || t.id)}</span>${modelBadge(t.model)}${modelSel(t)}${t.isVerify ? '<span class="mdl" style="--bc:var(--violet)" title="משימת אימות">✓ אימות</span>' : ''}
       <span class="t-title">${esc(t.title)}</span>
       ${t.heavy ? '<span title="משימה כבדה">🏗️</span>' : ''}
     </div>`; };
@@ -2713,7 +2719,23 @@ function mrRender(live) {
     sel.onchange = () => {
       const id = sel.closest('.mr-task').dataset.id;
       const v = sel.value;
-      mrPrios[id] = v === '' ? {} : v === 'hold' ? { hold: true } : { p: +v, star: v === '1' };
+      // MERGE, don't replace — preserve a pinnedModel set on the same task (Erez 2026-07-25).
+      const cur = { ...(mrPrios[id] || {}) };
+      delete cur.p; delete cur.star; delete cur.hold;
+      if (v === 'hold') cur.hold = true; else if (v !== '') { cur.p = +v; cur.star = v === '1'; }
+      mrPrios[id] = cur;
+      touch();
+    };
+  });
+  // Per-task model pick (Erez 2026-07-25) — merge into the task's priority entry so it coexists with
+  // priority/hold. Persisted to user_priorities.json on Save; the dispatcher honors it and, for a
+  // running task, relaunches with the chosen model. Empty = אוטו (ERZA decides again).
+  document.querySelectorAll('#mrBody .mr-task select.mdlsel').forEach(sel => {
+    sel.onchange = () => {
+      const id = sel.closest('.mr-task').dataset.id;
+      const cur = { ...(mrPrios[id] || {}) };
+      if (sel.value) cur.pinnedModel = sel.value; else delete cur.pinnedModel;
+      mrPrios[id] = cur;
       touch();
     };
   });
