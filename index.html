@@ -1779,9 +1779,14 @@ function bindChat() {
 // live-status.mjs) has no PNG icon: render the conductor glyph + its Hebrew label instead. Native
 // apps are unaffected — none of them is ever the key 'ERZA' (Erez 2026-07-25).
 const ERZA_GLYPH = '🎛️';
+// Some approval rows carry the SHORT marketing name (Ownest / Healthy / Groupy / …) while the
+// icon files are named by the full native key (OwnestNative.png / HealtyNative.png [note the
+// "Healty" spelling] / GroupyNative_New.png). Without this alias the <img> 404s and hides itself
+// (onerror) → the app shows with no icon. Map short → canonical icon-file key so every app has one.
+const ICON_ALIAS = { Ownest: 'OwnestNative', Salarix: 'SalarixNative', Fundiva: 'FundivaNative', Groupy: 'GroupyNative_New', Healthy: 'HealtyNative', Healty: 'HealtyNative', HomeAssistant: 'HomeAssistant' };
 const mrIcon = app => app === 'ERZA'
   ? `<span class="appicon erza-glyph" role="img" aria-label="ERZA" title="ERZA — תשתית">${ERZA_GLYPH}</span>`
-  : `<img class="appicon" src="icons/${esc(app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
+  : `<img class="appicon" src="icons/${esc(ICON_ALIAS[app] || app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
 const mrLabel = app => app === 'ERZA' ? 'ERZA — תשתית' : (String(app).replace(/Native/g, '').replace(/_New/g, '').trim() || String(app));
 const TABS = ['overview', 'instructions', 'items', 'info', 'common'];
 
