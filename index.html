@@ -139,6 +139,14 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 }
 .appicon { width: 32px; height: 32px; border-radius: 8px; vertical-align: -9px; margin-inline-end: 8px; }
 #appOrder .appicon { width: 40px; height: 40px; border-radius: 10px; vertical-align: middle; }
+/* Synthetic ERZA entity — app-less infra/tooling/dashboard work has a conductor glyph instead of a
+   PNG icon. It reuses the .appicon class so each context supplies the box size; center the emoji in
+   it and give it a faint tinted chip so it reads like an icon (Erez 2026-07-25). */
+.erza-glyph { display: inline-flex; align-items: center; justify-content: center; line-height: 1; overflow: hidden; box-sizing: border-box; font-size: 20px; background: color-mix(in srgb, var(--blue) 15%, transparent); }
+.mr-app h3 .erza-glyph { font-size: 15px; }
+.run-now .erza-glyph { font-size: 13px; }
+.ov-tile .erza-glyph { font-size: 38px; }
+.ov-tile.erza-tile { border-style: dashed; }   /* mark the ERZA tile as "not a product app" */
 /* 🏗️ Builds section (Erez 2026-07-19) — platform-strip icon distinguishes iOS/macOS (xpensy ships as two apps) */
 .picon { position: relative; display: inline-block; margin-inline-end: 8px; vertical-align: -9px; line-height: 0; }
 .picon .appicon { margin: 0; display: block; }
@@ -1763,8 +1771,14 @@ function bindChat() {
 /* ============================================================
    5-TAB SYSTEM + Tab-1/Tab-4 builders (Erez 2026-07-19 redesign)
    ============================================================ */
-const mrIcon = app => `<img class="appicon" src="icons/${esc(app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
-const mrLabel = app => String(app).replace(/Native/g, '').replace(/_New/g, '').trim() || String(app);
+// The synthetic 'ERZA' entity (app-less infra/tooling/dashboard work — folded server-side in
+// live-status.mjs) has no PNG icon: render the conductor glyph + its Hebrew label instead. Native
+// apps are unaffected — none of them is ever the key 'ERZA' (Erez 2026-07-25).
+const ERZA_GLYPH = '🎛️';
+const mrIcon = app => app === 'ERZA'
+  ? `<span class="appicon erza-glyph" role="img" aria-label="ERZA" title="ERZA — תשתית">${ERZA_GLYPH}</span>`
+  : `<img class="appicon" src="icons/${esc(app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
+const mrLabel = app => app === 'ERZA' ? 'ERZA — תשתית' : (String(app).replace(/Native/g, '').replace(/_New/g, '').trim() || String(app));
 const TABS = ['overview', 'instructions', 'items', 'info', 'common'];
 
 function switchTab(name, opts = {}) {
@@ -1810,8 +1824,23 @@ function overviewGridHtml(live) {
       ${red ? `<span class="ov-badge red" title="${red} ממתינים לאישורך">${red}</span>` : ''}${blue ? `<span class="ov-badge blue" title="${blue} בתור לביצוע">${blue}</span>` : ''}${iconHtml}<span class="nm">${esc(mrLabel(a.name))}</span>${wip ? `<span class="ov-wip"><span class="ov-gear" title="עבודה רצה">⚙️</span>${wipModel ? `<span class="ov-model" style="--mc:${mc}">${esc(wipModel)}</span>` : ''}</span>` : ''}</button>`;
   };
   const tiles = natives.map(a => a.name === 'xpensy' ? tileFor(a, 'ios') + tileFor(a, 'macos') : tileFor(a)).join('');
+  // Synthetic ERZA tile — infrastructure / build-tooling / skills / dashboard work not tied to any
+  // native app is folded server-side into live.apps.ERZA. Surface it as its OWN tile, exactly like
+  // an app tile, so this work is never invisible/misattributed (Erez 2026-07-25). Purely additive:
+  // shown only when ERZA actually has work; the click routes to the queue where its task list lives.
+  const ez = (live.apps || {}).ERZA;
+  let erzaTile = '';
+  if (ez && (ez.running || (ez.queued || []).length || (ez.recent || []).length)) {
+    const blue = (ez.queued || []).length;
+    const wip = !!ez.running;
+    const wipModel = wip && ez.running.model ? String(ez.running.model) : '';
+    const MODEL_C = { Fable: 'var(--aqua)', Opus: 'var(--violet)', Sonnet: 'var(--blue)', Haiku: 'var(--muted)' };
+    const mc = MODEL_C[wipModel] || 'var(--aqua)';
+    erzaTile = `<button type="button" class="ov-tile erza-tile${wip ? ' wip' : ''}" data-ovapp="ERZA" data-ovred="0" title="${esc(mrLabel('ERZA'))} — עבודה תשתיתית שאינה משויכת לאפליקציה${wip ? ' — עבודה רצה' + (wipModel ? ' (' + esc(wipModel) + ')' : '') : ''}">
+      ${blue ? `<span class="ov-badge blue" title="${blue} בתור לביצוע">${blue}</span>` : ''}${mrIcon('ERZA')}<span class="nm">${esc(mrLabel('ERZA'))}</span>${wip ? `<span class="ov-wip"><span class="ov-gear" title="עבודה רצה">⚙️</span>${wipModel ? `<span class="ov-model" style="--mc:${mc}">${esc(wipModel)}</span>` : ''}</span>` : ''}</button>`;
+  }
   return `<div class="tab-h">📱 האפליקציות שלי <span class="tab-h-sub">🔴 ממתין לאישורך · 🔵 בתור · ⚙️ בעבודה כעת</span></div>
-    <div class="ov-grid">${tiles || '<div class="exec-empty">אין אפליקציות נייטיב</div>'}</div>`;
+    <div class="ov-grid">${(tiles + erzaTile) || '<div class="exec-empty">אין אפליקציות נייטיב</div>'}</div>`;
 }
 
 // Tab 1 — executive summary: pending approvals grouped by app, click jumps to Tab 3.
@@ -1980,6 +2009,11 @@ function bindDynamicExtras() {
   document.querySelectorAll('#dynOverview .glance-card').forEach(c => c.onclick = () => switchTab(c.dataset.gototab));
   document.querySelectorAll('#dynGrid .ov-tile').forEach(t => t.onclick = () => {
     const app = t.dataset.ovapp;
+    if (app === 'ERZA') {                                         // synthetic infra entity → open the task queue where its list lives
+      switchTab('items');
+      setTimeout(() => { const q = document.querySelector('#dynItems details[data-mrk="queue"]'); if (q) { q.open = true; q.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }, 60);
+      return;
+    }
     if (+t.dataset.ovred > 0) {                                   // has approvals waiting → jump to that app's items
       switchTab('items');
       setTimeout(() => {
@@ -2032,6 +2066,9 @@ function mrRender(live) {
   const icon = app => `<img class="appicon" src="icons/${esc(app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
   // Display name without the "Native"/"_New" suffix (the id keeps the full key for routing).
   const appLabel = app => String(app).replace(/Native/g, '').replace(/_New/g, '').trim() || String(app);
+  // Machine-room card header name: native/alias keys keep their RAW key (byte-for-byte as before);
+  // only the synthetic 'ERZA' entity gets its Hebrew infra label (Erez 2026-07-25).
+  const cardName = app => app === 'ERZA' ? 'ERZA — תשתית' : app;
   const orderedApps = [...(live.nativeApps || [])].sort((a, b) => (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99));
   const ranksHtml = orderedApps.length
     ? `<details class="prio-panel" data-mrk="ranks" style="--panel-accent:#58a6dc"><summary>🎯 סדר עדיפויות בין האפליקציות — גרור לסידור (מהחשובה לנמוכה); נשמר אוטומטית</summary>
@@ -2046,7 +2083,7 @@ function mrRender(live) {
 
   // פתוח תמיד: מה שרץ עכשיו, פר אפליקציה
   const runningHtml = sortedApps.filter(([, d]) => d.running).map(([app, d]) =>
-    `<div class="mr-app"><h3>${icon(app)}${esc(app)}</h3>
+    `<div class="mr-app"><h3>${mrIcon(app)}${esc(cardName(app))}</h3>
      <div class="mr-run"><span class="pulse"></span><span class="refid">${esc(d.running.refId || d.running.id)}</span> ${modelBadge(d.running.model)} <b>${esc(d.running.title)}</b>
       <button class="stopbtn" data-id="${esc(d.running.id)}">⏹ עצור</button><br>
       ${d.running.version ? `<span class="cat" dir="ltr">📦 Prod ${esc(d.running.version.prod)}${d.running.version.onStore ? '(store)' : '(prep)'} · Dev ${esc(d.running.version.dev || '—')}</span> · ` : ''}<span class="cat">חשבון ${esc((live.accounts[d.running.account] || {}).label || d.running.account || '')} ${d.running.lastCommit ? `· checkpoint: "${esc(d.running.lastCommit.msg)}" לפני ${d.running.lastCommit.minutesAgo} דק'` : `· טרם בוצע checkpoint`}</span></div></div>`).join('')
@@ -2057,7 +2094,7 @@ function mrRender(live) {
   const queuePanel = queuedTotal ? `<details class="prio-panel" data-mrk="queue" style="--panel-accent:var(--blue)">
     <summary>🗂️ תור המשימות לפי אפליקציה — ${queuedTotal} ממתינות (כאן קובעים עדיפות/עצירה לכל משימה)</summary>
     <div style="margin-top:8px">${sortedApps.filter(([, d]) => d.queued.length || d.recent.length).map(([app, d]) =>
-      `<div class="mr-app"><h3>${icon(app)}${esc(app)} ${mrAppRanks[app] ? `<span class="cat">· עדיפות ${mrAppRanks[app]}</span>` : ''}</h3>
+      `<div class="mr-app"><h3>${mrIcon(app)}${esc(cardName(app))} ${mrAppRanks[app] ? `<span class="cat">· עדיפות ${mrAppRanks[app]}</span>` : ''}</h3>
        ${d.queued.map(mrTaskRow).join('')}
        ${d.recent.map(r => `<div class="mr-recent">${r.status === 'review' ? '✅' : '⚠️'} ${esc(r.title)}${r.note ? ' — ' + esc(r.note) : ''}</div>`).join('')}
       </div>`).join('')}</div></details>` : '';
@@ -2383,7 +2420,7 @@ function mrRender(live) {
   // apps with active work BLINK on the summary line — visible while the panel is collapsed
   const runningApps = sortedApps.filter(([, d]) => d.running).map(([app]) => app);
   const runPanel = `<details class="prio-panel" data-mrk="run" style="--panel-accent:#1baf7a"><summary>▶️ מבוצע כעת${runningApps.length
-    ? ` · ${runningApps.length} <span class="run-now">${runningApps.map(app => `<span class="run-blink" title="${esc(app)} — בעבודה">${icon(app)}</span>`).join('')}</span>`
+    ? ` · ${runningApps.length} <span class="run-now">${runningApps.map(app => `<span class="run-blink" title="${esc(cardName(app))} — בעבודה">${mrIcon(app)}</span>`).join('')}</span>`
     : ' — אין עבודה רצה'}</summary><div style="margin-top:8px">` + runningHtml + `</div></details>`;
   // Conductor-work mirror (audit §3.3): ERZA's OWN tasks (owner:erza / t.conductor) with age.
   // The dispatcher SKIPS these (hold), so they carry no pid/checkpoint and could stall unseen —
