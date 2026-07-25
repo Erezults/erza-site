@@ -1372,12 +1372,26 @@ async function runBacklogNow(taskId) {
 async function savePriorities() {
   const btn = document.getElementById('mrSaveBtn');
   btn.disabled = true; btn.textContent = 'שומר…';
-  try {
-    let sha;
-    try { sha = (await gh('registry/user_priorities.json', undefined, { headers: { Accept: 'application/vnd.github+json' } })).sha; } catch {}
+  // Robust save (Erez 2026-07-25): READ the CURRENT file fresh, MERGE the dashboard's edits on
+  // top (so entries this page didn't load are preserved, not clobbered), PUT with the FRESH sha,
+  // and RETRY once on a 409 sha-conflict (a concurrent writer). This is why saves used to "revert":
+  // a stale sha → 409 → silent fail. mrPrios/mrAppRanks are the FULL intended state for the keys the
+  // dashboard shows; an un-set task carries {} so the merge clears its old priority/hold.
+  const putOnce = async () => {
+    let cur = null, sha;
+    try { cur = await gh('registry/user_priorities.json', undefined, { headers: { Accept: 'application/vnd.github+json' } }); sha = cur && cur.sha; }
+    catch (e) { if (!e || e.status !== 404) throw e; }
+    let data = { tasks: {}, apps: {} };
+    if (cur) { try { data = JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\s/g, ''))))); } catch {} }
+    data.tasks = { ...(data.tasks || {}), ...mrPrios };
+    data.apps = { ...(data.apps || {}), ...mrAppRanks };
+    data.updatedAt = new Date().toISOString();
     const body = { message: 'עדכון עדיפויות מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
-      content: btoa(unescape(encodeURIComponent(JSON.stringify({ updatedAt: new Date().toISOString(), tasks: mrPrios, apps: mrAppRanks }, null, 2)))) };
-    await gh('registry/user_priorities.json', undefined, { method: 'PUT', body: JSON.stringify(body) });
+      content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))) };
+    return gh('registry/user_priorities.json', undefined, { method: 'PUT', body: JSON.stringify(body) });
+  };
+  try {
+    try { await putOnce(); } catch (e) { if (e && e.status === 409) await putOnce(); else throw e; }
     mrDirty = false; btn.hidden = true; btn.textContent = '💾 שמור עדיפויות';
     document.getElementById('mrUpdated').textContent = 'עדיפויות נשמרו ✓ — ERZA תקלוט תוך 5 דק\'';
     if (mrLastLive) mrRender(mrLastLive);   // סידור מיידי לפי הסדר החדש
