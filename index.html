@@ -1539,7 +1539,7 @@ function bindApprovals() {
 const CHAT_RECENT = 25;   // messages shown in the main log; older ones go to the archive
 function chatBubbleHtml(m) {
   const mine = m.role === 'user', t = (m.at || '').slice(11, 16);
-  const appTag = m.app ? ` · ${esc(String(m.app).replace(/Native/g, '').replace(/_New/g, '').trim())}` : '';
+  const appTag = m.app ? ` · ${esc(String(m.app).replace(/native/gi, '').replace(/_new/gi, '').trim())}` : '';
   return `<div class="chat-msg ${mine ? 'me' : 'erza'}"><div class="chat-bubble">${esc(m.text || '').replace(/\n/g, '<br>')}</div><div class="chat-meta">${mine ? 'אני' : 'ERZA'}${t ? ' · ' + t : ''}${appTag}</div></div>`;
 }
 // split the transcript into the CURRENT session (after the last boundary) and PAST sessions.
@@ -1629,7 +1629,7 @@ function chatPanelHtml() {
   const nCards = pastGroups.length + (overflow.length ? 1 : 0);
   const archLabel = pastGroups.length ? `🗄️ ארכיון שיחות (${chatNoun(pastGroups.length, 'סשן קודם', 'סשנים קודמים')})` : '🗄️ הסשן הנוכחי — הודעות קודמות';
   const iconOf = a => `<img class="appicon" src="icons/${esc(a)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
-  const labelOf = a => String(a).replace(/Native/g, '').replace(/_New/g, '').trim() || String(a);
+  const labelOf = a => String(a).replace(/native/gi, '').replace(/_new/gi, '').trim() || String(a);
   const apps = [...((mrLastLive && mrLastLive.nativeApps) || [])].sort((a, b) => (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99));
   return `<details class="prio-panel chat-panel" data-mrk="chat" style="--panel-accent:#7c5cff" open>
     <summary>💬 צ׳אט עם ERZA <span class="cat">(שיחה שוטפת — במקביל לכל העבודה)</span></summary>
@@ -1739,7 +1739,7 @@ function bindChat() {
   {
     const appBtn = document.getElementById('chatAppBtn');
     const modal = document.getElementById('chatAppModal');
-    const labelOf = a => String(a).replace(/Native/g, '').replace(/_New/g, '').trim() || String(a);
+    const labelOf = a => String(a).replace(/native/gi, '').replace(/_new/gi, '').trim() || String(a);
     const setChatApp = a => {
       chatApp = a || '';
       if (appBtn) appBtn.innerHTML = (chatApp ? `<img class="appicon" src="icons/${esc(chatApp)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">${esc(labelOf(chatApp))}` : '🌐 כללי') + ' <span class="appsel-caret">▾</span>';
@@ -1801,7 +1801,7 @@ const ICON_ALIAS = { Ownest: 'OwnestNative', Salarix: 'SalarixNative', Fundiva: 
 const mrIcon = app => app === 'ERZA'
   ? `<span class="appicon erza-glyph" role="img" aria-label="ERZA" title="ERZA — תשתית">${ERZA_GLYPH}</span>`
   : `<img class="appicon" src="icons/${esc(ICON_ALIAS[app] || app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
-const mrLabel = app => app === 'ERZA' ? 'ERZA — תשתית' : (String(app).replace(/Native/g, '').replace(/_New/g, '').trim() || String(app));
+const mrLabel = app => app === 'ERZA' ? 'ERZA — תשתית' : (String(app).replace(/native/gi, '').replace(/_new/gi, '').trim() || String(app));
 const TABS = ['overview', 'instructions', 'items', 'info', 'common'];
 
 function switchTab(name, opts = {}) {
@@ -2088,7 +2088,7 @@ function mrRender(live) {
 
   const icon = app => `<img class="appicon" src="icons/${esc(app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
   // Display name without the "Native"/"_New" suffix (the id keeps the full key for routing).
-  const appLabel = app => String(app).replace(/Native/g, '').replace(/_New/g, '').trim() || String(app);
+  const appLabel = app => String(app).replace(/native/gi, '').replace(/_new/gi, '').trim() || String(app);
   // Machine-room card header name: native/alias keys keep their RAW key (byte-for-byte as before);
   // only the synthetic 'ERZA' entity gets its Hebrew infra label (Erez 2026-07-25).
   const cardName = app => app === 'ERZA' ? 'ERZA — תשתית' : app;
