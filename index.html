@@ -1539,7 +1539,7 @@ function bindApprovals() {
 const CHAT_RECENT = 25;   // messages shown in the main log; older ones go to the archive
 function chatBubbleHtml(m) {
   const mine = m.role === 'user', t = (m.at || '').slice(11, 16);
-  const appTag = m.app ? ` · ${esc(String(m.app).replace(/native/gi, '').replace(/_new/gi, '').trim())}` : '';
+  const appTag = m.app ? ` · ${esc(displayApp(m.app))}` : '';
   return `<div class="chat-msg ${mine ? 'me' : 'erza'}"><div class="chat-bubble">${esc(m.text || '').replace(/\n/g, '<br>')}</div><div class="chat-meta">${mine ? 'אני' : 'ERZA'}${t ? ' · ' + t : ''}${appTag}</div></div>`;
 }
 // split the transcript into the CURRENT session (after the last boundary) and PAST sessions.
@@ -1629,7 +1629,7 @@ function chatPanelHtml() {
   const nCards = pastGroups.length + (overflow.length ? 1 : 0);
   const archLabel = pastGroups.length ? `🗄️ ארכיון שיחות (${chatNoun(pastGroups.length, 'סשן קודם', 'סשנים קודמים')})` : '🗄️ הסשן הנוכחי — הודעות קודמות';
   const iconOf = a => `<img class="appicon" src="icons/${esc(a)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
-  const labelOf = a => String(a).replace(/native/gi, '').replace(/_new/gi, '').trim() || String(a);
+  const labelOf = a => displayApp(a);
   const apps = [...((mrLastLive && mrLastLive.nativeApps) || [])].sort((a, b) => (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99));
   return `<details class="prio-panel chat-panel" data-mrk="chat" style="--panel-accent:#7c5cff" open>
     <summary>💬 צ׳אט עם ERZA <span class="cat">(שיחה שוטפת — במקביל לכל העבודה)</span></summary>
@@ -1739,7 +1739,7 @@ function bindChat() {
   {
     const appBtn = document.getElementById('chatAppBtn');
     const modal = document.getElementById('chatAppModal');
-    const labelOf = a => String(a).replace(/native/gi, '').replace(/_new/gi, '').trim() || String(a);
+    const labelOf = a => displayApp(a);
     const setChatApp = a => {
       chatApp = a || '';
       if (appBtn) appBtn.innerHTML = (chatApp ? `<img class="appicon" src="icons/${esc(chatApp)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">${esc(labelOf(chatApp))}` : '🌐 כללי') + ' <span class="appsel-caret">▾</span>';
@@ -1797,11 +1797,36 @@ const ERZA_GLYPH = '🎛️';
 // icon files are named by the full native key (OwnestNative.png / HealtyNative.png [note the
 // "Healty" spelling] / GroupyNative_New.png). Without this alias the <img> 404s and hides itself
 // (onerror) → the app shows with no icon. Map short → canonical icon-file key so every app has one.
+// ASC production display names — each app's name EXACTLY as it appears in App Store Connect
+// (source: registry/asc_status.json production records). Erez 2026-07-25: the dashboard shows these
+// names end-to-end, never the internal repo/folder name (GroupyNative_New, xpensy, …). Keyed by both
+// the internal name and the short form so every render path resolves.
+const ASC_NAME = {
+  Emoryx: 'Emoryx',
+  HealtyNative: 'Healthy Circle', Healthy: 'Healthy Circle', Healty: 'Healthy Circle',
+  GroupyNative_New: 'Groupy Calendar', Groupy: 'Groupy Calendar',
+  Coin: 'CoinTrackLover', CoinTrackLover: 'CoinTrackLover',
+  SalarixNative: 'Salarix', Salarix: 'Salarix',
+  OwnestNative: 'Ownest: Property Manager', Ownest: 'Ownest: Property Manager',
+  FundivaNative: 'Fundiva', Fundiva: 'Fundiva',
+  HomeNetIP: 'HomeNetIP',
+  xpensy: 'Xpensy: Trip Tracker', Xpensy: 'Xpensy: Trip Tracker',
+  ERZA: 'ERZA — תשתית',
+};
+// The single display-name resolver for every app label on the dashboard. Falls back to stripping
+// internal suffixes then re-looking-up, so an unmapped/new app still renders cleanly.
+function displayApp(a) {
+  if (a == null) return '';
+  const s = String(a);
+  if (ASC_NAME[s]) return ASC_NAME[s];
+  const stripped = s.replace(/native/gi, '').replace(/_new/gi, '').trim();
+  return ASC_NAME[stripped] || stripped || s;
+}
 const ICON_ALIAS = { Ownest: 'OwnestNative', Salarix: 'SalarixNative', Fundiva: 'FundivaNative', Groupy: 'GroupyNative_New', Healthy: 'HealtyNative', Healty: 'HealtyNative', HomeAssistant: 'HomeAssistant' };
 const mrIcon = app => app === 'ERZA'
   ? `<span class="appicon erza-glyph" role="img" aria-label="ERZA" title="ERZA — תשתית">${ERZA_GLYPH}</span>`
   : `<img class="appicon" src="icons/${esc(ICON_ALIAS[app] || app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
-const mrLabel = app => app === 'ERZA' ? 'ERZA — תשתית' : (String(app).replace(/native/gi, '').replace(/_new/gi, '').trim() || String(app));
+const mrLabel = app => displayApp(app);
 const TABS = ['overview', 'instructions', 'items', 'info', 'common'];
 
 function switchTab(name, opts = {}) {
@@ -2088,7 +2113,7 @@ function mrRender(live) {
 
   const icon = app => `<img class="appicon" src="icons/${esc(app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
   // Display name without the "Native"/"_New" suffix (the id keeps the full key for routing).
-  const appLabel = app => String(app).replace(/native/gi, '').replace(/_new/gi, '').trim() || String(app);
+  const appLabel = app => displayApp(app);
   // Machine-room card header name: native/alias keys keep their RAW key (byte-for-byte as before);
   // only the synthetic 'ERZA' entity gets its Hebrew infra label (Erez 2026-07-25).
   const cardName = app => app === 'ERZA' ? 'ERZA — תשתית' : app;
@@ -2561,7 +2586,7 @@ function mrRender(live) {
   // (Erez 2026-07-19 redesign). The PANELS map above stays the single source per panel.
   // approved gates awaiting ERZA execution — a visible banner so they can't rot silently (audit r2 SM-01)
   const gateBanner = (live.approvedGates || []).length
-    ? `<div style="border:1px solid #8e44ad;background:color-mix(in srgb,#8e44ad 9%,transparent);border-radius:10px;padding:8px 12px;margin:8px 0;font-size:13px;font-weight:600">🗄️ ${live.approvedGates.length} אישורים ממתינים לביצוע ERZA — ${live.approvedGates.map(g => `${g.type === 'prod-ota' ? '📤' : g.type === 'build' ? '🏗️' : '🗄️'} ${esc(g.app)}${g.ageMin > 90 ? ` <span style="color:#e05252">(${Math.round(g.ageMin / 60)} שע׳!)</span>` : ''}`).join(' · ')}</div>`
+    ? `<div style="border:1px solid #8e44ad;background:color-mix(in srgb,#8e44ad 9%,transparent);border-radius:10px;padding:8px 12px;margin:8px 0;font-size:13px;font-weight:600">🗄️ ${live.approvedGates.length} אישורים ממתינים לביצוע ERZA — ${live.approvedGates.map(g => `${g.type === 'prod-ota' ? '📤' : g.type === 'build' ? '🏗️' : '🗄️'} ${esc(displayApp(g.app))}${g.ageMin > 90 ? ` <span style="color:#e05252">(${Math.round(g.ageMin / 60)} שע׳!)</span>` : ''}`).join(' · ')}</div>`
     : '';
   // pending migrations block stuck OTAs — one clear call-to-action banner (Erez 2026-07-18)
   const migBanner = (live.pendingMigrations || []).length
@@ -2843,7 +2868,7 @@ async function mrTick() {
         const kindHe = { 'migration-verify': '🗄️ אימות מיגרציה', 'approved-gate': '✅ שער מאושר', build: '🏗️ בילד', review: '🔍 סקירה', 'conductor-task': '🎼 משימת מנצחת' };
         const shown = {}; cw.items.forEach(i => { shown[i.kind] = (shown[i.kind] || 0) + 1; });
         const hidden = Object.entries(cw.counts || {}).filter(([k, n]) => k !== 'total' && n > (shown[k] || 0)).map(([k, n]) => `${kindHe[k] || k}: עוד ${n - shown[k]}`);
-        cwB.innerHTML = `<div style="border:1px solid var(--violet);background:color-mix(in srgb,var(--violet) 8%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px"><div style="font-weight:700;color:var(--violet);margin-bottom:4px">🎼 עבודת-מנצח זמינה (${cw.counts && cw.counts.total || cw.items.length}) — ה-workers מושהים, אלו הדברים ש-ERZA עצמה יכולה לקדם עכשיו</div><div class="cat" style="margin-bottom:4px">${esc(cw.reason || '')}${cw.nextReturn ? ` · חשבון worker קרוב חוזר: <b>${esc(cw.nextReturn.id)}</b> בעוד <b class="cd" dir="ltr" data-until="${esc(cw.nextReturn.at)}"></b>` : ''}</div>${cw.items.map(i => `<div style="border-top:1px solid color-mix(in srgb,var(--violet) 18%,transparent);padding:5px 0 2px"><span style="font-weight:600;color:var(--violet)">${esc(kindHe[i.kind] || i.kind)}</span> · <b>${esc(i.refId || i.id)}</b>${i.app ? ` · ${esc(i.app)}` : ''}${i.ageMin != null ? ` <span class="cat">· ממתין ${i.ageMin >= 90 ? Math.round(i.ageMin / 60) + ' שע׳' : i.ageMin + ' דק׳'}</span>` : ''}<div style="margin:2px 0">${esc(i.title || '')}</div><div class="cat">→ ${esc(i.he || '')}</div></div>`).join('')}${hidden.length ? `<div class="cat" style="margin-top:4px">בנוסף (לא הוצגו): ${esc(hidden.join(' · '))}</div>` : ''}</div>`;
+        cwB.innerHTML = `<div style="border:1px solid var(--violet);background:color-mix(in srgb,var(--violet) 8%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px"><div style="font-weight:700;color:var(--violet);margin-bottom:4px">🎼 עבודת-מנצח זמינה (${cw.counts && cw.counts.total || cw.items.length}) — ה-workers מושהים, אלו הדברים ש-ERZA עצמה יכולה לקדם עכשיו</div><div class="cat" style="margin-bottom:4px">${esc(cw.reason || '')}${cw.nextReturn ? ` · חשבון worker קרוב חוזר: <b>${esc(cw.nextReturn.id)}</b> בעוד <b class="cd" dir="ltr" data-until="${esc(cw.nextReturn.at)}"></b>` : ''}</div>${cw.items.map(i => `<div style="border-top:1px solid color-mix(in srgb,var(--violet) 18%,transparent);padding:5px 0 2px"><span style="font-weight:600;color:var(--violet)">${esc(kindHe[i.kind] || i.kind)}</span> · <b>${esc(i.refId || i.id)}</b>${i.app ? ` · ${esc(displayApp(i.app))}` : ''}${i.ageMin != null ? ` <span class="cat">· ממתין ${i.ageMin >= 90 ? Math.round(i.ageMin / 60) + ' שע׳' : i.ageMin + ' דק׳'}</span>` : ''}<div style="margin:2px 0">${esc(i.title || '')}</div><div class="cat">→ ${esc(i.he || '')}</div></div>`).join('')}${hidden.length ? `<div class="cat" style="margin-top:4px">בנוסף (לא הוצגו): ${esc(hidden.join(' · '))}</div>` : ''}</div>`;
       } else cwB.innerHTML = '';
       // T464: per-account alerts (auth failure / instant-death circuit breaker) — expired entries hidden even before the scripts clear them
       const ab = document.getElementById('accAlertBanner') || (() => { const d = document.createElement('div'); d.id = 'accAlertBanner'; document.getElementById('mrBody').parentElement.insertBefore(d, document.getElementById('mrBody')); return d; })();
