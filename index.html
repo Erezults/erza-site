@@ -1819,13 +1819,19 @@ const ASC_NAME = {
   xpensy: 'Xpensy: Trip Tracker', Xpensy: 'Xpensy: Trip Tracker',
   ERZA: 'ERZA — תשתית',
 };
-// The single display-name resolver for every app label on the dashboard. Falls back to stripping
-// internal suffixes then re-looking-up, so an unmapped/new app still renders cleanly.
-function displayApp(a) {
+// Platform-specific ASC names: xpensy ships as TWO separate App Store listings with DIFFERENT names —
+// iOS "Xpensy: Trip Tracker" (in ASC_NAME) and macOS "Xpensy Desktop: Trip Tracker" here. When a render
+// knows the platform (the split app-grid tiles), it passes plat so the macOS tile shows its real name.
+const ASC_NAME_MAC = { xpensy: 'Xpensy Desktop: Trip Tracker', Xpensy: 'Xpensy Desktop: Trip Tracker' };
+// The single display-name resolver for every app label on the dashboard. Optional plat ('ios'|'macos')
+// picks the platform-specific ASC name. Falls back to stripping internal suffixes then re-looking-up.
+function displayApp(a, plat) {
   if (a == null) return '';
   const s = String(a);
+  if (plat === 'macos' && ASC_NAME_MAC[s]) return ASC_NAME_MAC[s];
   if (ASC_NAME[s]) return ASC_NAME[s];
   const stripped = s.replace(/native/gi, '').replace(/_new/gi, '').trim();
+  if (plat === 'macos' && ASC_NAME_MAC[stripped]) return ASC_NAME_MAC[stripped];
   return ASC_NAME[stripped] || stripped || s;
 }
 const ICON_ALIAS = { Ownest: 'OwnestNative', Salarix: 'SalarixNative', Fundiva: 'FundivaNative', Groupy: 'GroupyNative_New', Healthy: 'HealtyNative', Healty: 'HealtyNative', HomeAssistant: 'HomeAssistant' };
@@ -1874,8 +1880,8 @@ function overviewGridHtml(live) {
     const mc = MODEL_C[wipModel] || 'var(--aqua)';
     // xpensy = TWO separate store apps (iOS + macOS desktop, NOT Catalyst — T503/GEN-034): platform-strip icon per tile
     const iconHtml = plat ? `<span class="picon ${plat === 'macos' ? 'macos' : 'ios'}">${mrIcon(a.name)}<span class="pstrip">${plat === 'macos' ? 'macOS' : 'iOS'}</span></span>` : mrIcon(a.name);
-    return `<button type="button" class="ov-tile${wip ? ' wip' : ''}" data-ovapp="${esc(a.name)}" data-ovred="${red}" title="${esc(mrLabel(a.name))}${plat ? ' ' + (plat === 'macos' ? 'macOS' : 'iOS') : ''}${wip ? ' — עבודה רצה' + (wipModel ? ' (' + esc(wipModel) + ')' : '') : ''}">
-      ${red ? `<span class="ov-badge red" title="${red} ממתינים לאישורך">${red}</span>` : ''}${blue ? `<span class="ov-badge blue" title="${blue} בתור לביצוע">${blue}</span>` : ''}${iconHtml}<span class="nm">${esc(mrLabel(a.name))}</span>${wip ? `<span class="ov-wip"><span class="ov-gear" title="עבודה רצה">⚙️</span>${wipModel ? `<span class="ov-model" style="--mc:${mc}">${esc(wipModel)}</span>` : ''}</span>` : ''}</button>`;
+    return `<button type="button" class="ov-tile${wip ? ' wip' : ''}" data-ovapp="${esc(a.name)}" data-ovred="${red}" title="${esc(displayApp(a.name, plat))}${wip ? ' — עבודה רצה' + (wipModel ? ' (' + esc(wipModel) + ')' : '') : ''}">
+      ${red ? `<span class="ov-badge red" title="${red} ממתינים לאישורך">${red}</span>` : ''}${blue ? `<span class="ov-badge blue" title="${blue} בתור לביצוע">${blue}</span>` : ''}${iconHtml}<span class="nm">${esc(displayApp(a.name, plat))}</span>${wip ? `<span class="ov-wip"><span class="ov-gear" title="עבודה רצה">⚙️</span>${wipModel ? `<span class="ov-model" style="--mc:${mc}">${esc(wipModel)}</span>` : ''}</span>` : ''}</button>`;
   };
   const tiles = natives.map(a => a.name === 'xpensy' ? tileFor(a, 'ios') + tileFor(a, 'macos') : tileFor(a)).join('');
   // Synthetic ERZA tile — infrastructure / build-tooling / skills / dashboard work not tied to any
@@ -1960,7 +1966,7 @@ function infoGridHtml(live) {
     const iconHtml = plat ? `<span class="picon ${plat === 'macos' ? 'macos' : 'ios'}">${mrIcon(a.name)}<span class="pstrip">${plat === 'macos' ? 'macOS' : 'iOS'}</span></span>` : mrIcon(a.name);
     return `<button type="button" class="appgrid-tile" data-infoapp="${esc(a.name)}">
       ${n ? `<span class="appgrid-badge">${n}</span>` : ''}${iconHtml}
-      <span class="nm">${esc(mrLabel(a.name))}${plat ? ' · ' + (plat === 'macos' ? 'macOS' : 'iOS') : ''}</span><span class="stg">${esc(sub)}</span></button>`;
+      <span class="nm">${esc(displayApp(a.name, plat))}</span><span class="stg">${esc(sub)}</span></button>`;
   };
   // xpensy = two separate store apps (iOS + macOS, not Catalyst — T503): one tile per platform
   const tiles = natives.map(a => a.name === 'xpensy' ? infoTile(a, 'ios') + infoTile(a, 'macos') : infoTile(a)).join('');
@@ -2127,7 +2133,7 @@ function mrRender(live) {
   const ranksHtml = orderedApps.length
     ? `<details class="prio-panel" data-mrk="ranks" style="--panel-accent:#58a6dc"><summary>🎯 סדר עדיפויות בין האפליקציות — גרור לסידור (מהחשובה לנמוכה); נשמר אוטומטית</summary>
        <ul id="appOrder">${orderedApps.map((app, i) => `<li draggable="true" data-app="${esc(app)}">
-         <span class="grip" title="גרור לסידור">⠿</span><span class="rank-num">${i + 1}</span>${icon(app)}<span class="nm">${esc(app)}</span>
+         <span class="grip" title="גרור לסידור">⠿</span><span class="rank-num">${i + 1}</span>${icon(app)}<span class="nm">${esc(displayApp(app))}</span>
          <span class="mv"><button class="up" title="העלה">▲</button><button class="dn" title="הורד">▼</button></span>
        </li>`).join('')}</ul></details>`
     : '';
@@ -2365,7 +2371,7 @@ function mrRender(live) {
     <summary>🔧 בתהליך — ${prepItems.length} תיקונים בצנרת שעדיין לא ניתן לבדוק (ממתינים למיגרציה/דחיפת OTA). יעברו ל״לבדיקתך״ אוטומטית ברגע שיידחפו ל-dev</summary>
     <div style="margin-top:8px">${Object.entries(prepByApp)
       .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
-      .map(([app, items]) => `<div class="mr-app"><h3>${icon(app)}${esc(app)} · ${items.length}</h3>
+      .map(([app, items]) => `<div class="mr-app"><h3>${icon(app)}${esc(displayApp(app))} · ${items.length}</h3>
         ${items.map(it => `<div class="mr-recent"><span class="refid">${esc(it.refId || it.id)}</span> ${esc(it.title || '')}<div class="cat" style="margin-top:3px;color:var(--muted);font-weight:600">${prepIcon(it)} ${prepReason(it)}</div></div>`).join('')}
       </div>`).join('')}</div>
   </details>` : '';
@@ -2376,7 +2382,7 @@ function mrRender(live) {
     <summary>🗄️ ארכיון — ${archItems.length} פריטים שטופלו (לפי אפליקציה)</summary>
     <div style="margin-top:8px">${Object.entries(archByApp)
       .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
-      .map(([app, items]) => `<details data-mrsub="arch-${esc(app)}" style="margin:6px 0"><summary>${icon(app)}${esc(app)} · ${items.length}</summary>
+      .map(([app, items]) => `<details data-mrsub="arch-${esc(app)}" style="margin:6px 0"><summary>${icon(app)}${esc(displayApp(app))} · ${items.length}</summary>
         <div style="margin-top:8px">${items.map(apprItemHtml).join('')}</div></details>`).join('')}</div>
   </details>` : '';
   // Group the desk PER APP (Erez 2026-07-17): open an app to see everything awaiting your
@@ -2413,7 +2419,7 @@ function mrRender(live) {
     <summary>✅ לבדיקתך — ${pendItems.length ? `${pendItems.length} פריטים${migRows.length ? ` · ${migRows.length} מיגרציות` : ''} · ${pendAppKeys.length} אפליקציות` : 'אין כרגע (שום דבר לא נדחף ל-dev עדיין)'}${mrApprovalsErr ? ' <span style="color:var(--yellow)">⚠️ שליפת האישורים נכשלה — מוצג המצב האחרון הידוע</span>' : ''}</summary>
     <div style="margin-top:10px">${pendItems.length ? migGrpHtml + pendAppKeys.map(app => {
       const its = pendByApp[app].slice().sort((a, b) => smartRank(a) - smartRank(b));
-      const label = app === '__general__' ? '🌐 כללי / חוצה-אפליקציות' : `${icon(app)}${esc(app)}`;
+      const label = app === '__general__' ? '🌐 כללי / חוצה-אפליקציות' : `${icon(app)}${esc(displayApp(app))}`;
       return `<details class="appr-appgrp" data-mrsub="appr-${app === '__general__' ? 'general' : esc(app)}" style="margin:6px 0"><summary>${label}<span class="appgrp-cnt">${grpSummary(its)}</span></summary>
         <div style="margin-top:8px">${its.map(apprItemHtml).join('')}</div></details>`;
     }).join('') : '<div class="mr-setup">שורות יופיעו כאן רק אחרי שהתיקון נדחף ל-dev והגרסה עלתה — אז אפשר לבדוק על האפליקציה.</div>'}</div>
