@@ -133,6 +133,20 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
 .mr-task { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); padding: 3px 0; }
 .mr-task .t-title { flex: 1; }
+/* unified task-queue rows (Erez 2026-07-25): ONE list — ⚙️ running on top, ⏳ waiting below */
+.q-run, .q-wait, .q-held { border-top: 1px solid var(--grid); }
+.q-mark { flex-shrink: 0; font-size: 11px; font-weight: 700; border-radius: 5px; padding: 1px 7px; white-space: nowrap; }
+.q-mark.run { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }
+.q-mark.wait { background: color-mix(in srgb, var(--blue) 16%, transparent); color: var(--blue); }
+.q-mark.held { background: var(--tint); color: var(--muted); }
+.q-app { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; max-width: 132px; }
+.q-app .appicon { width: 16px; height: 16px; border-radius: 4px; margin: 0; vertical-align: middle; }
+.q-app .q-appnm { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.q-run .q-acct { color: var(--muted); font-size: 11.5px; }
+.q-held { opacity: .68; }
+.q-recent { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--grid); }
+.q-recent-h { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+.q-recent .mr-recent .appicon { width: 14px; height: 14px; border-radius: 4px; margin: 0 2px; vertical-align: middle; }
 .mr-task select.lvl, .mr-app select.apprank, .apprank-row select {
   border: 1px solid var(--grid); background: var(--page); color: var(--ink-1);
   border-radius: 6px; padding: 3px 6px; font-size: 12px;
@@ -1507,16 +1521,6 @@ function bindApprovals() {
   });
 }
 
-function mrTaskRow(t) {
-  const cur = lvlOf(mrPrios[t.id]);
-  return `<div class="mr-task" data-id="${esc(t.id)}">
-    <select class="lvl">${LVLS.map(([v, l]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${l}</option>`).join('')}</select>
-    <span class="refid">${esc(t.refId || t.id)}</span>${modelBadge(t.model)}${t.isVerify ? '<span class="mdl" style="--bc:var(--violet)" title="משימת אימות">✓ אימות</span>' : ''}
-    <span class="t-title">${esc(t.title)}</span>
-    ${t.heavy ? '<span title="משימה כבדה">🏗️</span>' : ''}
-  </div>`;
-}
-
 // ── Live chat with ERZA (Erez 2026-07-18) ──
 const CHAT_RECENT = 25;   // messages shown in the main log; older ones go to the archive
 function chatBubbleHtml(m) {
@@ -2009,9 +2013,9 @@ function bindDynamicExtras() {
   document.querySelectorAll('#dynOverview .glance-card').forEach(c => c.onclick = () => switchTab(c.dataset.gototab));
   document.querySelectorAll('#dynGrid .ov-tile').forEach(t => t.onclick = () => {
     const app = t.dataset.ovapp;
-    if (app === 'ERZA') {                                         // synthetic infra entity → open the task queue where its list lives
-      switchTab('items');
-      setTimeout(() => { const q = document.querySelector('#dynItems details[data-mrk="queue"]'); if (q) { q.open = true; q.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }, 60);
+    if (app === 'ERZA') {                                         // synthetic infra entity → open the unified task queue (same overview tab as the grid)
+      const q = document.querySelector('#dynOverview details[data-mrk="queue"]');
+      if (q) { q.open = true; q.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
       return;
     }
     if (+t.dataset.ovred > 0) {                                   // has approvals waiting → jump to that app's items
@@ -2081,27 +2085,48 @@ function mrRender(live) {
   const sortedApps = Object.entries(live.apps || {})
     .sort((a, b) => ((mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99)) || a[0].localeCompare(b[0]));
 
-  // פתוח תמיד: מה שרץ עכשיו, פר אפליקציה
-  const runningHtml = sortedApps.filter(([, d]) => d.running).map(([app, d]) =>
-    `<div class="mr-app"><h3>${mrIcon(app)}${esc(cardName(app))}</h3>
-     <div class="mr-run"><span class="pulse"></span><span class="refid">${esc(d.running.refId || d.running.id)}</span> ${modelBadge(d.running.model)} <b>${esc(d.running.title)}</b>
-      <button class="stopbtn" data-id="${esc(d.running.id)}">⏹ עצור</button><br>
-      ${d.running.version ? `<span class="cat" dir="ltr">📦 Prod ${esc(d.running.version.prod)}${d.running.version.onStore ? '(store)' : '(prep)'} · Dev ${esc(d.running.version.dev || '—')}</span> · ` : ''}<span class="cat">חשבון ${esc((live.accounts[d.running.account] || {}).label || d.running.account || '')} ${d.running.lastCommit ? `· checkpoint: "${esc(d.running.lastCommit.msg)}" לפני ${d.running.lastCommit.minutesAgo} דק'` : `· טרם בוצע checkpoint`}</span></div></div>`).join('')
-    || '<div class="mr-setup">אין משימות רצות כרגע</div>';
-
-  // מכווץ: תור המשימות + תוצאות אחרונות פר אפליקציה
-  const queuedTotal = sortedApps.reduce((n, [, d]) => n + d.queued.length, 0);
-  const queuePanel = queuedTotal ? `<details class="prio-panel" data-mrk="queue" style="--panel-accent:var(--blue)">
-    <summary>🗂️ תור המשימות לפי אפליקציה — ${queuedTotal} ממתינות (כאן קובעים עדיפות/עצירה לכל משימה)</summary>
-    <div style="margin-top:8px">${sortedApps.filter(([, d]) => d.queued.length || d.recent.length).map(([app, d]) =>
-      `<div class="mr-app"><h3>${mrIcon(app)}${esc(cardName(app))} ${mrAppRanks[app] ? `<span class="cat">· עדיפות ${mrAppRanks[app]}</span>` : ''}</h3>
-       ${d.queued.map(mrTaskRow).join('')}
-       ${d.recent.map(r => `<div class="mr-recent">${r.status === 'review' ? '✅' : '⚠️'} ${esc(r.title)}${r.note ? ' — ' + esc(r.note) : ''}</div>`).join('')}
-      </div>`).join('')}</div></details>` : '';
-
-  // Backlog retired (Erez 2026-07-24): there is no separate "future work" bucket
-  // anymore — every waiting task lives in the queue and runs by priority. The panel
-  // is gone; waiting tasks surface under the queued/waiting views.
+  // ── ONE unified task queue (Erez 2026-07-25) ────────────────────────────────────────────────
+  // Merges the former "מבוצע כעת" (running) + "תור המשימות" (queued) panels into a SINGLE list, so
+  // there is no more running-vs-queued duplication. live.taskQueue is already ordered EXACTLY as
+  // erza-dispatch.mjs will pick tasks next (running first; then queued by starving→tier→app-rank→
+  // star→priority; held sink last) — what Erez sees here IS what runs next. Each row is clearly
+  // marked ⚙️ רץ · <account> (top) vs ⏳ בתור / ⏸ מושהה (below), but it is ONE list.
+  const tq = live.taskQueue || [];
+  const tqRun = tq.filter(t => t.state === 'running');
+  const tqWait = tq.filter(t => t.state === 'queued');
+  const runBlink = [...new Set(tqRun.map(t => t.app))];   // apps with active work → blink on the summary
+  // small per-app tag so the flat list still shows which app each task belongs to
+  const appTag = app => `<span class="q-app" title="${esc(mrLabel(app))}">${mrIcon(app)}<span class="q-appnm">${esc(mrLabel(app))}</span></span>`;
+  const qRunRow = t => `<div class="mr-task q-run" data-id="${esc(t.id)}">
+      <span class="q-mark run" title="רצה כעת${t.account ? ' · ' + esc((live.accounts[t.account] || {}).label || t.account) : ''}">⚙️ רץ</span>
+      ${appTag(t.app)}<span class="refid">${esc(t.refId || t.id)}</span>${modelBadge(t.model)}${t.isVerify ? '<span class="mdl" style="--bc:var(--violet)" title="משימת אימות">✓ אימות</span>' : ''}
+      <span class="t-title">${esc(t.title)}</span>
+      <span class="cat q-acct">${esc((live.accounts[t.account] || {}).label || t.account || '')}${t.lastCommit ? ` · checkpoint: "${esc(t.lastCommit.msg)}" לפני ${t.lastCommit.minutesAgo} דק'` : ' · טרם checkpoint'}</span>
+      <button class="stopbtn" data-id="${esc(t.id)}">⏹ עצור</button>
+    </div>`;
+  const qWaitRow = t => { const cur = lvlOf(mrPrios[t.id]);
+    return `<div class="mr-task ${t.held ? 'q-held' : 'q-wait'}" data-id="${esc(t.id)}">
+      <span class="q-mark ${t.held ? 'held' : 'wait'}">${t.held ? '⏸ מושהה' : '⏳ בתור'}</span>
+      <select class="lvl">${LVLS.map(([v, l]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      ${appTag(t.app)}<span class="refid">${esc(t.refId || t.id)}</span>${modelBadge(t.model)}${t.isVerify ? '<span class="mdl" style="--bc:var(--violet)" title="משימת אימות">✓ אימות</span>' : ''}
+      <span class="t-title">${esc(t.title)}</span>
+      ${t.heavy ? '<span title="משימה כבדה">🏗️</span>' : ''}
+    </div>`; };
+  const queueRowsHtml = tq.length
+    ? tqRun.map(qRunRow).join('') + tqWait.map(qWaitRow).join('')
+    : '<div class="mr-setup">אין משימות בתור — הכל רגוע כרגע</div>';
+  // recently-finished results (per app, capped) kept as a compact trailing note so nothing is lost;
+  // NOT part of the queue itself (finished ≠ pending). Flat, by app rank.
+  const recentFlat = sortedApps.flatMap(([app, d]) => (d.recent || []).map(r => ({ ...r, app })));
+  const recentHtml = recentFlat.length ? `<div class="q-recent"><div class="q-recent-h">🕓 תוצאות אחרונות</div>${recentFlat.slice(0, 8).map(r =>
+    `<div class="mr-recent">${r.status === 'needs-review' ? '⚠️' : '✅'} ${mrIcon(r.app)} <b>${esc(mrLabel(r.app))}</b> — ${esc(r.title)}${r.note ? ' — ' + esc(r.note) : ''}</div>`).join('')}</div>` : '';
+  const queuePanel = `<details class="prio-panel" data-mrk="queue" style="--panel-accent:var(--blue)">
+    <summary>🎯 תור המשימות — ${tqRun.length} ${tqRun.length === 1 ? 'רצה' : 'רצות'} · ${tqWait.length} בתור${runBlink.length ? ` <span class="run-now">${runBlink.map(app => `<span class="run-blink" title="${esc(cardName(app))} — בעבודה">${mrIcon(app)}</span>`).join('')}</span>` : ''}</summary>
+    <div style="margin-top:8px">
+      <div class="section-sub" style="margin:0 0 8px">תור אחד לכל העבודה — ⚙️ הרצות למעלה (עם החשבון), ⏳ הממתינות מתחת, בדיוק בסדר שבו המתזמן יריץ אותן. כאן גם קובעים עדיפות/עצירה לכל משימה.</div>
+      ${queueRowsHtml}
+      ${recentHtml}
+    </div></details>`;
   const backlogPanel = '';
 
   // approved-migration/approved-build are ACTIVE gates awaiting ERZA execution — they live
@@ -2417,11 +2442,8 @@ function mrRender(live) {
         : t.status === 'running' ? `<span class="mdl" style="--bc:var(--blue)">🔄 רץ עכשיו</span>`
         : `${t.status === 'done' ? `<span class="mdl" style="--bc:var(--green)">✓ בוצע לאחרונה${t.doneAt ? ' · ' + esc(String(t.doneAt).slice(0, 10)) : ''}</span> ` : ''}<button class="btn-approve globrun" data-gid="${esc(t.id)}">${t.status === 'done' ? '🔁 הרץ שוב (מהיסוד, מועשר בהרצות הקודמות)' : '🚀 הפעל עכשיו'}</button>`}
     </div>`).join('') || '<div class="mr-setup">אין משימות גלובליות מוגדרות</div>'}</div></details>`;
-  // apps with active work BLINK on the summary line — visible while the panel is collapsed
-  const runningApps = sortedApps.filter(([, d]) => d.running).map(([app]) => app);
-  const runPanel = `<details class="prio-panel" data-mrk="run" style="--panel-accent:#1baf7a"><summary>▶️ מבוצע כעת${runningApps.length
-    ? ` · ${runningApps.length} <span class="run-now">${runningApps.map(app => `<span class="run-blink" title="${esc(cardName(app))} — בעבודה">${mrIcon(app)}</span>`).join('')}</span>`
-    : ' — אין עבודה רצה'}</summary><div style="margin-top:8px">` + runningHtml + `</div></details>`;
+  // (The former separate "▶️ מבוצע כעת" running panel is retired — running work now lives at the
+  //  top of the ONE unified 🎯 תור המשימות queue above, marked ⚙️ רץ · account. Erez 2026-07-25.)
   // Conductor-work mirror (audit §3.3): ERZA's OWN tasks (owner:erza / t.conductor) with age.
   // The dispatcher SKIPS these (hold), so they carry no pid/checkpoint and could stall unseen —
   // every one is surfaced here with its age; an OPEN one aged >24h ALSO becomes an action row on
@@ -2515,7 +2537,7 @@ function mrRender(live) {
     <div style="margin-top:8px"><div class="section-sub" style="margin:0 0 8px">כל בילד נייטיב שנשלח ל-App Store — לפי אפליקציה, dev/prod, iOS/macOS, גרסה ומה כלול. בזמן בנייה מופיע כאן פיד חי. xpensy iOS ו-xpensy macOS מנוהלים בנפרד.</div>
     ${bLaneKeys.map(bLaneHtml).join('') || '<div class="mr-setup">אין בילדים עדיין — יופיעו כאן ברגע שיתחיל בילד</div>'}</div></details>`;
 
-  const PANELS = { appr: apprHtml, builds: buildsHtml, glob: globPanel, acc: accPanel, run: runPanel, queue: queuePanel, backlog: backlogPanel, ranks: ranksHtml, cond: condPanel, inbox: inboxHtml, rel: relHtml, arch: archHtml, instr: instrHtml, managed: managedPanel };
+  const PANELS = { appr: apprHtml, builds: buildsHtml, glob: globPanel, acc: accPanel, queue: queuePanel, backlog: backlogPanel, ranks: ranksHtml, cond: condPanel, inbox: inboxHtml, rel: relHtml, arch: archHtml, instr: instrHtml, managed: managedPanel };
   // The former 4-zone wrapper is retired — panels are distributed across the 5 tabs below
   // (Erez 2026-07-19 redesign). The PANELS map above stays the single source per panel.
   // approved gates awaiting ERZA execution — a visible banner so they can't rot silently (audit r2 SM-01)
@@ -2533,13 +2555,13 @@ function mrRender(live) {
   const setDyn = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
   setDyn('dynErza', erzaLine + accPanel);                                             // Tab 1 — ERZA state + accounts
   setDyn('dynGrid', overviewGridHtml(live));                        // Tab 1 — app grid centerpiece, FIRST thing under the tabs
-  setDyn('dynOverview', runPanel + glanceHtml(live));               // then running work + quick-glance cards
+  setDyn('dynOverview', queuePanel + glanceHtml(live));             // ONE unified task queue (running+queued) + quick-glance cards
   setDyn('dynInstr', chatPanelHtml() + inboxHtml + instrHtml);                        // Tab 2 — chat + free instruction + archive
-  setDyn('dynItems', migBanner + gateBanner + apprHtml + condPanel + queuePanel + backlogPanel + globPanel + ranksHtml + archHtml); // Tab 3
+  setDyn('dynItems', migBanner + gateBanner + apprHtml + condPanel + globPanel + ranksHtml + archHtml); // Tab 3 (queue moved to the ONE unified panel on the overview tab)
   setDyn('dynInfo', infoGridHtml(live) + buildsHtml + relHtml + managedPanel);        // Tab 4 — app grid + builds + push history
   bindDynamicExtras();
   updateTabBadges(pendItems.length, bAckCount);
-  document.querySelectorAll('#mrBody details[data-mrk]').forEach(d => { if (mrOpenKeys.has(d.dataset.mrk) || d.dataset.mrk === 'inbox' || d.dataset.mrk === 'appr') d.open = true; });
+  document.querySelectorAll('#mrBody details[data-mrk]').forEach(d => { if (mrOpenKeys.has(d.dataset.mrk) || d.dataset.mrk === 'inbox' || d.dataset.mrk === 'appr' || d.dataset.mrk === 'queue') d.open = true; });
   document.querySelectorAll('#mrBody details[data-mrsub]').forEach(d => { if (mrOpenSubs.has(d.dataset.mrsub)) d.open = true; });
   injectMoveButtons('#main details[data-pgk]');  // tabs fix the machine-room order; keep portfolio reordering
   document.querySelectorAll('#mrBody .globrun').forEach(b => { b.onclick = async (e) => {
