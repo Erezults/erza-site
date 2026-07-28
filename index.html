@@ -1930,7 +1930,7 @@ function execSummaryHtml() {
 function glanceHtml(live) {
   const pend = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending'].includes(i.status) && !(i.pipelineStage && i.pipelineStage !== 'ready')).length;
   const migs = (live.pendingMigrations || []).length;
-  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading']);
+  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading', 'blocked']);
   const buildsRun = (live.builds || []).filter(b => B_ACTIVE.has(b.status)).length;
   const running = Object.values(live.apps || {}).filter(d => d.running).length;
   const queued = (live.totals && live.totals.queued) || 0;
@@ -1951,7 +1951,7 @@ function markAppSeen(app) { try { const m = infoSeenMap(); m[app] = new Date().t
 function ackedBuildSet() { try { return new Set(JSON.parse(localStorage.getItem('erza-acked-builds') || '[]')); } catch { return new Set(); } }
 function appUnseenCount(app, live, seen) {
   const since = Date.parse(seen[app] || 0) || 0;
-  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading']);
+  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading', 'blocked']);
   const acked = ackedBuildSet();
   const pend = (mrApprovals.items || []).filter(i => i.app === app && ['pending', 'decision-pending'].includes(i.status) && (Date.parse(i.at || 0) || 0) > since).length;
   const builds = (live.builds || []).filter(b => b.app === app && !B_ACTIVE.has(b.status) && b.source !== 'asc-backfill' && !acked.has(b.id) && (Date.parse(b.updatedAt || b.completedAt || 0) || 0) > since).length;
@@ -1993,7 +1993,7 @@ function appInfoBodyHtml(a, live) {
   const running = !!appLive.running;
   const builds = (live.builds || []).filter(b => b.app === a.name);
   const rels = (live.releases || []).filter(r => r.app === a.name);
-  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading']);
+  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading', 'blocked']);
   const acked = ackedBuildSet();
   const platName = k => k === 'mac' ? 'macOS' : 'iOS';
   const platCls = k => k === 'mac' ? 'mac' : 'ios';
@@ -2546,7 +2546,7 @@ function mrRender(live) {
   // icons), dev/prod badge, version, what's included, a real-time phase feed while building, + history.
   // "active" = still working on OUR machine (Erez can't ack yet). 'processing' = uploaded, Apple-side
   // passive wait → treated as DONE (ackable, green + ✓) so it doesn't sit open forever (Erez 2026-07-19).
-  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading']);
+  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading', 'blocked']);
   const bMeta = { queued: ['בתור', '#8a949e'], building: ['בונה', '#58a6dc'], exporting: ['מייצא', '#58a6dc'], uploading: ['מעלה ל-ASC', '#3fb6c9'], processing: ['עלה — בעיבוד אפל', '#5aa469'], valid: ['זמין ב-ASC', '#5aa469'], live: ['חי בסטור', '#3fb950'], failed: ['נכשל', '#e05252'], cancelled: ['בוטל', '#8a949e'] };
   const chBadge = ch => `<span class="ch-badge" style="--c:${ch === 'prod' ? '#8e5bd0' : '#3b82c4'}">${ch === 'prod' ? 'PROD' : 'DEV'}</span>`;
   const platIcon = (app, pf) => `<span class="picon ${pf === 'macos' ? 'macos' : 'ios'}">${icon(app)}<span class="pstrip">${pf === 'macos' ? 'macOS' : 'iOS'}</span></span>`;
@@ -2892,6 +2892,9 @@ async function mrTick() {
       // קונקרטית של מה שהמנצחת (הסשן) יכולה לקדם בינתיים. סגול; advisory בלבד, לא תור כפוי.
       const cwB = document.getElementById('conductorWorkBanner') || (() => { const d = document.createElement('div'); d.id = 'conductorWorkBanner'; document.getElementById('mrBody').parentElement.insertBefore(d, document.getElementById('mrBody')); return d; })();
       const cw = al && al.conductorWork;
+      // Erez 2026-07-28: conductor-work is ERZA's OWN todo list — it clutters his review screen with
+      // items he cannot act on. Keep it out of his view; ERZA tracks it internally.
+      if (cw && (cw.erzaOnly || cw.hideFromDesk)) { cwB.innerHTML = ''; return; }
       if (cw && cw.items && cw.items.length) {
         const kindHe = { 'migration-verify': '🗄️ אימות מיגרציה', 'approved-gate': '✅ שער מאושר', build: '🏗️ בילד', review: '🔍 סקירה', 'conductor-task': '🎼 משימת מנצחת' };
         const shown = {}; cw.items.forEach(i => { shown[i.kind] = (shown[i.kind] || 0) + 1; });
