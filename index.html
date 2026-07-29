@@ -2720,7 +2720,16 @@ function mrRender(live) {
     } catch { ok.textContent = 'שגיאה בשליחה — נסה שוב'; }
   };
 
-  const touch = () => { mrDirty = true; document.getElementById('mrSaveBtn').hidden = false; };
+  // Erez 2026-07-29: AUTO-SAVE. Relying on a "שמור" button meant a change could be lost (missed
+  // button / refresh in between). Every edit now persists itself ~1.2s later; the button stays as a
+  // manual fallback and as the save-state indicator.
+  const touch = () => {
+    mrDirty = true;
+    const b = document.getElementById('mrSaveBtn');
+    if (b) { b.hidden = false; b.textContent = '⏳ שומר…'; }
+    clearTimeout(window.__erzaAutoSave);
+    window.__erzaAutoSave = setTimeout(() => { try { savePriorities(); } catch {} }, 1200);
+  };
   document.querySelectorAll('#mrBody .mr-task select.lvl').forEach(sel => {
     sel.onchange = () => {
       const id = sel.closest('.mr-task').dataset.id;
@@ -2870,7 +2879,13 @@ async function mrTick() {
     } catch { /* אין קובץ גרסה עדיין */ }
     try {
       const up = await gh('registry/user_priorities.json');
-      mrPrios = up.tasks || {}; mrAppRanks = up.apps || {};
+      // 🔴 Erez 2026-07-29: the poll used to CLOBBER mrPrios with the server copy on every refresh
+      // (~2 min), so a priority/model change made between two refreshes silently vanished before it
+      // could be saved — user_priorities.json had not changed since 2026-07-25 despite repeated
+      // edits. While there are unsaved edits (mrDirty) the LOCAL values win; server entries the user
+      // hasn't touched are merged underneath so nothing else is lost.
+      if (mrDirty) { mrPrios = { ...(up.tasks || {}), ...mrPrios }; mrAppRanks = { ...(up.apps || {}), ...mrAppRanks }; }
+      else { mrPrios = up.tasks || {}; mrAppRanks = up.apps || {}; }
     } catch { /* אין קובץ עדיפויות עדיין */ }
     try { mrLayout = await gh('registry/ui_layout.json') || {}; } catch { mrLayout = {}; }
     try { const al = await gh('registry/alerts.json');
