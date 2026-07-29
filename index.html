@@ -1370,7 +1370,9 @@ async function runBacklogNow(taskId) {
   await gh('registry/user_priorities.json', undefined, { method: 'PUT', body: JSON.stringify(body) });
 }
 async function savePriorities() {
-  const btn = document.getElementById('mrSaveBtn');
+  // Null-safe: a missing button must never abort the save (it used to throw here, before the try,
+  // so the whole save silently never ran — Erez 2026-07-29).
+  const btn = document.getElementById('mrSaveBtn') || {};
   btn.disabled = true; btn.textContent = 'שומר…';
   // Robust save (Erez 2026-07-25): READ the CURRENT file fresh, MERGE the dashboard's edits on
   // top (so entries this page didn't load are preserved, not clobbered), PUT with the FRESH sha,
@@ -2637,7 +2639,8 @@ function mrRender(live) {
   document.querySelectorAll('#mrBody .stopbtn').forEach(b => {
     b.onclick = () => {
       mrPrios[b.dataset.id] = { hold: true };
-      mrDirty = true; document.getElementById('mrSaveBtn').hidden = false;
+      mrDirty = true; { const b = document.getElementById('mrSaveBtn'); if (b) { b.hidden = false; b.textContent = '⏳ שומר…'; } }
+      clearTimeout(window.__erzaAutoSave); window.__erzaAutoSave = setTimeout(() => { try { savePriorities(); } catch {} }, 1200);
       b.textContent = '⏹ ייעצר בשמירה'; b.disabled = true;
     };
   });
