@@ -905,7 +905,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.0'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=4563cf0d"></script>
+<script src="data.enc.js?v=947dd09b"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2287,6 +2287,19 @@ function mrRender(live) {
               ? `<span class="mdl" style="--bc:var(--blue)" title="worker רץ על האפליקציה כרגע">🔧 עבודה פעילה על האפליקציה — ה-OTA יידחף אוטומטית בסיומה</span>`
               : `<span class="mdl" style="--bc:var(--yellow)" title="ממתין לדחיפה בטיק הקרוב">⏳ ה-OTA בתור לדחיפה (טיק של עד 5 דק׳)</span>`)
             : `<span class="mdl" style="--bc:var(--blue)">🗳️ פריט החלטה (לא דורש OTA)</span>`}</div>
+        ${it.lovableDoc ? (() => {
+          // Coin is Lovable-managed (no OTA) — surface the paste-ready doc as a real
+          // downloadable file + one-tap copy so Erez can send it to Lovable directly
+          // from the dashboard instead of hunting for it in git (Erez 2026-08-01).
+          const b64 = btoa(unescape(encodeURIComponent(it.lovableDoc.content)));
+          const href = 'data:text/markdown;charset=utf-8;base64,' + b64;
+          return `<div style="border:1px solid var(--blue);border-radius:8px;padding:8px 10px;margin:7px 0;background:color-mix(in srgb,var(--blue) 8%,transparent)">
+            <b style="font-size:13px">📄 מסמך מוכן להדבקה ל-Lovable</b>
+            <div style="font-size:12px;color:var(--muted);margin:2px 0 7px">Coin מנוהלת ב-Lovable ואין לה OTA — הורד/העתק את הקובץ ושלח ל-Lovable ליישום; השינוי ייכנס בבילד הבא של Coin.</div>
+            <a class="lvdl" href="${href}" download="${esc(it.lovableDoc.filename)}" style="display:inline-block;background:var(--blue);color:#fff;border-radius:6px;padding:6px 13px;font-size:13px;font-weight:700;text-decoration:none;margin-inline-end:8px">📥 הורד קובץ · ${esc(it.lovableDoc.filename)}</a>
+            <button class="lvcopy" data-b64="${b64}" style="background:transparent;border:1px solid var(--blue);color:var(--blue);border-radius:6px;padding:6px 13px;font-size:13px;font-weight:700;cursor:pointer">📋 העתק הכל</button>
+          </div>`;
+        })() : ''}
         ${(it.changes || []).length ? (() => {
           // Consolidated dev-OTA review (Erez 2026-07-17): accumulated changes grouped by the
           // OTA they shipped in. Check once on the LATEST (cumulative) build; each change keeps
