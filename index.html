@@ -2993,6 +2993,16 @@ function mrInit() {
     if (v !== null) { localStorage.setItem('erza-pat', v.trim()); mrDirty = false; mrTick(); }
   };
   document.getElementById('mrSaveBtn').onclick = savePriorities;
+  // Coin Lovable-doc copy button (delegated — items re-render on refresh). Download uses a
+  // pure data-URI <a download>; copy decodes the same UTF-8 base64 to the clipboard.
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.lvcopy'); if (!b) return;
+    const txt = decodeURIComponent(escape(atob(b.dataset.b64)));
+    navigator.clipboard.writeText(txt).then(() => {
+      const o = b.textContent; b.textContent = '✓ הועתק ללוח'; b.style.background = 'var(--green)'; b.style.color = '#fff';
+      setTimeout(() => { b.textContent = o; b.style.background = 'transparent'; b.style.color = 'var(--blue)'; }, 1600);
+    }).catch(() => alert('העתקה נכשלה — השתמש בכפתור ההורדה'));
+  });
   initTabs();                          // 5-tab bar: wire buttons, restore active tab (localStorage / #tab=)
   mrTick();
   setInterval(tickCountdown, 1000);   // 1s countdown; refreshes only every REFRESH_SECS and never while typing
