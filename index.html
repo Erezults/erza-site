@@ -1073,7 +1073,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=7ceeb048"></script>
+<script src="data.enc.js?v=776c2502"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1441,14 +1441,12 @@ async function svSaveOrder() {
   } catch (e) { console.error('store-matrix order save failed:', e); }
 }
 
-function renderStoreViews() {
-  const el = document.getElementById('dynStoreViews');
-  if (!el) return;
-  const rows = spAppRows();
-  if (!rows.length) { el.innerHTML = '<div class="sv-note">אין נתוני חנות עדיין.</div>'; return; }
+// ── המטריצה ─────────────────────────────────────────────────────────────────
+// One function, two consumers: the main screen and the תצוגות tab. Erez chose this view
+// for the main panel (2026-08-08), and a second copy would drift from it the first time a
+// rule changed.
+function svMatrixHtml(rows, opts = {}) {
   const OS = ['iOS', 'macOS'];
-  const sec = (n, title, why, body) => `<div class="sv-sec"><div class="sv-h"><b>${n} ${title}</b><span>${why}</span></div><div class="sv-card">${body}</div></div>`;
-
   // ★ MATRIX — the view Erez kept, reworked 2026-08-08:
   //   · one Apple mark centred over its PAIR of columns, not one per column
   //   · the two Apple columns and the two dev columns each get a tinted band, so the
@@ -1458,7 +1456,7 @@ function renderStoreViews() {
   //     store the panel order already uses, so the order follows him to any device
   const cell = x => x ? `<span class="sv-cell tone-${x.tone}"><b>${esc(x.label)}</b><span class="sv-v" dir="ltr">${esc(x.version || '—')}</span></span>` : '<span class="sv-note">—</span>';
   const ordered = svApplyOrder(rows);
-  const mx = `
+  return `
     <div class="mx-bar">
       <button class="mx-btn${svReorder ? ' on' : ''}" onclick="svToggleReorder()">${svReorder ? '✓ סיום סידור' : '↕ שינוי סדר'}</button>
       ${svReorder ? '<span class="mx-hint">גרור שורה למקום הרצוי — הסדר נשמר בשרת</span>' : ''}
@@ -1476,7 +1474,18 @@ function renderStoreViews() {
         <span class="mx-nm">${esc(r.nm)}</span></div></td>
       ${OS.map(os => `<td class="mx-apple">${cell(r.plats[os] && r.plats[os].apple)}</td>`).join('')}
       ${OS.map(os => `<td class="mx-ours">${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
-    </tr>`).join('') + `</tbody></table></div>`;
+    </tr>`).join('') + `</tbody></table></div>`
+}
+
+function renderStoreViews() {
+  const el = document.getElementById('dynStoreViews');
+  if (!el) return;
+  const rows = spAppRows();
+  if (!rows.length) { el.innerHTML = '<div class="sv-note">אין נתוני חנות עדיין.</div>'; return; }
+  const OS = ['iOS', 'macOS'];
+  const sec = (n, title, why, body) => `<div class="sv-sec"><div class="sv-h"><b>${n} ${title}</b><span>${why}</span></div><div class="sv-card">${body}</div></div>`;
+
+  const mx = svMatrixHtml(rows);
 
   // 1 — RINGS: the ring is SPLIT, not nested — the top half is iOS and the bottom half is
   // macOS, each drawn in its own state colour with its own version printed beside it. Two
