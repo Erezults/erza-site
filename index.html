@@ -849,8 +849,10 @@ footer a { color: var(--muted); }
     <div id="mrBody">
 
     <section class="tab-panel" data-tab="overview">
-      <div id="storePanel"></div>
+      <!-- Apps first (Erez 2026-08-07): the per-app tiles are what he opens the dashboard
+           for. Store status is context on top of them, so it sits underneath. -->
       <div id="dynGrid"></div>
+      <div id="storePanel"></div>
       <div id="dynErza"></div>
       <div class="stagebar-wrap">
         <div class="stagebar-title">אפליקציות הנייטיב לפי שלב</div>
