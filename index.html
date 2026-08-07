@@ -1639,84 +1639,25 @@ function storePanelBody() {
   const el = document.getElementById('storePanel');
   if (!el) return;
   const D = window.ERZA_DATA || {};
-  const rows = [];
-
-  for (const a of (D.apps || [])) {
-    if (a.category !== 'native-app' || !a.asc || !a.asc.platforms) continue;
-    const nm = spName(a);
-    const v = a.versions || {};
-    const devV = v.dev || null;                 // one OTA bundle serves both platforms
-    const apple = {}, ours = {};
-    let worst = 9;
-
-    for (const [key, p] of Object.entries(a.asc.platforms)) {
-      if (!p || !p.latest) continue;
-      const os = SP_OS[key] || key;
-
-      // ── at Apple
-      // ALWAYS show what customers have right now, and the pending submission SEPARATELY.
-      // Showing only the pending one hid that Groupy iOS still serves 1.9.0 while macOS
-      // had moved to 1.11.0 — exactly the divergence Erez suspected (2026-08-07).
-      const at = [];
-      const pending = SP_APPLE[p.latest.state];
-      // Show what customers have now — but only when there IS something. Every app is set
-      // to release automatically on approval, so "not launched yet" next to a pending
-      // review states the obvious (Erez 2026-08-07).
-      if (p.live) at.push(spChip('בחנות', 'good', p.live.version, `${nm} ${os} ${p.live.version} — בחנות`));
-      else if (!pending) at.push(spChip('טרם עלתה', 'idle', '', `${nm} ${os} — טרם עלתה לחנות`));
-      if (pending) {
-        const [label, tone, rank] = pending;
-        at.push(spChip(label, tone, p.latest.version, `${nm} ${os} ${p.latest.version} — ${label}`));
-        if (rank < worst) worst = rank;
-      }
-      apple[os] = at.join('');
-
-      // ── ours: same colour language, so this side is not one grey block
-      const mine = [];
-      const prepping = p.latest.state === 'PREPARE_FOR_SUBMISSION' &&
-                       (!p.live || p.live.version !== p.latest.version);
-      if (prepping) mine.push(spChip('מוכנה', 'good', p.latest.version,
-        `${nm} ${os} ${p.latest.version} — מוכנה להגשה`));
-      if (devV) {
-        const d = spCmp(devV, p.live ? p.live.version : v.prod);
-        const [label, tone, why] = d < 0 ? ['dev מפגר', 'bad', 'ישן ממה שבחנות — בודקים גרסה לא עדכנית']
-                                 : d > 0 ? ['בפיתוח', 'wait', 'יש שינויים שטרם שוחררו']
-                                         : ['מסונכרן', 'idle', 'זהה למה שבחנות'];
-        mine.push(spChip(label, tone, devV, `${nm} ${os} dev ${devV} — ${why}`));
-      }
-      ours[os] = mine.join('');
-    }
-    rows.push({ a, nm, apple, ours, rank: worst });
-  }
+  const rows = spAppRows();
   if (!rows.length) { el.innerHTML = ''; return; }
-  rows.sort((x, y) => x.rank - y.rank || x.nm.localeCompare(y.nm));
 
+  // Erez chose the matrix for the main screen (2026-08-08). It renders through the SAME
+  // svMatrixHtml the תצוגות tab uses — a second copy would drift from it the first time a
+  // rule changed, and he would have no way to tell which one was right.
   const need = rows.filter(r => r.rank <= 1).length;
   const upd = D.ascFetchedAt
     ? new Date(D.ascFetchedAt).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
     : (D.generatedAt || '');
-  const OS = ['iOS', 'macOS'];
-  const head = seam => OS.map((o, k) =>
-    `<span class="sp-os-h${seam && k === 0 ? ' sp-seam' : ''}">${SP_SVG[o]}${o}</span>`).join('');
-  const cell = x => x || '<span class="sp-dash">—</span>';
 
-  el.innerHTML = `<div class="sp-card sp">
-    <div class="sp-top">
-      <span class="sp-title">📱 מצב בחנות</span>
-      ${need ? `<span class="sp-need">${need} דורשות טיפול</span>` : ''}
-      <span class="sp-meta">מתעדכן אוטומטית מאפל · ${esc(upd)}</span>
+  el.innerHTML = `<div class="sv"><div class="sv-card" style="margin-bottom:18px">
+    <div class="sv-h" style="margin-bottom:10px">
+      <b>\ud83d\udcf1 מצב בחנות</b>
+      ${need ? `<span style="font-size:12px;font-weight:700;color:var(--r)">${need} דורשות טיפול</span>` : ''}
+      <span style="font-size:11.5px;color:var(--muted);margin-inline-start:auto">מתעדכן אוטומטית מאפל · ${esc(upd)}</span>
     </div>
-    <div class="sp-scroll"><div class="sp-grid">
-      <span></span><span></span>
-      <span class="sp-side">${SP_SVG.apple}אצל אפל</span>
-      <span class="sp-side">אצלנו — dev</span>
-      <span></span><span></span>${head(false)}${head(true)}` +
-    rows.map(r => `
-      <img class="sp-ico" src="icons/${esc(r.a.dir)}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.hidden=true" alt="">
-      <span class="sp-app">${esc(r.nm)}</span>
-      ${OS.map(o => `<span class="sp-cell">${cell(r.apple[o])}</span>`).join('')}
-      ${OS.map((o, k) => `<span class="sp-cell${k === 0 ? ' sp-seam' : ''}">${cell(r.ours[o])}</span>`).join('')}`
-    ).join('<span class="sp-div"></span>') + `</div></div></div>`;
+    ${svMatrixHtml(rows)}
+  </div></div>`;
 }
 
   function render() {
