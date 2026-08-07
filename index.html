@@ -829,12 +829,31 @@ footer a { color: var(--muted); }
          border:1px solid color-mix(in srgb,var(--c) 45%,transparent);color:var(--ink-1);font-size:11px;font-weight:600}
 .sv-cell b{display:block;font-size:9.5px;font-weight:700;color:var(--c)}
 
-/* כותרות המטריצה — אותם סימנים כמו בפאנל הראשי */
-.mx-h{display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.2}
-.mx-h svg{width:15px;height:15px;color:var(--blue)}
-.mx-h svg+svg{margin-inline-start:-3px}
+/* מטריצה — קבוצות מוצללות, אייקון מעל שם, ומצב סידור */
+.mx-bar{display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-wrap:wrap}
+.mx-btn{font:inherit;font-size:11.5px;font-weight:700;color:var(--ink-2);background:var(--tint);
+        border:1px solid var(--ring);border-radius:8px;padding:5px 11px;cursor:pointer}
+.mx-btn:hover{color:var(--ink-1)}
+.mx-btn.on{background:var(--ink-1);color:var(--page);border-color:var(--ink-1)}
+.mx-hint{font-size:11px;color:var(--muted)}
+/* the two bands are what replace the words "at Apple" / "ours" */
+.sv-mx .mx-apple{background:color-mix(in srgb,var(--blue) 9%,transparent)}
+.sv-mx .mx-ours{background:color-mix(in srgb,var(--ink-1) 5%,transparent)}
+.sv-mx thead .mx-apple,.sv-mx thead .mx-ours{border-radius:9px 9px 0 0}
+.sv-mx tbody tr:last-child .mx-apple,.sv-mx tbody tr:last-child .mx-ours{border-radius:0 0 9px 9px}
+.mx-grp th{padding-bottom:2px;border:0}
+.mx-grp svg{width:19px;height:19px;color:var(--ink-2)}
+.mx-h{display:flex;align-items:center;justify-content:center;gap:5px;line-height:1.2}
+.mx-h svg{width:14px;height:14px;color:var(--blue)}
 .mx-h>span{font-size:11px;font-weight:700;color:var(--ink-1)}
-.mx-h small{font-size:9.5px;color:var(--muted);font-weight:600}
+.mx-app{display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;padding:2px 0}
+.mx-ico{width:34px;height:34px;border-radius:10px;object-fit:cover}
+.mx-nm{font-size:11.5px;font-weight:700;color:var(--ink-1);white-space:nowrap}
+.mx-grip{position:absolute;inset-inline-start:-2px;top:50%;transform:translateY(-50%);
+         color:var(--muted);font-size:12px;letter-spacing:-2px;cursor:grab}
+.sv-mx.reordering tbody tr{cursor:grab}
+.sv-mx.reordering tbody tr.dragging{opacity:.45}
+.sv-mx.reordering tbody tr:hover{outline:1px dashed var(--ring)}
 
 /* 1 — קשתות: חצי עליון iOS, חצי תחתון macOS, טבעת פנימית = dev */
 .iv-rings{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:16px}
@@ -1054,7 +1073,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=bd0def6e"></script>
+<script src="data.enc.js?v=7ceeb048"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
