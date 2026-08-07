@@ -751,31 +751,39 @@ footer a { color: var(--muted); }
 .info-empty { color: var(--muted); font-size: 12.5px; padding: 6px 0; }
 
 /* ── מצב בחנות ─────────────────────────────────────────────────────────────
-   Built from the page's own tokens (--surface-1/--ink/--ring/…) so it inherits
-   light and dark correctly. Hard-coded colours here looked foreign and unreadable
-   on the dark theme (2026-08-07).
-   One row per APP with a chip per platform: iOS and macOS are separate submissions
-   and can sit in opposite states, but 17 full-width rows buried the app grid.
-   Colour is never the only signal — each chip carries a glyph and Hebrew text. */
+   Built from the page's own tokens so it inherits light and dark like every other
+   card. Two columns, because they answer different questions: what customers can
+   download RIGHT NOW, and what is moving toward release. Showing only the newest
+   version made a live app look "in preparation" (Healthy 1.5.0 live, 1.6.0 being
+   prepared) — Erez, 2026-08-07.
+   Colour is strong but never the only signal: every chip carries a glyph + text. */
 .sp-card{background:var(--surface-1);border:1px solid var(--ring);border-radius:12px;padding:12px 14px;margin-bottom:18px}
-.sp-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.sp-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .sp-title{font-size:13px;font-weight:700;color:var(--ink-1)}
 .sp-need{font-size:12px;font-weight:700;color:var(--red)}
 .sp-meta{font-size:11.5px;color:var(--muted);margin-inline-start:auto}
-.sp-row{display:grid;grid-template-columns:20px minmax(84px,auto) 1fr;align-items:center;gap:9px;padding:6px 2px}
-.sp-row+.sp-row{border-top:1px solid var(--grid)}
+.sp-grid{display:grid;grid-template-columns:20px minmax(78px,auto) minmax(0,1fr) minmax(0,1fr);
+         align-items:center;gap:7px 10px}
+.sp-h{font-size:10.5px;font-weight:700;letter-spacing:.02em;color:var(--muted);padding-bottom:3px;
+      border-bottom:1px solid var(--grid)}
 .sp-ico{width:18px;height:18px;border-radius:5px;object-fit:cover}
 .sp-app{font-size:12.5px;font-weight:600;color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sp-chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-.sp-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;line-height:1;
-         padding:3px 8px;border-radius:999px;background:var(--tint);color:var(--ink-2);white-space:nowrap}
-.sp-os{color:var(--muted);font-size:10.5px}
-.sp-v{font-variant-numeric:tabular-nums;color:var(--ink-2)}
-.sp-chip.bad {color:var(--red)}    .sp-chip.act {color:var(--blue)}
-.sp-chip.wait{color:var(--yellow)} .sp-chip.good{color:var(--green)}
-.sp-chip.idle{color:var(--muted)}
-.sp-chip.bad,.sp-chip.act{font-weight:700}
-@media(max-width:560px){.sp-row{grid-template-columns:20px 1fr;row-gap:5px}.sp-chips{grid-column:1/-1;justify-content:flex-start}}
+.sp-cell{display:flex;gap:5px;flex-wrap:wrap}
+.sp-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;line-height:1;
+         padding:3px 8px;border-radius:7px;white-space:nowrap;
+         background:color-mix(in srgb,var(--c) 16%,transparent);
+         border:1px solid color-mix(in srgb,var(--c) 42%,transparent);color:var(--c)}
+.sp-chip .sp-os{font-size:10px;font-weight:700;opacity:.75}
+.sp-chip .sp-v{font-variant-numeric:tabular-nums;opacity:.95}
+.sp-chip.bad{--c:var(--red)} .sp-chip.act{--c:var(--blue)} .sp-chip.wait{--c:var(--yellow)}
+.sp-chip.good{--c:var(--green)} .sp-chip.idle{--c:var(--muted)}
+.sp-dash{color:var(--muted);font-size:11.5px}
+.sp-line{grid-column:1/-1;height:1px;background:var(--grid)}
+@media(max-width:600px){
+  .sp-grid{grid-template-columns:20px 1fr}
+  .sp-h{display:none}
+  .sp-cell{grid-column:1/-1}
+}
 </style>
 </head>
 <body>
@@ -933,7 +941,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.0'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=d0760b3f"></script>
+<script src="data.enc.js?v=c346da54"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1152,7 +1160,7 @@ const SP_STATE = {
   INVALID_BINARY:             ['בילד פסול',    'bad',  '✕', 0],
   PENDING_DEVELOPER_RELEASE:  ['לשחרור שלך',   'act',  '▶', 1],
   IN_REVIEW:                  ['בסקירה',       'wait', '◷', 2],
-  WAITING_FOR_REVIEW:         ['ממתינה',       'wait', '◷', 2],
+  WAITING_FOR_REVIEW:         ['ממתינה לסקירה','wait', '◷', 2],
   PENDING_APPLE_RELEASE:      ['ממתינה לאפל',  'wait', '◷', 2],
   PROCESSING_FOR_APP_STORE:   ['בעיבוד',       'wait', '◷', 3],
   PREPARE_FOR_SUBMISSION:     ['בהכנה',        'idle', '○', 4],
@@ -1160,10 +1168,16 @@ const SP_STATE = {
   READY_FOR_SALE:             ['בחנות',        'good', '✓', 5],
 };
 const SP_OS = { IOS: 'iOS', MAC_OS: 'macOS', TV_OS: 'tvOS' };
+const SP_ORDER = { iOS: 0, macOS: 1, tvOS: 2 };
 
 // displayName carries documentation asides — 'Groupy Calendar (icon label "Groupy")'.
-// Useful in the table, unreadable in a dense status row.
 function spName(a) { return String(a.displayName || a.name || '').split('(')[0].trim() || a.name || ''; }
+
+function spChip(os, version, label, tone, glyph, appName) {
+  return `<span class="sp-chip ${tone}" aria-label="${esc(appName + ' ' + os + ' ' + version + ' — ' + label)}">` +
+    `<span class="sp-os">${esc(os)}</span><span aria-hidden="true">${glyph}</span>${esc(label)}` +
+    `<span class="sp-v" dir="ltr">${esc(version)}</span></span>`;
+}
 
 function renderStorePanel() {
   try { return storePanelBody(); } catch (e) { console.error('store panel:', e); }
@@ -1174,25 +1188,33 @@ function storePanelBody() {
   if (!el) return;
   const D = window.ERZA_DATA || {};
   const rows = [];
+
   for (const a of (D.apps || [])) {
     if (a.category !== 'native-app' || !a.asc || !a.asc.platforms) continue;
-    const chips = [];
-    for (const [os, p] of Object.entries(a.asc.platforms)) {
+    const nm = spName(a);
+    const live = [], next = [];
+    let worst = 9;
+    for (const [key, p] of Object.entries(a.asc.platforms)) {
       if (!p || !p.latest) continue;
-      const [label, tone, glyph, rank] = SP_STATE[p.latest.state] || [p.latest.state || '—', 'idle', '○', 4];
-      chips.push({ os: SP_OS[os] || os, v: p.latest.version, label, tone, glyph, rank });
+      const os = SP_OS[key] || key;
+      // LIVE — what customers can actually download today.
+      if (p.live) live.push({ os, html: spChip(os, p.live.version, 'בחנות', 'good', '✓', nm) });
+      else live.push({ os, html: spChip(os, '—', 'טרם עלתה', 'idle', '○', nm) });
+      // ON THE WAY — anything newer that is not the live build yet.
+      if (p.latest.state !== 'READY_FOR_SALE') {
+        const [label, tone, glyph, rank] = SP_STATE[p.latest.state] || [p.latest.state, 'idle', '○', 4];
+        next.push({ os, html: spChip(os, p.latest.version, label, tone, glyph, nm) });
+        if (rank < worst) worst = rank;
+      }
     }
-    if (!chips.length) continue;
-    // The ROW is ranked by its worst platform, but chips keep a fixed platform order:
-    // a column that flips between iOS and macOS per row cannot be scanned down.
-    const worst = Math.min(...chips.map(c => c.rank));
-    const order = { iOS: 0, macOS: 1, tvOS: 2 };
-    chips.sort((x, y) => (order[x.os] ?? 9) - (order[y.os] ?? 9));
-    rows.push({ a, chips, rank: worst });
+    if (!live.length) continue;
+    const byOs = (x, y) => (SP_ORDER[x.os] ?? 9) - (SP_ORDER[y.os] ?? 9);  // fixed column order
+    live.sort(byOs); next.sort(byOs);
+    rows.push({ a, nm, live, next, rank: worst });
   }
   if (!rows.length) { el.innerHTML = ''; return; }
   // Most urgent first: a rejection must never rest below a row that needs nothing.
-  rows.sort((x, y) => x.rank - y.rank || spName(x.a).localeCompare(spName(y.a)));
+  rows.sort((x, y) => x.rank - y.rank || x.nm.localeCompare(y.nm));
 
   const need = rows.filter(r => r.rank <= 1).length;
   const upd = D.ascFetchedAt
@@ -1204,15 +1226,17 @@ function storePanelBody() {
       <span class="sp-title">📱 מצב בחנות</span>
       ${need ? `<span class="sp-need">${need} דורשות טיפול</span>` : ''}
       <span class="sp-meta">מתעדכן אוטומטית מאפל · ${esc(upd)}</span>
-    </div>` +
-    rows.map(r => `<div class="sp-row">
+    </div>
+    <div class="sp-grid">
+      <span class="sp-h" style="grid-column:1/3">אפליקציה</span>
+      <span class="sp-h">חי בחנות</span>
+      <span class="sp-h">בדרך</span>` +
+    rows.map(r => `
       <img class="sp-ico" src="icons/${esc(r.a.dir)}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.hidden=true" alt="">
-      <span class="sp-app">${esc(spName(r.a))}</span>
-      <span class="sp-chips">${r.chips.map(c => `<span class="sp-chip ${c.tone}"
-          aria-label="${esc(spName(r.a) + ' ' + c.os + ' ' + c.v + ' — ' + c.label)}">
-        <span class="sp-os">${esc(c.os)}</span><span aria-hidden="true">${c.glyph}</span>${esc(c.label)}
-        <span class="sp-v" dir="ltr">${esc(c.v)}</span></span>`).join('')}</span>
-    </div>`).join('') + `</div>`;
+      <span class="sp-app">${esc(r.nm)}</span>
+      <span class="sp-cell">${r.live.map(c => c.html).join('')}</span>
+      <span class="sp-cell">${r.next.length ? r.next.map(c => c.html).join('') : '<span class="sp-dash">—</span>'}</span>`
+    ).join('<span class="sp-line"></span>') + `</div></div>`;
 }
 
   function render() {
@@ -3024,7 +3048,10 @@ async function mrTick() {
       } else el.innerHTML = '';
       // ERZA-FLOW ד-11 (כלל 0.15): עבודת-מנצח — כשכל חשבונות ה-workers מוצו, הטיק בונה רשימה
       // קונקרטית של מה שהמנצחת (הסשן) יכולה לקדם בינתיים. סגול; advisory בלבד, לא תור כפוי.
-      const cwB = document.getElementById('conductorWorkBanner') || (() => { const d = document.createElement('div'); d.id = 'conductorWorkBanner'; document.getElementById('mrBody').parentElement.insertBefore(d, document.getElementById('mrBody')); return d; })();
+      const cwB = document.getElementById('conductorWorkBanner') || (() => { const d = document.createElement('div'); d.id = 'conductorWorkBanner';
+        // Below the apps (Erez 2026-08-07): this is background work he cannot act on, so it
+        // must never push the apps — the reason to open the dashboard — off the screen.
+        (document.querySelector('.tab-panel[data-tab="overview"]') || document.getElementById('mrBody')).appendChild(d); return d; })();
       const cw = al && al.conductorWork;
       // Erez 2026-07-28: conductor-work is ERZA's OWN todo list — it clutters his review screen with
       // items he cannot act on. Keep it out of his view; ERZA tracks it internally.
