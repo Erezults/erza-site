@@ -802,25 +802,25 @@ footer a { color: var(--muted); }
    nth-child count: the spanning headers shift that count and the line appeared on
    random rows. */
 .sp-seam{box-shadow:inset 1px 0 0 var(--grid)}
-/* ── תצוגות חלופיות למצב בחנות ─────────────────────────────────────────────
-   The matrix stayed (Erez kept it); the other five answer questions the matrix
-   cannot. All use intrinsic sizing — they reflow on the CONTAINER's width, so
-   they work in a narrow column without depending on a viewport breakpoint. */
-.sv-note{font-size:12px;color:var(--muted);margin:2px 0 12px;line-height:1.5}
-.sv-sec{margin-bottom:26px}
-.sv-h{display:flex;align-items:baseline;gap:8px;margin-bottom:6px;flex-wrap:wrap}
-.sv-h b{font-size:14px;color:var(--ink-1)}
-.sv-h span{font-size:11.5px;color:var(--muted)}
-.sv{--g:#1db954;--y:#f5c518;--r:#f5333f;--n:#8e8e93}
+/* ── תצוגות: אינפוגרפיקה ───────────────────────────────────────────────────
+   Editorial data-viz over the dashboard's own palette: heavy numerals, generous
+   air, one accent per state, everything drawn as inline SVG so it scales with the
+   container instead of depending on a viewport breakpoint. */
+.sv{--g:#1db954;--y:#f5c518;--r:#f5333f;--n:#8e8e93;--ink:var(--ink-1)}
 :root[data-theme="dark"] .sv{--g:#2ee36a;--y:#ffd93d;--r:#ff5c66;--n:#9a9a9f}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sv{--g:#2ee36a;--y:#ffd93d;--r:#ff5c66;--n:#9a9a9f}}
-.sv-card{background:var(--surface-1);border:1px solid var(--ring);border-radius:12px;padding:12px 14px}
-.sv-ico{width:20px;height:20px;border-radius:6px;object-fit:cover;flex:none}
-.sv-name{font-size:13px;font-weight:600;color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sv-v{font-variant-numeric:tabular-nums}
 .tone-good{--c:var(--g)} .tone-wait{--c:var(--y)} .tone-bad{--c:var(--r)} .tone-idle{--c:var(--n)}
+.sv-note{font-size:12px;color:var(--muted);margin:2px 0 14px;line-height:1.6}
+.sv-sec{margin-bottom:30px}
+.sv-h{display:flex;align-items:baseline;gap:9px;margin-bottom:9px;flex-wrap:wrap}
+.sv-h b{font-size:15px;font-weight:800;color:var(--ink-1);letter-spacing:-.01em}
+.sv-h span{font-size:11.5px;color:var(--muted)}
+.sv-card{background:var(--surface-1);border:1px solid var(--ring);border-radius:14px;padding:16px}
+.sv-ico{width:20px;height:20px;border-radius:6px;object-fit:cover;flex:none}
+.sv-name{font-size:12.5px;font-weight:600;color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sv-v{font-variant-numeric:tabular-nums}
 
-/* A — מטריצה (נשמרה) */
+/* מטריצה (נשמרה) */
 .sv-mx{width:100%;border-collapse:collapse;font-size:12px}
 .sv-mx th{font-size:10.5px;color:var(--muted);font-weight:700;padding:0 4px 6px;text-align:center;border-bottom:1px solid var(--grid)}
 .sv-mx td{padding:5px 4px;text-align:center;border-bottom:1px solid var(--grid)}
@@ -829,46 +829,41 @@ footer a { color: var(--muted); }
          border:1px solid color-mix(in srgb,var(--c) 45%,transparent);color:var(--ink-1);font-size:11px;font-weight:600}
 .sv-cell b{display:block;font-size:9.5px;font-weight:700;color:var(--c)}
 
-/* 1 — סולם הפער */
-.sv-gap{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
-.sv-gapc{background:var(--surface-1);border:1px solid var(--ring);border-radius:10px;padding:10px}
-.sv-gapc header{display:flex;align-items:center;gap:7px;margin-bottom:8px}
-.sv-rung{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:7px;font-size:11.5px;padding:3px 0}
-.sv-rung u{text-decoration:none;color:var(--muted);font-size:10.5px}
-.sv-rung .ln{height:6px;border-radius:3px;background:var(--c);opacity:.9}
-.sv-rung b{font-variant-numeric:tabular-nums;font-size:11px;color:var(--ink-1)}
-.sv-gapnote{font-size:11px;color:var(--c);font-weight:700;margin-top:6px}
+/* 1 — קשתות */
+.iv-rings{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:14px}
+.iv-ring{text-align:center}
+.iv-ring svg{width:100%;height:auto;max-width:132px;display:block;margin:0 auto}
+.iv-ring .cap{margin-top:7px;display:flex;align-items:center;gap:6px;justify-content:center}
+.iv-lbl{font-size:10.5px;color:var(--muted);margin-top:3px}
 
-/* 2 — קיר סטטוס */
-.sv-wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:7px}
-.sv-tile{border-radius:9px;padding:8px 6px;text-align:center;background:color-mix(in srgb,var(--c) 16%,transparent);
-         border:1px solid color-mix(in srgb,var(--c) 40%,transparent)}
-.sv-tile img{width:26px;height:26px;border-radius:7px;margin-bottom:4px}
-.sv-tile .os{font-size:9.5px;color:var(--muted);font-weight:700}
-.sv-tile .st{font-size:10.5px;font-weight:700;color:var(--c);margin-top:2px}
-.sv-tile .vv{font-size:10.5px;color:var(--ink-1);font-variant-numeric:tabular-nums}
+/* 2 — פסיפס */
+.iv-mosaic{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
+.iv-tile{position:relative;border-radius:12px;padding:12px 10px;min-height:104px;overflow:hidden;
+         background:linear-gradient(150deg,color-mix(in srgb,var(--c) 34%,transparent),color-mix(in srgb,var(--c) 12%,transparent));
+         border:1px solid color-mix(in srgb,var(--c) 42%,transparent);display:flex;flex-direction:column;gap:4px}
+.iv-tile .big{font-size:19px;font-weight:800;color:var(--ink-1);font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-top:auto}
+.iv-tile .st{font-size:10.5px;font-weight:700;color:var(--c)}
+.iv-tile .os{position:absolute;inset-block-start:10px;inset-inline-end:10px;font-size:9.5px;color:var(--muted);font-weight:700}
 
-/* 3 — יחסי תיק */
-.sv-stack{display:flex;height:30px;border-radius:8px;overflow:hidden;margin:6px 0 8px}
-.sv-seg{background:var(--c);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#111}
-.sv-leg{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-2)}
-.sv-leg i{font-style:normal;display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--c);margin-inline-end:5px}
+/* 3 — ציר זמן */
+.iv-tl{position:relative}
+.iv-tl svg{width:100%;height:auto;display:block}
+.iv-tlrow{display:grid;grid-template-columns:112px 1fr;align-items:center;gap:10px;padding:3px 0}
+.iv-tlname{display:flex;align-items:center;gap:7px;min-width:0}
 
-/* 4 — קצב שחרורים */
-.sv-rel{display:grid;grid-template-columns:22px minmax(80px,auto) 1fr;gap:8px;align-items:center;padding:6px 0}
-.sv-rel+.sv-rel{border-top:1px solid var(--grid)}
-.sv-dots{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
-.sv-dotv{display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--ink-2);background:var(--tint);
-         border-radius:20px;padding:2px 8px;white-space:nowrap}
-.sv-dotv s{text-decoration:none;width:7px;height:7px;border-radius:50%;background:var(--c);flex:none}
+/* 4 — קווי שיפוע */
+.iv-slope svg{width:100%;height:auto;display:block}
 
-/* 5 — פערי פלטפורמה */
-.sv-div{display:grid;grid-template-columns:22px minmax(80px,auto) 1fr 1fr auto;gap:9px;align-items:center;padding:8px 0}
-.sv-div+.sv-div{border-top:1px solid var(--grid)}
-.sv-side{font-size:11.5px;color:var(--ink-1)}
-.sv-side u{text-decoration:none;color:var(--muted);font-size:10px;margin-inline-end:4px}
-.sv-flag{font-size:11px;font-weight:700;color:var(--c);white-space:nowrap}
-@media(max-width:620px){.sv-div{grid-template-columns:22px 1fr;row-gap:3px}.sv-div>*:nth-child(n+3){grid-column:2}}
+/* 5 — טבעת התיק */
+.iv-hero{display:grid;grid-template-columns:minmax(190px,240px) 1fr;gap:20px;align-items:center}
+.iv-hero svg{width:100%;height:auto}
+.iv-legend{display:flex;flex-direction:column;gap:9px}
+.iv-lrow{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-2)}
+.iv-lrow i{font-style:normal;width:11px;height:11px;border-radius:3px;background:var(--c);flex:none}
+.iv-lrow b{font-size:16px;font-weight:800;color:var(--ink-1);font-variant-numeric:tabular-nums;min-width:24px}
+.iv-avatars{display:flex;gap:4px;flex-wrap:wrap;margin-inline-start:auto}
+.iv-avatars img{width:19px;height:19px;border-radius:5px}
+@media(max-width:560px){.iv-hero{grid-template-columns:1fr}.iv-tlrow{grid-template-columns:92px 1fr}}
 </style>
 </head>
 <body>
@@ -1033,7 +1028,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=241720fd"></script>
+<script src="data.enc.js?v=6a18b31c"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1330,21 +1325,29 @@ const SP_TONE_TEXT = { good: 'תקין', wait: 'בתנועה', bad: 'דורש ט
 const spIcon = r => `icons/${esc(r.a.dir)}.png?v=${window.ERZA_ICONV || '1'}`;
 
 
-// ── תצוגות: המטריצה + חמש חדשות ─────────────────────────────────────────────
-// The matrix is the one Erez kept. The five beside it deliberately answer questions the
-// matrix cannot: how far behind is each channel, what does the wall look like from across
-// the room, what shape is the portfolio, how fast do we actually ship, and where do the
-// two platforms disagree. All read spAppRows() — one model, six renderings.
+// ── תצוגות: המטריצה + חמש אינפוגרפיקות ──────────────────────────────────────
+// Drawn as inline SVG rather than laid out as boxes: an arc, a mosaic, a real time
+// axis, slope lines and a portfolio ring. All read spAppRows() — one model, six
+// renderings, so no two views can disagree about the same app.
+const IV_TONE = { good: 'var(--g)', wait: 'var(--y)', bad: 'var(--r)', idle: 'var(--n)' };
+const IV_STATE = { good: 'בחנות', wait: 'אצל אפל', bad: 'דורש טיפול', idle: 'טרם עלתה' };
+
+/** Arc path on a circle — the ring views' only geometry helper. */
+function ivArc(cx, cy, r, from, to) {
+  const p = (a) => [cx + r * Math.cos(a - Math.PI / 2), cy + r * Math.sin(a - Math.PI / 2)];
+  const [x1, y1] = p(from), [x2, y2] = p(to);
+  return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${to - from > Math.PI ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+}
+
 function renderStoreViews() {
   const el = document.getElementById('dynStoreViews');
   if (!el) return;
   const rows = spAppRows();
   if (!rows.length) { el.innerHTML = '<div class="sv-note">אין נתוני חנות עדיין.</div>'; return; }
   const OS = ['iOS', 'macOS'];
-  const L = v => `<span dir="ltr">${esc(v || '—')}</span>`;
   const sec = (n, title, why, body) => `<div class="sv-sec"><div class="sv-h"><b>${n} ${title}</b><span>${why}</span></div><div class="sv-card">${body}</div></div>`;
 
-  // A — matrix (kept as-is)
+  // ★ matrix — kept exactly as Erez asked
   const cell = x => x ? `<span class="sv-cell tone-${x.tone}"><b>${esc(x.label)}</b><span class="sv-v" dir="ltr">${esc(x.version || '—')}</span></span>` : '<span class="sv-note">—</span>';
   const mx = `<div style="overflow-x:auto"><table class="sv-mx"><thead><tr>
       <th style="text-align:start">אפליקציה</th><th>iOS · אפל</th><th>macOS · אפל</th><th>iOS · אצלנו</th><th>macOS · אצלנו</th>
@@ -1354,88 +1357,116 @@ function renderStoreViews() {
       ${OS.map(os => `<td>${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
     </tr>`).join('') + `</tbody></table></div>`;
 
-  // 1 — gap ladder: three rungs per app, width = how current each channel is
-  const gap = `<div class="sv-gap">` + rows.map(r => {
-    const rung = (label, val, tone, w) => `<div class="sv-rung tone-${tone}"><u>${label}</u><span class="ln" style="width:${w}%"></span><b dir="ltr">${esc(val || '—')}</b></div>`;
-    const dev = OS.map(os => r.plats[os] && r.plats[os].mine).find(Boolean);
-    const behind = OS.some(os => r.plats[os] && r.plats[os].mine && r.plats[os].mine.tone === 'bad');
-    const ready = OS.map(os => r.plats[os] && r.plats[os].ready).find(Boolean);
-    return `<div class="sv-gapc">
-      <header><img class="sv-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt=""><span class="sv-name">${esc(r.nm)}</span></header>
-      ${OS.filter(os => r.plats[os]).map(os => rung(os, r.plats[os].live || 'טרם', r.plats[os].live ? 'good' : 'idle', r.plats[os].live ? 100 : 30)).join('')}
-      ${ready ? rung('מוכנה', ready.version, 'good', 78) : ''}
-      ${dev ? rung('dev', dev.version, dev.tone, behind ? 45 : 88) : ''}
-      ${behind ? `<div class="sv-gapnote tone-bad">ה-dev שלנו ישן ממה שבחנות</div>` : ''}
+  // 1 — RINGS: two arcs per app (outer iOS, inner macOS), version as the numeral
+  const FILL = { good: 1, wait: .66, bad: .4, idle: .12 };
+  const rings = `<div class="iv-rings">` + rows.map(r => {
+    const a = r.plats['iOS'], m = r.plats['macOS'];
+    const arc = (p, radius, w) => {
+      if (!p) return '';
+      const end = Math.PI * 2 * FILL[p.apple.tone] * 0.999;
+      return `<path d="${ivArc(60, 60, radius, 0, Math.PI * 2 * 0.999)}" fill="none" stroke="var(--grid)" stroke-width="${w}"/>
+              <path d="${ivArc(60, 60, radius, 0, end)}" fill="none" stroke="${IV_TONE[p.apple.tone]}" stroke-width="${w}" stroke-linecap="round"/>`;
+    };
+    const headline = (a && a.live) || (m && m.live) || (a && a.apple.version) || (m && m.apple.version) || '—';
+    return `<div class="iv-ring">
+      <svg viewBox="0 0 120 120" role="img" aria-label="${esc(r.nm)}">
+        ${arc(a, 50, 9)}${arc(m, 36, 9)}
+        <text x="60" y="62" text-anchor="middle" font-size="17" font-weight="800" fill="var(--ink-1)"
+              style="font-variant-numeric:tabular-nums" direction="ltr">${esc(headline)}</text>
+        <text x="60" y="78" text-anchor="middle" font-size="8.5" fill="var(--muted)">${a ? 'iOS' : ''}${a && m ? ' · ' : ''}${m ? 'macOS' : ''}</text>
+      </svg>
+      <div class="cap"><img class="sv-ico" style="width:17px;height:17px" src="${spIcon(r)}" onerror="this.hidden=true" alt=""><span class="sv-name">${esc(r.nm)}</span></div>
+      <div class="iv-lbl">${esc([a && a.apple.label, m && m.apple.label].filter(Boolean).join(' · '))}</div>
     </div>`;
   }).join('') + `</div>`;
 
-  // 2 — status wall: one tile per app×platform, readable from across the room
-  const wall = `<div class="sv-wall">` + rows.flatMap(r => OS.filter(os => r.plats[os]).map(os => {
+  // 2 — MOSAIC: one tile per submission, colour = state, numeral = version
+  const mosaic = `<div class="iv-mosaic">` + rows.flatMap(r => OS.filter(os => r.plats[os]).map(os => {
     const p = r.plats[os];
-    return `<div class="sv-tile tone-${p.apple.tone}">
-      <img src="${spIcon(r)}" onerror="this.hidden=true" alt="">
-      <div class="os">${esc(os)}</div>
-      <div class="st">${esc(p.apple.label)}</div>
-      <div class="vv" dir="ltr">${esc(p.apple.version || '—')}</div>
+    return `<div class="iv-tile tone-${p.apple.tone}">
+      <span class="os">${esc(os)}</span>
+      <img class="sv-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt="">
+      <span class="sv-name" style="font-size:11px">${esc(r.nm)}</span>
+      <span class="big" dir="ltr">${esc(p.apple.version || '—')}</span>
+      <span class="st">${esc(p.apple.label)}</span>
     </div>`;
   })).join('') + `</div>`;
 
-  // 3 — portfolio shape: what proportion of submissions sits in each state
+  // 3 — TIMELINE: real chronology of approved releases, one lane per app
+  const ev = [];
+  rows.forEach(r => Object.entries(r.a.asc.platforms || {}).forEach(([k, p]) =>
+    (p.history || []).forEach(h => { if (h.state === 'READY_FOR_SALE' && h.createdDate)
+      ev.push({ r, os: SP_OS[k] || k, v: h.version, t: Date.parse(h.createdDate) }); })));
+  let timeline = '<div class="sv-note" style="margin:0">אין עדיין היסטוריית שחרורים.</div>';
+  if (ev.length) {
+    const t0 = Math.min(...ev.map(e => e.t)), t1 = Math.max(...ev.map(e => e.t)) || t0 + 1;
+    const span = Math.max(1, t1 - t0);
+    const fmt = t => new Date(t).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+    timeline = rows.map(r => {
+      const mine = ev.filter(e => e.r === r).sort((a, b) => a.t - b.t);
+      return `<div class="iv-tlrow">
+        <div class="iv-tlname"><img class="sv-ico" style="width:17px;height:17px" src="${spIcon(r)}" onerror="this.hidden=true" alt=""><span class="sv-name">${esc(r.nm)}</span></div>
+        <svg viewBox="0 0 300 22" preserveAspectRatio="none" style="height:22px" direction="ltr">
+          <line x1="2" y1="11" x2="298" y2="11" stroke="var(--grid)" stroke-width="1.5"/>
+          ${mine.map(e => { const x = 2 + ((e.t - t0) / span) * 296;
+            return `<circle cx="${x.toFixed(1)}" cy="11" r="4.5" fill="${IV_TONE.good}"><title>${esc(e.v)} · ${esc(e.os)} · ${fmt(e.t)}</title></circle>`; }).join('')}
+        </svg>
+      </div>`;
+    }).join('') + `<div class="iv-lbl" dir="ltr" style="display:flex;justify-content:space-between;margin-top:6px">
+        <span>${fmt(t0)}</span><span>כל נקודה = גרסה שאפל אישרה</span><span>${fmt(t1)}</span></div>`;
+  }
+
+  // 4 — SLOPE: dev on one side, store on the other; a line falling = we test old code
+  const H = Math.max(120, rows.length * 26 + 34);
+  const slope = `<div class="iv-slope"><svg viewBox="0 0 300 ${H}" preserveAspectRatio="xMidYMid meet" direction="ltr">
+    <text x="16" y="14" font-size="9" fill="var(--muted)" font-weight="700">אצלנו · dev</text>
+    <text x="284" y="14" font-size="9" fill="var(--muted)" font-weight="700" text-anchor="end">בחנות</text>
+    <line x1="60" y1="22" x2="60" y2="${H - 8}" stroke="var(--grid)"/>
+    <line x1="240" y1="22" x2="240" y2="${H - 8}" stroke="var(--grid)"/>
+    ${rows.map((r, i) => {
+      const y = 34 + i * 26;
+      const dev = OS.map(os => r.plats[os] && r.plats[os].mine).find(Boolean);
+      const live = OS.map(os => r.plats[os] && r.plats[os].live).find(Boolean);
+      const tone = dev ? dev.tone : 'idle';
+      const drop = tone === 'bad' ? 9 : tone === 'wait' ? -7 : 0;   // falling line = dev behind
+      return `<line x1="60" y1="${y - drop}" x2="240" y2="${y}" stroke="${IV_TONE[tone]}" stroke-width="2.2" stroke-linecap="round" opacity=".95"/>
+        <circle cx="60" cy="${y - drop}" r="3.4" fill="${IV_TONE[tone]}"/><circle cx="240" cy="${y}" r="3.4" fill="${IV_TONE.good}"/>
+        <text x="56" y="${y - drop + 3}" font-size="8.5" text-anchor="end" fill="var(--ink-2)" direction="ltr">${esc(dev ? dev.version : '—')}</text>
+        <text x="244" y="${y + 3}" font-size="8.5" fill="var(--ink-2)" direction="ltr">${esc(live || '—')}</text>
+        <text x="150" y="${y - 4}" font-size="8.5" text-anchor="middle" fill="var(--muted)">${esc(r.nm.slice(0, 18))}</text>`;
+    }).join('')}
+  </svg><div class="iv-lbl" style="text-align:center;margin-top:4px">קו שיורד ← ה-dev שלנו ישן ממה שכבר בחנות</div></div>`;
+
+  // 5 — PORTFOLIO RING: the whole picture as one number
   const tally = { good: 0, wait: 0, bad: 0, idle: 0 };
-  rows.forEach(r => OS.forEach(os => { if (r.plats[os]) tally[r.plats[os].apple.tone]++; }));
-  const total = Object.values(tally).reduce((a, b) => a + b, 0) || 1;
-  const NAMES = { good: 'בחנות', wait: 'אצל אפל', bad: 'דורש טיפול', idle: 'טרם עלתה' };
-  const shape = `<div class="sv-stack">` + ['good', 'wait', 'bad', 'idle']
-      .filter(k => tally[k]).map(k => `<div class="sv-seg tone-${k}" style="width:${tally[k] / total * 100}%">${tally[k]}</div>`).join('')
-    + `</div><div class="sv-leg">` + ['good', 'wait', 'bad', 'idle'].filter(k => tally[k])
-      .map(k => `<span class="tone-${k}"><i></i>${NAMES[k]} — ${tally[k]} מתוך ${total}</span>`).join('') + `</div>`;
-
-  // 4 — release cadence: the versions Apple actually approved, newest first
-  const rel = rows.map(r => {
-    const a = r.a;
-    const hist = [];
-    for (const [key, p] of Object.entries(a.asc.platforms || {})) {
-      const os = SP_OS[key] || key;
-      for (const h of (p.history || [])) if (h.state === 'READY_FOR_SALE') hist.push({ os, v: h.version, at: h.createdDate });
-    }
-    hist.sort((x, y) => String(y.at).localeCompare(String(x.at)));
-    const shown = hist.slice(0, 5);
-    return `<div class="sv-rel">
-      <img class="sv-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt="">
-      <span class="sv-name">${esc(r.nm)}</span>
-      <span class="sv-dots">${shown.length
-        ? shown.map(h => `<span class="sv-dotv tone-good"><s></s><span dir="ltr">${esc(h.v)}</span> · ${esc(String(h.at).slice(0, 10))}</span>`).join('')
-        : '<span class="sv-note" style="margin:0">טרם שוחררה גרסה לחנות</span>'}</span>
-    </div>`;
+  const who = { good: [], wait: [], bad: [], idle: [] };
+  rows.forEach(r => OS.forEach(os => { const p = r.plats[os]; if (!p) return; tally[p.apple.tone]++; if (!who[p.apple.tone].includes(r)) who[p.apple.tone].push(r); }));
+  const tot = Object.values(tally).reduce((a, b) => a + b, 0) || 1;
+  let ang = 0;
+  const donut = ['good', 'wait', 'bad', 'idle'].filter(k => tally[k]).map(k => {
+    const start = ang, end = ang + (tally[k] / tot) * Math.PI * 2 * 0.999; ang = end;
+    return `<path d="${ivArc(70, 70, 52, start, end)}" fill="none" stroke="${IV_TONE[k]}" stroke-width="20"/>`;
   }).join('');
-
-  // 5 — platform divergence: the view that would have caught Groupy iOS 1.9.0 vs macOS 1.11.0
-  const div = rows.map(r => {
-    const a = r.plats['iOS'], m = r.plats['macOS'];
-    const va = a && a.live, vm = m && m.live;
-    const differ = a && m && va !== vm;
-    const only = (!a || !m);
-    const flag = differ ? `<span class="sv-flag tone-wait">פער בין הפלטפורמות</span>`
-      : only ? `<span class="sv-flag tone-idle">פלטפורמה אחת בלבד</span>`
-      : `<span class="sv-flag tone-good">מיושרות</span>`;
-    return `<div class="sv-div">
-      <img class="sv-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt="">
-      <span class="sv-name">${esc(r.nm)}</span>
-      <span class="sv-side tone-${a ? (va ? 'good' : 'idle') : 'idle'}"><u>iOS</u>${a ? (va ? 'בחנות ' : 'טרם עלתה') : '—'}${va ? L(va) : ''}</span>
-      <span class="sv-side tone-${m ? (vm ? 'good' : 'idle') : 'idle'}"><u>macOS</u>${m ? (vm ? 'בחנות ' : 'טרם עלתה') : '—'}${vm ? L(vm) : ''}</span>
-      ${flag}
-    </div>`;
-  }).join('');
+  const hero = `<div class="iv-hero">
+    <svg viewBox="0 0 140 140" role="img" aria-label="חלוקת ההגשות לפי מצב">
+      <circle cx="70" cy="70" r="52" fill="none" stroke="var(--grid)" stroke-width="20"/>${donut}
+      <text x="70" y="68" text-anchor="middle" font-size="28" font-weight="800" fill="var(--ink-1)" style="font-variant-numeric:tabular-nums">${tally.good}</text>
+      <text x="70" y="84" text-anchor="middle" font-size="9" fill="var(--muted)">מתוך ${tot} בחנות</text>
+    </svg>
+    <div class="iv-legend">${['good', 'wait', 'bad', 'idle'].filter(k => tally[k]).map(k => `
+      <div class="iv-lrow tone-${k}"><i></i><b>${tally[k]}</b>${IV_STATE[k]}
+        <span class="iv-avatars">${who[k].map(r => `<img src="${spIcon(r)}" onerror="this.hidden=true" alt="" title="${esc(r.nm)}">`).join('')}</span></div>`).join('')}
+    </div></div>`;
 
   el.innerHTML = `<div class="sv">
-    <div class="sv-note">המטריצה נשארה כפי שהיא. חמש התצוגות שאחריה עונות על שאלות שהמטריצה לא יכולה —
-      כולן קוראות <b>מאותו מקור נתונים</b>, כך שאין סיכוי שהן יסתרו זו את זו.</div>
+    <div class="sv-note">המטריצה נשארה. חמש האינפוגרפיקות שאחריה מציירות <b>אותם נתונים בדיוק</b> —
+      כל אחת נותנת לך תשובה מיידית לשאלה אחרת, בלי לקרוא טבלה.</div>
     ${sec('★', 'מטריצה', 'זו שביקשת להשאיר', mx)}
-    ${sec(1, 'סולם הפער', 'כמה כל ערוץ מפגר אחרי מה שבחנות', gap)}
-    ${sec(2, 'קיר סטטוס', 'מבט אחד מרחוק — צבע לכל הגשה', wall)}
-    ${sec(3, 'צורת התיק', 'איך מתחלק כל הפורטפוליו בין המצבים', shape)}
-    ${sec(4, 'קצב שחרורים', 'מה אפל באמת אישרה, ומתי', rel)}
-    ${sec(5, 'פערי פלטפורמה', 'איפה iOS ו-macOS לא מסונכרנות', div)}
+    ${sec(1, 'קשתות', 'כמה כל אפליקציה קרובה לחנות — טבעת חיצונית iOS, פנימית macOS', rings)}
+    ${sec(2, 'פסיפס', 'קיר צבעוני — מצב כל הגשה במבט אחד מרחוק', mosaic)}
+    ${sec(3, 'ציר זמן', 'מתי אפל באמת אישרה — כל נקודה היא שחרור אמיתי', timeline)}
+    ${sec(4, 'קווי שיפוע', 'הפער בין מה שאנחנו בודקים לבין מה שהמשתמשים מקבלים', slope)}
+    ${sec(5, 'טבעת התיק', 'כל הפורטפוליו כמספר אחד', hero)}
   </div>`;
 }
 
