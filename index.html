@@ -1033,7 +1033,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=655a6f8c"></script>
+<script src="data.enc.js?v=4ec5c268"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1319,7 +1319,7 @@ function spAppRows() {
              : d > 0 ? { label: 'בפיתוח',  tone: 'wait', version: devV }
                      : { label: 'מסונכרן', tone: 'idle', version: devV };
       }
-      plats[os] = { apple, mine, ready: prepping ? { label: 'מוכנה', tone: 'good', version: p.latest.version } : null };
+      plats[os] = { apple, mine, live, ready: prepping ? { label: 'מוכנה', tone: 'good', version: p.latest.version } : null };
     }
     if (Object.keys(plats).length) rows.push({ a, nm, plats, rank: worst });
   }
@@ -1330,51 +1330,21 @@ const SP_TONE_TEXT = { good: 'תקין', wait: 'בתנועה', bad: 'דורש ט
 const spIcon = r => `icons/${esc(r.a.dir)}.png?v=${window.ERZA_ICONV || '1'}`;
 
 
-// ── חמש תצוגות חלופיות ───────────────────────────────────────────────────────
-// Five different QUESTIONS over one dataset, not five skins: where is everything /
-// how far has each moved / one dense grid / one card per app / only what is broken.
+// ── תצוגות: המטריצה + חמש חדשות ─────────────────────────────────────────────
+// The matrix is the one Erez kept. The five beside it deliberately answer questions the
+// matrix cannot: how far behind is each channel, what does the wall look like from across
+// the room, what shape is the portfolio, how fast do we actually ship, and where do the
+// two platforms disagree. All read spAppRows() — one model, six renderings.
 function renderStoreViews() {
   const el = document.getElementById('dynStoreViews');
   if (!el) return;
   const rows = spAppRows();
   if (!rows.length) { el.innerHTML = '<div class="sv-note">אין נתוני חנות עדיין.</div>'; return; }
   const OS = ['iOS', 'macOS'];
-  const sec = (n, title, why, body) => `<div class="sv-sec"><div class="sv-h"><b>${n}. ${title}</b><span>${why}</span></div>${body}</div>`;
+  const L = v => `<span dir="ltr">${esc(v || '—')}</span>`;
+  const sec = (n, title, why, body) => `<div class="sv-sec"><div class="sv-h"><b>${n} ${title}</b><span>${why}</span></div><div class="sv-card">${body}</div></div>`;
 
-  // 1 — flow board: WHERE IS EVERYTHING right now
-  const STAGES = [
-    { key: 'bad',  title: 'דורש טיפול', tone: 'bad'  },
-    { key: 'wait', title: 'אצל אפל',    tone: 'wait' },
-    { key: 'ready',title: 'מוכן להגשה', tone: 'good' },
-    { key: 'good', title: 'בחנות',      tone: 'good' },
-  ];
-  const bucket = { bad: [], wait: [], ready: [], good: [] };
-  for (const r of rows) for (const os of OS) {
-    const p = r.plats[os]; if (!p) continue;
-    const k = p.apple.tone === 'bad' ? 'bad' : p.apple.tone === 'wait' ? 'wait' : (p.ready ? 'ready' : 'good');
-    bucket[k].push({ r, os, v: (p.ready && k === 'ready') ? p.ready.version : p.apple.version });
-  }
-  const flow = `<div class="sv-flow">` + STAGES.map(st => `
-    <div class="sv-col tone-${st.tone}">
-      <h4><span class="sv-dot"></span>${st.title} <span style="color:var(--muted);font-weight:600">${bucket[st.key].length}</span></h4>
-      ${bucket[st.key].map(x => `<div class="sv-pill"><img class="sv-ico" style="width:16px;height:16px" src="${spIcon(x.r)}" onerror="this.hidden=true" alt="">
-        ${esc(x.r.nm.slice(0, 14))}<small><span dir="ltr">${esc(x.v || '')}</span> ${esc(x.os)}</small></div>`).join('') || '<div class="sv-note" style="margin:0">—</div>'}
-    </div>`).join('') + `</div>`;
-
-  // 2 — progress track: HOW FAR each platform has moved toward being live
-  const STEP = { idle: 0.15, bad: 0.35, wait: 0.65, good: 1 };
-  const track = rows.map(r => OS.filter(os => r.plats[os]).map(os => {
-    const p = r.plats[os];
-    const t = p.apple.tone;
-    return `<div class="sv-track tone-${t}">
-      <img class="sv-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt="">
-      <span class="sv-name">${esc(r.nm)} <span style="color:var(--muted);font-size:11px">${esc(os)}</span></span>
-      <div class="sv-bar"><div class="sv-fill" style="width:${STEP[t] * 100}%"></div>
-        <em>${esc(p.apple.label)} <span dir="ltr">${esc(p.apple.version || '')}</span></em></div>
-    </div>`;
-  }).join('')).join('');
-
-  // 3 — matrix: the densest possible full picture
+  // A — matrix (kept as-is)
   const cell = x => x ? `<span class="sv-cell tone-${x.tone}"><b>${esc(x.label)}</b><span class="sv-v" dir="ltr">${esc(x.version || '—')}</span></span>` : '<span class="sv-note">—</span>';
   const mx = `<div style="overflow-x:auto"><table class="sv-mx"><thead><tr>
       <th style="text-align:start">אפליקציה</th><th>iOS · אפל</th><th>macOS · אפל</th><th>iOS · אצלנו</th><th>macOS · אצלנו</th>
@@ -1384,44 +1354,88 @@ function renderStoreViews() {
       ${OS.map(os => `<td>${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
     </tr>`).join('') + `</tbody></table></div>`;
 
-  // 4 — app cards: one object per app, thumb-friendly
-  const cards = `<div class="sv-cards">` + rows.map(r => {
-    const worstTone = OS.some(os => r.plats[os] && r.plats[os].apple.tone === 'bad') ? 'bad'
-      : OS.some(os => r.plats[os] && r.plats[os].apple.tone === 'wait') ? 'wait' : 'good';
-    return `<div class="sv-app tone-${worstTone}">
+  // 1 — gap ladder: three rungs per app, width = how current each channel is
+  const gap = `<div class="sv-gap">` + rows.map(r => {
+    const rung = (label, val, tone, w) => `<div class="sv-rung tone-${tone}"><u>${label}</u><span class="ln" style="width:${w}%"></span><b dir="ltr">${esc(val || '—')}</b></div>`;
+    const dev = OS.map(os => r.plats[os] && r.plats[os].mine).find(Boolean);
+    const behind = OS.some(os => r.plats[os] && r.plats[os].mine && r.plats[os].mine.tone === 'bad');
+    const ready = OS.map(os => r.plats[os] && r.plats[os].ready).find(Boolean);
+    return `<div class="sv-gapc">
       <header><img class="sv-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt=""><span class="sv-name">${esc(r.nm)}</span></header>
-      ${OS.filter(os => r.plats[os]).map(os => {
-        const p = r.plats[os];
-        return `<div class="sv-badge tone-${p.apple.tone}"><i></i>${esc(os)} · ${esc(p.apple.label)}<b dir="ltr">${esc(p.apple.version || '—')}</b></div>` +
-          (p.ready ? `<div class="sv-badge tone-good"><i></i>${esc(os)} · מוכנה<b dir="ltr">${esc(p.ready.version)}</b></div>` : '');
-      }).join('')}
+      ${OS.filter(os => r.plats[os]).map(os => rung(os, r.plats[os].live || 'טרם', r.plats[os].live ? 'good' : 'idle', r.plats[os].live ? 100 : 30)).join('')}
+      ${ready ? rung('מוכנה', ready.version, 'good', 78) : ''}
+      ${dev ? rung('dev', dev.version, dev.tone, behind ? 45 : 88) : ''}
+      ${behind ? `<div class="sv-gapnote tone-bad">ה-dev שלנו ישן ממה שבחנות</div>` : ''}
     </div>`;
   }).join('') + `</div>`;
 
-  // 5 — exceptions only: everything healthy collapses to one line
-  const problems = [];
-  for (const r of rows) for (const os of OS) {
-    const p = r.plats[os]; if (!p) continue;
-    if (p.apple.tone === 'bad') problems.push({ r, tone: 'bad', text: `${os} — ${p.apple.label} <span dir="ltr">${p.apple.version}</span>` });
-    else if (p.mine && p.mine.tone === 'bad') problems.push({ r, tone: 'bad', text: `${os} — ערוץ dev ישן מהחנות (<span dir="ltr">${p.mine.version}</span>)` });
-    else if (p.ready) problems.push({ r, tone: 'wait', text: `${os} — <span dir="ltr">${p.ready.version}</span> מוכנה להגשה` });
-  }
-  const healthy = rows.filter(r => !problems.some(x => x.r === r));
-  const exc = (problems.length
-      ? problems.map(x => `<div class="sv-alert tone-${x.tone}"><img class="sv-ico" src="${spIcon(x.r)}" onerror="this.hidden=true" alt="">
-          <span class="why"><b>${esc(x.r.nm)}</b> · ${x.text}</span></div>`).join('')
-      : '<div class="sv-note">אין שום דבר שדורש טיפול.</div>')
-    + (healthy.length ? `<div class="sv-ok">${healthy.map(r => `<img src="${spIcon(r)}" onerror="this.hidden=true" alt="" title="${esc(r.nm)}">`).join('')}
-        <span>${healthy.length} אפליקציות — הכל תקין, אין מה לעשות</span></div>` : '');
+  // 2 — status wall: one tile per app×platform, readable from across the room
+  const wall = `<div class="sv-wall">` + rows.flatMap(r => OS.filter(os => r.plats[os]).map(os => {
+    const p = r.plats[os];
+    return `<div class="sv-tile tone-${p.apple.tone}">
+      <img src="${spIcon(r)}" onerror="this.hidden=true" alt="">
+      <div class="os">${esc(os)}</div>
+      <div class="st">${esc(p.apple.label)}</div>
+      <div class="vv" dir="ltr">${esc(p.apple.version || '—')}</div>
+    </div>`;
+  })).join('') + `</div>`;
+
+  // 3 — portfolio shape: what proportion of submissions sits in each state
+  const tally = { good: 0, wait: 0, bad: 0, idle: 0 };
+  rows.forEach(r => OS.forEach(os => { if (r.plats[os]) tally[r.plats[os].apple.tone]++; }));
+  const total = Object.values(tally).reduce((a, b) => a + b, 0) || 1;
+  const NAMES = { good: 'בחנות', wait: 'אצל אפל', bad: 'דורש טיפול', idle: 'טרם עלתה' };
+  const shape = `<div class="sv-stack">` + ['good', 'wait', 'bad', 'idle']
+      .filter(k => tally[k]).map(k => `<div class="sv-seg tone-${k}" style="width:${tally[k] / total * 100}%">${tally[k]}</div>`).join('')
+    + `</div><div class="sv-leg">` + ['good', 'wait', 'bad', 'idle'].filter(k => tally[k])
+      .map(k => `<span class="tone-${k}"><i></i>${NAMES[k]} — ${tally[k]} מתוך ${total}</span>`).join('') + `</div>`;
+
+  // 4 — release cadence: the versions Apple actually approved, newest first
+  const rel = rows.map(r => {
+    const a = r.a;
+    const hist = [];
+    for (const [key, p] of Object.entries(a.asc.platforms || {})) {
+      const os = SP_OS[key] || key;
+      for (const h of (p.history || [])) if (h.state === 'READY_FOR_SALE') hist.push({ os, v: h.version, at: h.createdDate });
+    }
+    hist.sort((x, y) => String(y.at).localeCompare(String(x.at)));
+    const shown = hist.slice(0, 5);
+    return `<div class="sv-rel">
+      <img class="sv-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt="">
+      <span class="sv-name">${esc(r.nm)}</span>
+      <span class="sv-dots">${shown.length
+        ? shown.map(h => `<span class="sv-dotv tone-good"><s></s><span dir="ltr">${esc(h.v)}</span> · ${esc(String(h.at).slice(0, 10))}</span>`).join('')
+        : '<span class="sv-note" style="margin:0">טרם שוחררה גרסה לחנות</span>'}</span>
+    </div>`;
+  }).join('');
+
+  // 5 — platform divergence: the view that would have caught Groupy iOS 1.9.0 vs macOS 1.11.0
+  const div = rows.map(r => {
+    const a = r.plats['iOS'], m = r.plats['macOS'];
+    const va = a && a.live, vm = m && m.live;
+    const differ = a && m && va !== vm;
+    const only = (!a || !m);
+    const flag = differ ? `<span class="sv-flag tone-wait">פער בין הפלטפורמות</span>`
+      : only ? `<span class="sv-flag tone-idle">פלטפורמה אחת בלבד</span>`
+      : `<span class="sv-flag tone-good">מיושרות</span>`;
+    return `<div class="sv-div">
+      <img class="sv-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt="">
+      <span class="sv-name">${esc(r.nm)}</span>
+      <span class="sv-side tone-${a ? (va ? 'good' : 'idle') : 'idle'}"><u>iOS</u>${a ? (va ? 'בחנות ' : 'טרם עלתה') : '—'}${va ? L(va) : ''}</span>
+      <span class="sv-side tone-${m ? (vm ? 'good' : 'idle') : 'idle'}"><u>macOS</u>${m ? (vm ? 'בחנות ' : 'טרם עלתה') : '—'}${vm ? L(vm) : ''}</span>
+      ${flag}
+    </div>`;
+  }).join('');
 
   el.innerHTML = `<div class="sv">
-    <div class="sv-note">חמש דרכים להציג <b>בדיוק אותם נתונים</b> — כולן קוראות מאותו מקור, כך שהן לא יכולות לסתור זו את זו.
-      בחר את זו שהכי עוזרת לך, ואחליף אליה את הפאנל הראשי.</div>
-    ${sec(1, 'לוח זרימה', 'איפה כל דבר נמצא ברגע זה', `<div class="sv-card">${flow}</div>`)}
-    ${sec(2, 'ציר התקדמות', 'כמה כל פלטפורמה התקדמה לקראת החנות', `<div class="sv-card">${track}</div>`)}
-    ${sec(3, 'מטריצה', 'התמונה המלאה בשטח הקטן ביותר', `<div class="sv-card">${mx}</div>`)}
-    ${sec(4, 'כרטיס לכל אפליקציה', 'אפליקציה כאובייקט אחד — נוח בנייד', `<div class="sv-card">${cards}</div>`)}
-    ${sec(5, 'רק מה שדורש טיפול', 'מסתיר את מה שתקין במקום להציג הכל', `<div class="sv-card">${exc}</div>`)}
+    <div class="sv-note">המטריצה נשארה כפי שהיא. חמש התצוגות שאחריה עונות על שאלות שהמטריצה לא יכולה —
+      כולן קוראות <b>מאותו מקור נתונים</b>, כך שאין סיכוי שהן יסתרו זו את זו.</div>
+    ${sec('★', 'מטריצה', 'זו שביקשת להשאיר', mx)}
+    ${sec(1, 'סולם הפער', 'כמה כל ערוץ מפגר אחרי מה שבחנות', gap)}
+    ${sec(2, 'קיר סטטוס', 'מבט אחד מרחוק — צבע לכל הגשה', wall)}
+    ${sec(3, 'צורת התיק', 'איך מתחלק כל הפורטפוליו בין המצבים', shape)}
+    ${sec(4, 'קצב שחרורים', 'מה אפל באמת אישרה, ומתי', rel)}
+    ${sec(5, 'פערי פלטפורמה', 'איפה iOS ו-macOS לא מסונכרנות', div)}
   </div>`;
 }
 
