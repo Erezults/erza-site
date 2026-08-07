@@ -751,32 +751,31 @@ footer a { color: var(--muted); }
 .info-empty { color: var(--muted); font-size: 12.5px; padding: 6px 0; }
 
 /* ── מצב בחנות ─────────────────────────────────────────────────────────────
-   One row per app PER PLATFORM: iOS and macOS are separate submissions and can
-   sit in opposite states, so a single per-app row would hide a rejection.
-   Colour is never the only signal — every row carries a glyph and Hebrew text,
-   so the panel reads correctly with any colour vision and on a screen reader. */
-.sp-wrap{background:var(--card,#fff);border:1px solid var(--line,#e5e7eb);border-radius:14px;padding:14px 16px;margin:0 0 16px}
-.sp-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-.sp-head h3{margin:0;font-size:16px;font-weight:700}
-.sp-updated{font-size:12px;color:var(--muted,#6b7280);margin-inline-start:auto}
-.sp-sum{font-size:12px;color:var(--muted,#6b7280)}
-.sp-rows{display:flex;flex-direction:column;gap:2px}
-.sp-row{display:grid;grid-template-columns:22px 1fr auto auto auto;align-items:center;gap:10px;
-        padding:7px 8px;border-radius:9px;border-inline-start:3px solid transparent}
-.sp-row:nth-child(odd){background:rgba(127,127,127,.05)}
-.sp-icon{width:20px;height:20px;border-radius:5px;object-fit:cover}
-.sp-name{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sp-plat{font-size:11.5px;color:var(--muted,#6b7280);min-width:44px}
-.sp-ver{font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--muted,#6b7280)}
-.sp-state{font-size:12.5px;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:5px}
-.sp-glyph{font-size:11px;line-height:1}
-.sp-live{font-size:11px;color:var(--muted,#6b7280);font-variant-numeric:tabular-nums}
-.sp-row[data-tone="bad"] {border-inline-start-color:#dc2626}.sp-row[data-tone="bad"]  .sp-state{color:#dc2626}
-.sp-row[data-tone="act"] {border-inline-start-color:#2563eb}.sp-row[data-tone="act"]  .sp-state{color:#2563eb}
-.sp-row[data-tone="wait"]{border-inline-start-color:#d97706}.sp-row[data-tone="wait"] .sp-state{color:#b45309}
-.sp-row[data-tone="good"]{border-inline-start-color:#16a34a}.sp-row[data-tone="good"] .sp-state{color:#15803d}
-.sp-row[data-tone="idle"]{border-inline-start-color:#9ca3af}.sp-row[data-tone="idle"] .sp-state{color:#6b7280}
-@media(max-width:620px){.sp-row{grid-template-columns:22px 1fr auto;row-gap:2px}.sp-plat,.sp-ver{grid-column:2}}
+   Built from the page's own tokens (--surface-1/--ink/--ring/…) so it inherits
+   light and dark correctly. Hard-coded colours here looked foreign and unreadable
+   on the dark theme (2026-08-07).
+   One row per APP with a chip per platform: iOS and macOS are separate submissions
+   and can sit in opposite states, but 17 full-width rows buried the app grid.
+   Colour is never the only signal — each chip carries a glyph and Hebrew text. */
+.sp-card{background:var(--surface-1);border:1px solid var(--ring);border-radius:12px;padding:12px 14px;margin-bottom:18px}
+.sp-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.sp-title{font-size:13px;font-weight:700;color:var(--ink-1)}
+.sp-need{font-size:12px;font-weight:700;color:var(--red)}
+.sp-meta{font-size:11.5px;color:var(--muted);margin-inline-start:auto}
+.sp-row{display:grid;grid-template-columns:20px minmax(84px,auto) 1fr;align-items:center;gap:9px;padding:6px 2px}
+.sp-row+.sp-row{border-top:1px solid var(--grid)}
+.sp-ico{width:18px;height:18px;border-radius:5px;object-fit:cover}
+.sp-app{font-size:12.5px;font-weight:600;color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp-chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.sp-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;line-height:1;
+         padding:3px 8px;border-radius:999px;background:var(--tint);color:var(--ink-2);white-space:nowrap}
+.sp-os{color:var(--muted);font-size:10.5px}
+.sp-v{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.sp-chip.bad {color:var(--red)}    .sp-chip.act {color:var(--blue)}
+.sp-chip.wait{color:var(--yellow)} .sp-chip.good{color:var(--green)}
+.sp-chip.idle{color:var(--muted)}
+.sp-chip.bad,.sp-chip.act{font-weight:700}
+@media(max-width:560px){.sp-row{grid-template-columns:20px 1fr;row-gap:5px}.sp-chips{grid-column:1/-1;justify-content:flex-start}}
 </style>
 </head>
 <body>
@@ -1144,29 +1143,27 @@ function boot(D, locked) {
   /* render tables + cards */
 
 // ── מצב בחנות ──────────────────────────────────────────────────────────────
-// Reads the same registry/asc_status.json the ASC webhook refreshes, so an Apple
-// approval reaches this panel through the normal build — no second source of truth.
-const SP_STATES = {
-  REJECTED:                 ['נדחתה',            'bad',  '✕', 0],
-  DEVELOPER_REJECTED:       ['נדחתה על ידך',     'bad',  '✕', 0],
-  METADATA_REJECTED:        ['נדחתה — מטא-דאטה', 'bad',  '✕', 0],
-  INVALID_BINARY:           ['בילד פסול',        'bad',  '✕', 0],
-  PENDING_DEVELOPER_RELEASE:['ממתינה לשחרור שלך','act',  '▶', 1],
-  IN_REVIEW:                ['בסקירה',           'wait', '◷', 2],
-  WAITING_FOR_REVIEW:       ['ממתינה לסקירה',    'wait', '◷', 2],
-  PENDING_APPLE_RELEASE:    ['ממתינה לאפל',      'wait', '◷', 2],
-  PROCESSING_FOR_APP_STORE: ['בעיבוד',           'wait', '◷', 3],
-  READY_FOR_SALE:           ['בחנות',            'good', '✓', 5],
-  PREPARE_FOR_SUBMISSION:   ['בהכנה',            'idle', '○', 4],
-  DEVELOPER_REMOVED_FROM_SALE:['הוסרה',          'idle', '○', 4],
+// Reads the same registry/asc_status.json the ASC webhook refreshes — one source of
+// truth, so an Apple approval reaches this panel through the normal build.
+const SP_STATE = {
+  REJECTED:                   ['נדחתה',        'bad',  '✕', 0],
+  DEVELOPER_REJECTED:         ['נדחתה על ידך', 'bad',  '✕', 0],
+  METADATA_REJECTED:          ['מטא-דאטה',     'bad',  '✕', 0],
+  INVALID_BINARY:             ['בילד פסול',    'bad',  '✕', 0],
+  PENDING_DEVELOPER_RELEASE:  ['לשחרור שלך',   'act',  '▶', 1],
+  IN_REVIEW:                  ['בסקירה',       'wait', '◷', 2],
+  WAITING_FOR_REVIEW:         ['ממתינה',       'wait', '◷', 2],
+  PENDING_APPLE_RELEASE:      ['ממתינה לאפל',  'wait', '◷', 2],
+  PROCESSING_FOR_APP_STORE:   ['בעיבוד',       'wait', '◷', 3],
+  PREPARE_FOR_SUBMISSION:     ['בהכנה',        'idle', '○', 4],
+  DEVELOPER_REMOVED_FROM_SALE:['הוסרה',        'idle', '○', 4],
+  READY_FOR_SALE:             ['בחנות',        'good', '✓', 5],
 };
-const SP_PLAT = { IOS: 'iOS', MAC_OS: 'macOS', TV_OS: 'tvOS' };
+const SP_OS = { IOS: 'iOS', MAC_OS: 'macOS', TV_OS: 'tvOS' };
 
 // displayName carries documentation asides — 'Groupy Calendar (icon label "Groupy")'.
 // Useful in the table, unreadable in a dense status row.
-function spName(a) {
-  return String(a.displayName || a.name || '').split('(')[0].trim() || a.name || '';
-}
+function spName(a) { return String(a.displayName || a.name || '').split('(')[0].trim() || a.name || ''; }
 
 function renderStorePanel() {
   try { return storePanelBody(); } catch (e) { console.error('store panel:', e); }
@@ -1175,43 +1172,47 @@ function renderStorePanel() {
 function storePanelBody() {
   const el = document.getElementById('storePanel');
   if (!el) return;
+  const D = window.ERZA_DATA || {};
   const rows = [];
-  for (const a of ((window.ERZA_DATA || {}).apps || [])) {
+  for (const a of (D.apps || [])) {
     if (a.category !== 'native-app' || !a.asc || !a.asc.platforms) continue;
-    for (const [plat, p] of Object.entries(a.asc.platforms)) {
+    const chips = [];
+    for (const [os, p] of Object.entries(a.asc.platforms)) {
       if (!p || !p.latest) continue;
-      const [label, tone, glyph, rank] =
-        SP_STATES[p.latest.state] || [p.latest.state || '—', 'idle', '○', 4];
-      rows.push({ a, plat: SP_PLAT[plat] || plat, v: p.latest.version,
-                  live: p.live && p.live.version !== p.latest.version ? p.live.version : null,
-                  label, tone, glyph, rank });
+      const [label, tone, glyph, rank] = SP_STATE[p.latest.state] || [p.latest.state || '—', 'idle', '○', 4];
+      chips.push({ os: SP_OS[os] || os, v: p.latest.version, label, tone, glyph, rank });
     }
+    if (!chips.length) continue;
+    // The ROW is ranked by its worst platform, but chips keep a fixed platform order:
+    // a column that flips between iOS and macOS per row cannot be scanned down.
+    const worst = Math.min(...chips.map(c => c.rank));
+    const order = { iOS: 0, macOS: 1, tvOS: 2 };
+    chips.sort((x, y) => (order[x.os] ?? 9) - (order[y.os] ?? 9));
+    rows.push({ a, chips, rank: worst });
   }
   if (!rows.length) { el.innerHTML = ''; return; }
-  // Most urgent first: a rejection must never sit below a row that needs nothing.
+  // Most urgent first: a rejection must never rest below a row that needs nothing.
   rows.sort((x, y) => x.rank - y.rank || spName(x.a).localeCompare(spName(y.a)));
 
   const need = rows.filter(r => r.rank <= 1).length;
-  const D = window.ERZA_DATA || {};
   const upd = D.ascFetchedAt
     ? new Date(D.ascFetchedAt).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
     : (D.generatedAt || '');
 
-  el.innerHTML = `<div class="sp-wrap">
-    <div class="sp-head">
-      <h3>📱 מצב בחנות</h3>
-      <span class="sp-sum">${rows.length} הגשות · ${need ? `<strong>${need} דורשות טיפול</strong>` : 'אין מה לטפל'}</span>
-      <span class="sp-updated" title="מתעדכן אוטומטית מאפל">עודכן: ${esc(upd)}</span>
-    </div>
-    <div class="sp-rows" role="list">` +
-    rows.map(r => `<div class="sp-row" role="listitem" data-tone="${r.tone}"
-        aria-label="${esc(spName(r.a) + ' ' + r.plat + ' גרסה ' + r.v + ' — ' + r.label)}">
-      <img class="sp-icon" src="icons/${esc(r.a.dir)}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.hidden=true" alt="">
-      <span class="sp-name">${esc(spName(r.a))}</span>
-      <span class="sp-plat">${esc(r.plat)}</span>
-      <span class="sp-ver" dir="ltr">${esc(r.v)}${r.live ? ` <span class="sp-live">(בחנות ${esc(r.live)})</span>` : ''}</span>
-      <span class="sp-state"><span class="sp-glyph" aria-hidden="true">${r.glyph}</span>${esc(r.label)}</span>
-    </div>`).join('') + `</div></div>`;
+  el.innerHTML = `<div class="sp-card">
+    <div class="sp-top">
+      <span class="sp-title">📱 מצב בחנות</span>
+      ${need ? `<span class="sp-need">${need} דורשות טיפול</span>` : ''}
+      <span class="sp-meta">מתעדכן אוטומטית מאפל · ${esc(upd)}</span>
+    </div>` +
+    rows.map(r => `<div class="sp-row">
+      <img class="sp-ico" src="icons/${esc(r.a.dir)}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.hidden=true" alt="">
+      <span class="sp-app">${esc(spName(r.a))}</span>
+      <span class="sp-chips">${r.chips.map(c => `<span class="sp-chip ${c.tone}"
+          aria-label="${esc(spName(r.a) + ' ' + c.os + ' ' + c.v + ' — ' + c.label)}">
+        <span class="sp-os">${esc(c.os)}</span><span aria-hidden="true">${c.glyph}</span>${esc(c.label)}
+        <span class="sp-v" dir="ltr">${esc(c.v)}</span></span>`).join('')}</span>
+    </div>`).join('') + `</div>`;
 }
 
   function render() {
