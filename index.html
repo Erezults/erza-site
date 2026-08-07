@@ -943,7 +943,6 @@ footer a { color: var(--muted); }
     <button class="tab-btn" data-tab="items"><span class="tab-ico">🔔</span>לטיפולך<span class="tab-badge" id="tabBadgeItems" hidden></span></button>
     <button class="tab-btn" data-tab="info"><span class="tab-ico">📊</span>אינפו<span class="tab-badge" id="tabBadgeInfo" hidden></span></button>
     <button class="tab-btn" data-tab="common"><span class="tab-ico">🧩</span>קומונליות</button>
-    <button class="tab-btn" data-tab="storeviews"><span class="tab-ico">🎨</span>תצוגות</button>
   </nav>
 
   <div id="machineRoom" class="mrwrap" hidden>
@@ -1033,10 +1032,6 @@ footer a { color: var(--muted); }
   <div class="filters"><input id="searchM" type="search" placeholder="חיפוש / סינון אפליקציות…"></div>
   <div class="cards" id="cards"></div>
   </details>
-    </section>
-
-    <section class="tab-panel" data-tab="storeviews" hidden>
-      <div id="dynStoreViews"></div>
     </section>
 
     <section class="tab-panel" data-tab="common" hidden>
@@ -1415,7 +1410,7 @@ function svApplyOrder(rows) {
 }
 function svToggleReorder() {
   svReorder = !svReorder;
-  renderStoreViews();
+  renderStorePanel();          // redraw with/without the grips — the matrix now lives here
   if (!svReorder) return;
   const tb = document.getElementById('mxBody'); if (!tb) return;
   let dragged = null;
@@ -1477,160 +1472,6 @@ function svMatrixHtml(rows, opts = {}) {
     </tr>`).join('') + `</tbody></table></div>`
 }
 
-function renderStoreViews() {
-  const el = document.getElementById('dynStoreViews');
-  if (!el) return;
-  const rows = spAppRows();
-  if (!rows.length) { el.innerHTML = '<div class="sv-note">אין נתוני חנות עדיין.</div>'; return; }
-  const OS = ['iOS', 'macOS'];
-  const sec = (n, title, why, body) => `<div class="sv-sec"><div class="sv-h"><b>${n} ${title}</b><span>${why}</span></div><div class="sv-card">${body}</div></div>`;
-
-  const mx = svMatrixHtml(rows);
-
-  // 1 — RINGS: the ring is SPLIT, not nested — the top half is iOS and the bottom half is
-  // macOS, each drawn in its own state colour with its own version printed beside it. Two
-  // concentric arcs could not say which was which, and could not show two different
-  // versions at all (Erez, 2026-08-08). The thin inner arc is our dev channel.
-  const FILL = { good: 1, wait: .62, bad: .38, idle: .1 };
-  const rings = `<div class="iv-rings">` + rows.map(r => {
-    const a = r.plats['iOS'], m = r.plats['macOS'];
-    const dev = OS.map(os => r.plats[os] && r.plats[os].mine).find(Boolean);
-    // top half: -90°..+90° · bottom half: +90°..+270°
-    const half = (p, from) => {
-      if (!p) return `<path d="${ivArc(62, 62, 46, from, from + Math.PI * 0.98)}" fill="none" stroke="var(--grid)" stroke-width="10" stroke-linecap="round"/>`;
-      const full = Math.PI * 0.98;
-      return `<path d="${ivArc(62, 62, 46, from, from + full)}" fill="none" stroke="var(--grid)" stroke-width="10" stroke-linecap="round"/>
-              <path d="${ivArc(62, 62, 46, from, from + full * FILL[p.apple.tone])}" fill="none" stroke="${IV_TONE[p.apple.tone]}" stroke-width="10" stroke-linecap="round"/>`;
-    };
-    const devArc = dev
-      ? `<path d="${ivArc(62, 62, 31, 0, Math.PI * 2 * 0.999)}" fill="none" stroke="var(--grid)" stroke-width="4"/>
-         <path d="${ivArc(62, 62, 31, 0, Math.PI * 2 * FILL[dev.tone] * 0.999)}" fill="none" stroke="${IV_TONE[dev.tone]}" stroke-width="4" stroke-linecap="round"/>` : '';
-    const sideRow = (p, os, mark) => `<div class="iv-side tone-${p ? p.apple.tone : 'idle'}">
-        <span class="iv-mark">${mark}</span><span class="iv-os">${esc(os)}</span>
-        <span class="iv-st">${p ? esc(p.apple.label) : '—'}</span>
-        <b dir="ltr">${esc(p ? (p.apple.version || '—') : '—')}</b></div>`;
-    return `<div class="iv-ring">
-      <svg viewBox="0 0 124 124" role="img" aria-label="${esc(r.nm)}" direction="ltr">
-        ${half(a, -Math.PI / 2)}${half(m, Math.PI / 2)}${devArc}
-        <text x="62" y="20" text-anchor="middle" font-size="7.5" fill="var(--muted)" font-weight="700">iOS</text>
-        <text x="62" y="110" text-anchor="middle" font-size="7.5" fill="var(--muted)" font-weight="700">macOS</text>
-        <image href="${spIcon(r)}" x="46" y="46" width="32" height="32" clip-path="inset(0 round 9)"/>
-      </svg>
-      <div class="cap"><span class="sv-name">${esc(r.nm)}</span></div>
-      ${sideRow(a, 'iOS', SP_SVG.iOS)}${sideRow(m, 'macOS', SP_SVG.macOS)}
-      ${dev ? `<div class="iv-side tone-${dev.tone}"><span class="iv-mark">🛠</span><span class="iv-os">dev</span>
-        <span class="iv-st">${esc(dev.label)}</span><b dir="ltr">${esc(dev.version)}</b></div>` : ''}
-    </div>`;
-  }).join('') + `</div>`;
-
-  // 2 — MOSAIC: one PROD tile per app holding BOTH platforms as two colour bands (so a tile
-  // can legitimately be two colours when iOS and macOS disagree), with its dev twin beside
-  // it. Name above the tile, bigger icons — Erez, 2026-08-08.
-  const band = (p, os, mark) => `<div class="iv-band tone-${p ? p.apple.tone : 'idle'}">
-      <span class="iv-mark">${mark}</span><span class="iv-bos">${esc(os)}</span>
-      <b dir="ltr">${esc(p ? (p.apple.version || '—') : '—')}</b>
-      <span class="iv-bst">${p ? esc(p.apple.label) : 'אין'}</span></div>`;
-  const mosaic = `<div class="iv-mosaic">` + rows.map(r => {
-    const dev = OS.map(os => r.plats[os] && r.plats[os].mine).find(Boolean);
-    const ready = OS.map(os => r.plats[os] && r.plats[os].ready).find(Boolean);
-    return `<div class="iv-cell">
-      <div class="iv-top"><img class="iv-appico" src="${spIcon(r)}" onerror="this.hidden=true" alt=""><span class="sv-name">${esc(r.nm)}</span></div>
-      <div class="iv-pair">
-        <div class="iv-block">
-          <div class="iv-blab">${SP_SVG.apple}<span>prod</span></div>
-          ${band(r.plats['iOS'], 'iOS', SP_SVG.iOS)}${band(r.plats['macOS'], 'macOS', SP_SVG.macOS)}
-        </div>
-        <div class="iv-block iv-dev">
-          <div class="iv-blab"><span class="iv-devmark">🛠</span><span>dev</span></div>
-          <div class="iv-band tone-${dev ? dev.tone : 'idle'}" style="flex:1">
-            <span class="iv-bos">ערוץ הבדיקות</span>
-            <b dir="ltr">${esc(dev ? dev.version : '—')}</b>
-            <span class="iv-bst">${dev ? esc(dev.label) : 'אין'}</span>
-            ${ready ? `<span class="iv-ready">מוכנה <span dir="ltr">${esc(ready.version)}</span></span>` : ''}
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }).join('') + `</div>`;
-
-  // 3 — TIMELINE: real chronology of approved releases, one lane per app
-  const ev = [];
-  rows.forEach(r => Object.entries(r.a.asc.platforms || {}).forEach(([k, p]) =>
-    (p.history || []).forEach(h => { if (h.state === 'READY_FOR_SALE' && h.createdDate)
-      ev.push({ r, os: SP_OS[k] || k, v: h.version, t: Date.parse(h.createdDate) }); })));
-  let timeline = '<div class="sv-note" style="margin:0">אין עדיין היסטוריית שחרורים.</div>';
-  if (ev.length) {
-    const t0 = Math.min(...ev.map(e => e.t)), t1 = Math.max(...ev.map(e => e.t)) || t0 + 1;
-    const span = Math.max(1, t1 - t0);
-    const fmt = t => new Date(t).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
-    timeline = rows.map(r => {
-      const mine = ev.filter(e => e.r === r).sort((a, b) => a.t - b.t);
-      return `<div class="iv-tlrow">
-        <div class="iv-tlname"><img class="sv-ico" style="width:17px;height:17px" src="${spIcon(r)}" onerror="this.hidden=true" alt=""><span class="sv-name">${esc(r.nm)}</span></div>
-        <svg viewBox="0 0 300 22" preserveAspectRatio="none" style="height:22px" direction="ltr">
-          <line x1="2" y1="11" x2="298" y2="11" stroke="var(--grid)" stroke-width="1.5"/>
-          ${mine.map(e => { const x = 2 + ((e.t - t0) / span) * 296;
-            return `<circle cx="${x.toFixed(1)}" cy="11" r="4.5" fill="${IV_TONE.good}"><title>${esc(e.v)} · ${esc(e.os)} · ${fmt(e.t)}</title></circle>`; }).join('')}
-        </svg>
-      </div>`;
-    }).join('') + `<div class="iv-lbl" dir="ltr" style="display:flex;justify-content:space-between;margin-top:6px">
-        <span>${fmt(t0)}</span><span>כל נקודה = גרסה שאפל אישרה</span><span>${fmt(t1)}</span></div>`;
-  }
-
-  // 4 — SLOPE: dev on one side, store on the other; a line falling = we test old code
-  const H = Math.max(120, rows.length * 26 + 34);
-  const slope = `<div class="iv-slope"><svg viewBox="0 0 300 ${H}" preserveAspectRatio="xMidYMid meet" direction="ltr">
-    <text x="16" y="14" font-size="9" fill="var(--muted)" font-weight="700">אצלנו · dev</text>
-    <text x="284" y="14" font-size="9" fill="var(--muted)" font-weight="700" text-anchor="end">בחנות</text>
-    <line x1="60" y1="22" x2="60" y2="${H - 8}" stroke="var(--grid)"/>
-    <line x1="240" y1="22" x2="240" y2="${H - 8}" stroke="var(--grid)"/>
-    ${rows.map((r, i) => {
-      const y = 34 + i * 26;
-      const dev = OS.map(os => r.plats[os] && r.plats[os].mine).find(Boolean);
-      const live = OS.map(os => r.plats[os] && r.plats[os].live).find(Boolean);
-      const tone = dev ? dev.tone : 'idle';
-      const drop = tone === 'bad' ? 9 : tone === 'wait' ? -7 : 0;   // falling line = dev behind
-      return `<line x1="60" y1="${y - drop}" x2="240" y2="${y}" stroke="${IV_TONE[tone]}" stroke-width="2.2" stroke-linecap="round" opacity=".95"/>
-        <circle cx="60" cy="${y - drop}" r="3.4" fill="${IV_TONE[tone]}"/><circle cx="240" cy="${y}" r="3.4" fill="${IV_TONE.good}"/>
-        <text x="56" y="${y - drop + 3}" font-size="8.5" text-anchor="end" fill="var(--ink-2)" direction="ltr">${esc(dev ? dev.version : '—')}</text>
-        <text x="244" y="${y + 3}" font-size="8.5" fill="var(--ink-2)" direction="ltr">${esc(live || '—')}</text>
-        <text x="150" y="${y - 4}" font-size="8.5" text-anchor="middle" fill="var(--muted)">${esc(r.nm.slice(0, 18))}</text>`;
-    }).join('')}
-  </svg><div class="iv-lbl" style="text-align:center;margin-top:4px">קו שיורד ← ה-dev שלנו ישן ממה שכבר בחנות</div></div>`;
-
-  // 5 — PORTFOLIO RING: the whole picture as one number
-  const tally = { good: 0, wait: 0, bad: 0, idle: 0 };
-  const who = { good: [], wait: [], bad: [], idle: [] };
-  rows.forEach(r => OS.forEach(os => { const p = r.plats[os]; if (!p) return; tally[p.apple.tone]++; if (!who[p.apple.tone].includes(r)) who[p.apple.tone].push(r); }));
-  const tot = Object.values(tally).reduce((a, b) => a + b, 0) || 1;
-  let ang = 0;
-  const donut = ['good', 'wait', 'bad', 'idle'].filter(k => tally[k]).map(k => {
-    const start = ang, end = ang + (tally[k] / tot) * Math.PI * 2 * 0.999; ang = end;
-    return `<path d="${ivArc(70, 70, 52, start, end)}" fill="none" stroke="${IV_TONE[k]}" stroke-width="20"/>`;
-  }).join('');
-  const hero = `<div class="iv-hero">
-    <svg viewBox="0 0 140 140" role="img" aria-label="חלוקת ההגשות לפי מצב">
-      <circle cx="70" cy="70" r="52" fill="none" stroke="var(--grid)" stroke-width="20"/>${donut}
-      <text x="70" y="68" text-anchor="middle" font-size="28" font-weight="800" fill="var(--ink-1)" style="font-variant-numeric:tabular-nums">${tally.good}</text>
-      <text x="70" y="84" text-anchor="middle" font-size="9" fill="var(--muted)">מתוך ${tot} בחנות</text>
-    </svg>
-    <div class="iv-legend">${['good', 'wait', 'bad', 'idle'].filter(k => tally[k]).map(k => `
-      <div class="iv-lrow tone-${k}"><i></i><b>${tally[k]}</b>${IV_STATE[k]}
-        <span class="iv-avatars">${who[k].map(r => `<img src="${spIcon(r)}" onerror="this.hidden=true" alt="" title="${esc(r.nm)}">`).join('')}</span></div>`).join('')}
-    </div></div>`;
-
-  el.innerHTML = `<div class="sv">
-    <div class="sv-note">המטריצה נשארה. חמש האינפוגרפיקות שאחריה מציירות <b>אותם נתונים בדיוק</b> —
-      כל אחת נותנת לך תשובה מיידית לשאלה אחרת, בלי לקרוא טבלה.</div>
-    ${sec('★', 'מטריצה', 'זו שביקשת להשאיר', mx)}
-    ${sec(1, 'קשתות', 'החצי העליון iOS · התחתון macOS · הטבעת הדקה בפנים היא ערוץ ה-dev', rings)}
-    ${sec(2, 'פסיפס', 'לכל אפליקציה: prod עם שתי הפלטפורמות, ולצידו ה-dev שלה', mosaic)}
-    ${sec(3, 'ציר זמן', 'מתי אפל באמת אישרה — כל נקודה היא שחרור אמיתי', timeline)}
-    ${sec(4, 'קווי שיפוע', 'הפער בין מה שאנחנו בודקים לבין מה שהמשתמשים מקבלים', slope)}
-    ${sec(5, 'טבעת התיק', 'כל הפורטפוליו כמספר אחד', hero)}
-  </div>`;
-}
-
 function renderStorePanel() {
   try { return storePanelBody(); } catch (e) { console.error('store panel:', e); }
 }
@@ -1662,7 +1503,6 @@ function storePanelBody() {
 
   function render() {
     renderStorePanel();
-    renderStoreViews();
     const byRank = (a, b) => ((mrAppRanks[a.dir] ?? 99) - (mrAppRanks[b.dir] ?? 99));
     const vn = natives.filter(match).sort(byRank), vw = webs.filter(match), vr = rest.filter(match);
 
@@ -2392,7 +2232,7 @@ const mrIcon = app => app === 'ERZA'
 const mrLabel = app => displayApp(app);
 // A tab missing from this list silently falls back to 'overview' — adding the button and
 // the panel is not enough, which is exactly how the תצוגות tab shipped dead (2026-08-07).
-const TABS = ['overview', 'instructions', 'items', 'info', 'common', 'storeviews'];
+const TABS = ['overview', 'instructions', 'items', 'info', 'common'];
 
 function switchTab(name, opts = {}) {
   if (!TABS.includes(name)) name = 'overview';
