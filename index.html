@@ -749,6 +749,34 @@ footer a { color: var(--muted); }
   color: var(--green); border-radius: 8px; padding: 5px 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .info-seen:hover { background: color-mix(in srgb, var(--green) 22%, transparent); }
 .info-empty { color: var(--muted); font-size: 12.5px; padding: 6px 0; }
+
+/* ── מצב בחנות ─────────────────────────────────────────────────────────────
+   One row per app PER PLATFORM: iOS and macOS are separate submissions and can
+   sit in opposite states, so a single per-app row would hide a rejection.
+   Colour is never the only signal — every row carries a glyph and Hebrew text,
+   so the panel reads correctly with any colour vision and on a screen reader. */
+.sp-wrap{background:var(--card,#fff);border:1px solid var(--line,#e5e7eb);border-radius:14px;padding:14px 16px;margin:0 0 16px}
+.sp-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.sp-head h3{margin:0;font-size:16px;font-weight:700}
+.sp-updated{font-size:12px;color:var(--muted,#6b7280);margin-inline-start:auto}
+.sp-sum{font-size:12px;color:var(--muted,#6b7280)}
+.sp-rows{display:flex;flex-direction:column;gap:2px}
+.sp-row{display:grid;grid-template-columns:22px 1fr auto auto auto;align-items:center;gap:10px;
+        padding:7px 8px;border-radius:9px;border-inline-start:3px solid transparent}
+.sp-row:nth-child(odd){background:rgba(127,127,127,.05)}
+.sp-icon{width:20px;height:20px;border-radius:5px;object-fit:cover}
+.sp-name{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp-plat{font-size:11.5px;color:var(--muted,#6b7280);min-width:44px}
+.sp-ver{font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--muted,#6b7280)}
+.sp-state{font-size:12.5px;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.sp-glyph{font-size:11px;line-height:1}
+.sp-live{font-size:11px;color:var(--muted,#6b7280);font-variant-numeric:tabular-nums}
+.sp-row[data-tone="bad"] {border-inline-start-color:#dc2626}.sp-row[data-tone="bad"]  .sp-state{color:#dc2626}
+.sp-row[data-tone="act"] {border-inline-start-color:#2563eb}.sp-row[data-tone="act"]  .sp-state{color:#2563eb}
+.sp-row[data-tone="wait"]{border-inline-start-color:#d97706}.sp-row[data-tone="wait"] .sp-state{color:#b45309}
+.sp-row[data-tone="good"]{border-inline-start-color:#16a34a}.sp-row[data-tone="good"] .sp-state{color:#15803d}
+.sp-row[data-tone="idle"]{border-inline-start-color:#9ca3af}.sp-row[data-tone="idle"] .sp-state{color:#6b7280}
+@media(max-width:620px){.sp-row{grid-template-columns:22px 1fr auto;row-gap:2px}.sp-plat,.sp-ver{grid-column:2}}
 </style>
 </head>
 <body>
@@ -796,6 +824,7 @@ footer a { color: var(--muted); }
     <div id="mrBody">
 
     <section class="tab-panel" data-tab="overview">
+      <div id="storePanel"></div>
       <div id="dynGrid"></div>
       <div id="dynErza"></div>
       <div class="stagebar-wrap">
@@ -905,7 +934,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.0'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=1160cd08"></script>
+<script src="data.enc.js?v=b3fa1210"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1113,7 +1142,75 @@ function boot(D, locked) {
   };
 
   /* render tables + cards */
+
+// ── מצב בחנות ──────────────────────────────────────────────────────────────
+// Reads the same registry/asc_status.json the ASC webhook refreshes, so an Apple
+// approval reaches this panel through the normal build — no second source of truth.
+const SP_STATES = {
+  REJECTED:                 ['נדחתה',            'bad',  '✕', 0],
+  DEVELOPER_REJECTED:       ['נדחתה על ידך',     'bad',  '✕', 0],
+  METADATA_REJECTED:        ['נדחתה — מטא-דאטה', 'bad',  '✕', 0],
+  INVALID_BINARY:           ['בילד פסול',        'bad',  '✕', 0],
+  PENDING_DEVELOPER_RELEASE:['ממתינה לשחרור שלך','act',  '▶', 1],
+  IN_REVIEW:                ['בסקירה',           'wait', '◷', 2],
+  WAITING_FOR_REVIEW:       ['ממתינה לסקירה',    'wait', '◷', 2],
+  PENDING_APPLE_RELEASE:    ['ממתינה לאפל',      'wait', '◷', 2],
+  PROCESSING_FOR_APP_STORE: ['בעיבוד',           'wait', '◷', 3],
+  READY_FOR_SALE:           ['בחנות',            'good', '✓', 5],
+  PREPARE_FOR_SUBMISSION:   ['בהכנה',            'idle', '○', 4],
+  DEVELOPER_REMOVED_FROM_SALE:['הוסרה',          'idle', '○', 4],
+};
+const SP_PLAT = { IOS: 'iOS', MAC_OS: 'macOS', TV_OS: 'tvOS' };
+
+// displayName carries documentation asides — 'Groupy Calendar (icon label "Groupy")'.
+// Useful in the table, unreadable in a dense status row.
+function spName(a) {
+  return String(a.displayName || a.name || '').split('(')[0].trim() || a.name || '';
+}
+
+function renderStorePanel() {
+  const el = document.getElementById('storePanel');
+  if (!el) return;
+  const rows = [];
+  for (const a of (DATA.apps || [])) {
+    if (a.category !== 'native-app' || !a.asc || !a.asc.platforms) continue;
+    for (const [plat, p] of Object.entries(a.asc.platforms)) {
+      if (!p || !p.latest) continue;
+      const [label, tone, glyph, rank] =
+        SP_STATES[p.latest.state] || [p.latest.state || '—', 'idle', '○', 4];
+      rows.push({ a, plat: SP_PLAT[plat] || plat, v: p.latest.version,
+                  live: p.live && p.live.version !== p.latest.version ? p.live.version : null,
+                  label, tone, glyph, rank });
+    }
+  }
+  if (!rows.length) { el.innerHTML = ''; return; }
+  // Most urgent first: a rejection must never sit below a row that needs nothing.
+  rows.sort((x, y) => x.rank - y.rank || spName(x.a).localeCompare(spName(y.a)));
+
+  const need = rows.filter(r => r.rank <= 1).length;
+  const upd = DATA.ascFetchedAt
+    ? new Date(DATA.ascFetchedAt).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : (DATA.generatedAt || '');
+
+  el.innerHTML = `<div class="sp-wrap">
+    <div class="sp-head">
+      <h3>📱 מצב בחנות</h3>
+      <span class="sp-sum">${rows.length} הגשות · ${need ? `<strong>${need} דורשות טיפול</strong>` : 'אין מה לטפל'}</span>
+      <span class="sp-updated" title="מתעדכן אוטומטית מאפל">עודכן: ${esc(upd)}</span>
+    </div>
+    <div class="sp-rows" role="list">` +
+    rows.map(r => `<div class="sp-row" role="listitem" data-tone="${r.tone}"
+        aria-label="${esc(spName(r.a) + ' ' + r.plat + ' גרסה ' + r.v + ' — ' + r.label)}">
+      <img class="sp-icon" src="icons/${esc(r.a.dir)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">
+      <span class="sp-name">${esc(spName(r.a))}</span>
+      <span class="sp-plat">${esc(r.plat)}</span>
+      <span class="sp-ver" dir="ltr">${esc(r.v)}${r.live ? ` <span class="sp-live">(בחנות ${esc(r.live)})</span>` : ''}</span>
+      <span class="sp-state"><span class="sp-glyph" aria-hidden="true">${r.glyph}</span>${esc(r.label)}</span>
+    </div>`).join('') + `</div></div>`;
+}
+
   function render() {
+    renderStorePanel();
     const byRank = (a, b) => ((mrAppRanks[a.dir] ?? 99) - (mrAppRanks[b.dir] ?? 99));
     const vn = natives.filter(match).sort(byRank), vw = webs.filter(match), vr = rest.filter(match);
 
