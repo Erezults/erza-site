@@ -829,21 +829,47 @@ footer a { color: var(--muted); }
          border:1px solid color-mix(in srgb,var(--c) 45%,transparent);color:var(--ink-1);font-size:11px;font-weight:600}
 .sv-cell b{display:block;font-size:9.5px;font-weight:700;color:var(--c)}
 
-/* 1 — קשתות */
-.iv-rings{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:14px}
-.iv-ring{text-align:center}
-.iv-ring svg{width:100%;height:auto;max-width:132px;display:block;margin:0 auto}
-.iv-ring .cap{margin-top:7px;display:flex;align-items:center;gap:6px;justify-content:center}
-.iv-lbl{font-size:10.5px;color:var(--muted);margin-top:3px}
+/* כותרות המטריצה — אותם סימנים כמו בפאנל הראשי */
+.mx-h{display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.2}
+.mx-h svg{width:15px;height:15px;color:var(--blue)}
+.mx-h svg+svg{margin-inline-start:-3px}
+.mx-h>span{font-size:11px;font-weight:700;color:var(--ink-1)}
+.mx-h small{font-size:9.5px;color:var(--muted);font-weight:600}
 
-/* 2 — פסיפס */
-.iv-mosaic{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
-.iv-tile{position:relative;border-radius:12px;padding:12px 10px;min-height:104px;overflow:hidden;
-         background:linear-gradient(150deg,color-mix(in srgb,var(--c) 34%,transparent),color-mix(in srgb,var(--c) 12%,transparent));
-         border:1px solid color-mix(in srgb,var(--c) 42%,transparent);display:flex;flex-direction:column;gap:4px}
-.iv-tile .big{font-size:19px;font-weight:800;color:var(--ink-1);font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-top:auto}
-.iv-tile .st{font-size:10.5px;font-weight:700;color:var(--c)}
-.iv-tile .os{position:absolute;inset-block-start:10px;inset-inline-end:10px;font-size:9.5px;color:var(--muted);font-weight:700}
+/* 1 — קשתות: חצי עליון iOS, חצי תחתון macOS, טבעת פנימית = dev */
+.iv-rings{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:16px}
+.iv-ring{background:var(--tint);border-radius:14px;padding:12px 12px 10px}
+.iv-ring svg{width:100%;height:auto;max-width:150px;display:block;margin:0 auto}
+.iv-ring .cap{margin:6px 0 8px;text-align:center}
+.iv-ring .cap .sv-name{font-size:13px;font-weight:700}
+.iv-side{display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 5px;border-radius:7px;margin-top:4px;
+         background:color-mix(in srgb,var(--c) 15%,transparent);border:1px solid color-mix(in srgb,var(--c) 34%,transparent)}
+.iv-mark{display:inline-flex;flex:none}
+.iv-mark svg{width:13px;height:13px;color:var(--ink-2);display:block}
+.iv-os{font-size:10px;font-weight:700;color:var(--muted);min-width:34px}
+.iv-st{font-weight:700;color:var(--c)}
+.iv-side b{margin-inline-start:auto;font-variant-numeric:tabular-nums;color:var(--ink-1);font-size:11px}
+
+/* 2 — פסיפס: prod (שתי פלטפורמות) + dev לצידו */
+.iv-mosaic{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:12px}
+.iv-cell{background:var(--tint);border-radius:14px;padding:10px}
+.iv-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.iv-appico{width:28px;height:28px;border-radius:8px;object-fit:cover;flex:none}
+.iv-top .sv-name{font-size:13.5px;font-weight:700}
+.iv-pair{display:grid;grid-template-columns:1.45fr 1fr;gap:8px}
+.iv-block{display:flex;flex-direction:column;gap:5px}
+.iv-blab{display:flex;align-items:center;gap:5px;font-size:9.5px;font-weight:800;color:var(--muted);letter-spacing:.03em}
+.iv-blab svg{width:13px;height:13px;color:var(--muted)}
+.iv-devmark{font-size:11px}
+.iv-band{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 8px;border-radius:10px;
+         background:color-mix(in srgb,var(--c) 22%,transparent);border:1px solid color-mix(in srgb,var(--c) 45%,transparent)}
+.iv-band .iv-mark svg{width:14px;height:14px;color:var(--ink-2)}
+.iv-bos{font-size:10px;font-weight:700;color:var(--muted)}
+.iv-band b{font-size:14px;font-weight:800;color:var(--ink-1);font-variant-numeric:tabular-nums;margin-inline-start:auto}
+.iv-bst{font-size:10px;font-weight:700;color:var(--c);width:100%}
+.iv-ready{font-size:9.5px;font-weight:700;color:var(--g);width:100%}
+.iv-dev{opacity:.94}
+@media(max-width:430px){.iv-pair{grid-template-columns:1fr}}
 
 /* 3 — ציר זמן */
 .iv-tl{position:relative}
@@ -1349,48 +1375,86 @@ function renderStoreViews() {
 
   // ★ matrix — kept exactly as Erez asked
   const cell = x => x ? `<span class="sv-cell tone-${x.tone}"><b>${esc(x.label)}</b><span class="sv-v" dir="ltr">${esc(x.version || '—')}</span></span>` : '<span class="sv-note">—</span>';
+  // Headers carry the SAME marks as the main store panel — a different vocabulary for the
+  // same columns is how a reader ends up unsure which column means what.
+  const hdr = (mark, os, side) => `<th><span class="mx-h">${mark}<span>${esc(os)}</span><small>${side}</small></span></th>`;
   const mx = `<div style="overflow-x:auto"><table class="sv-mx"><thead><tr>
-      <th style="text-align:start">אפליקציה</th><th>iOS · אפל</th><th>macOS · אפל</th><th>iOS · אצלנו</th><th>macOS · אצלנו</th>
+      <th style="text-align:start">אפליקציה</th>
+      ${hdr(SP_SVG.apple + SP_SVG.iOS, 'iOS', 'אצל אפל')}
+      ${hdr(SP_SVG.apple + SP_SVG.macOS, 'macOS', 'אצל אפל')}
+      ${hdr(SP_SVG.iOS, 'iOS', 'אצלנו · dev')}
+      ${hdr(SP_SVG.macOS, 'macOS', 'אצלנו · dev')}
     </tr></thead><tbody>` + rows.map(r => `<tr>
       <td><div style="display:flex;align-items:center;gap:7px"><img class="sv-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt=""><span class="sv-name">${esc(r.nm)}</span></div></td>
       ${OS.map(os => `<td>${cell(r.plats[os] && r.plats[os].apple)}</td>`).join('')}
       ${OS.map(os => `<td>${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
     </tr>`).join('') + `</tbody></table></div>`;
 
-  // 1 — RINGS: two arcs per app (outer iOS, inner macOS), version as the numeral
-  const FILL = { good: 1, wait: .66, bad: .4, idle: .12 };
+  // 1 — RINGS: the ring is SPLIT, not nested — the top half is iOS and the bottom half is
+  // macOS, each drawn in its own state colour with its own version printed beside it. Two
+  // concentric arcs could not say which was which, and could not show two different
+  // versions at all (Erez, 2026-08-08). The thin inner arc is our dev channel.
+  const FILL = { good: 1, wait: .62, bad: .38, idle: .1 };
   const rings = `<div class="iv-rings">` + rows.map(r => {
     const a = r.plats['iOS'], m = r.plats['macOS'];
-    const arc = (p, radius, w) => {
-      if (!p) return '';
-      const end = Math.PI * 2 * FILL[p.apple.tone] * 0.999;
-      return `<path d="${ivArc(60, 60, radius, 0, Math.PI * 2 * 0.999)}" fill="none" stroke="var(--grid)" stroke-width="${w}"/>
-              <path d="${ivArc(60, 60, radius, 0, end)}" fill="none" stroke="${IV_TONE[p.apple.tone]}" stroke-width="${w}" stroke-linecap="round"/>`;
+    const dev = OS.map(os => r.plats[os] && r.plats[os].mine).find(Boolean);
+    // top half: -90°..+90° · bottom half: +90°..+270°
+    const half = (p, from) => {
+      if (!p) return `<path d="${ivArc(62, 62, 46, from, from + Math.PI * 0.98)}" fill="none" stroke="var(--grid)" stroke-width="10" stroke-linecap="round"/>`;
+      const full = Math.PI * 0.98;
+      return `<path d="${ivArc(62, 62, 46, from, from + full)}" fill="none" stroke="var(--grid)" stroke-width="10" stroke-linecap="round"/>
+              <path d="${ivArc(62, 62, 46, from, from + full * FILL[p.apple.tone])}" fill="none" stroke="${IV_TONE[p.apple.tone]}" stroke-width="10" stroke-linecap="round"/>`;
     };
-    const headline = (a && a.live) || (m && m.live) || (a && a.apple.version) || (m && m.apple.version) || '—';
+    const devArc = dev
+      ? `<path d="${ivArc(62, 62, 31, 0, Math.PI * 2 * 0.999)}" fill="none" stroke="var(--grid)" stroke-width="4"/>
+         <path d="${ivArc(62, 62, 31, 0, Math.PI * 2 * FILL[dev.tone] * 0.999)}" fill="none" stroke="${IV_TONE[dev.tone]}" stroke-width="4" stroke-linecap="round"/>` : '';
+    const sideRow = (p, os, mark) => `<div class="iv-side tone-${p ? p.apple.tone : 'idle'}">
+        <span class="iv-mark">${mark}</span><span class="iv-os">${esc(os)}</span>
+        <span class="iv-st">${p ? esc(p.apple.label) : '—'}</span>
+        <b dir="ltr">${esc(p ? (p.apple.version || '—') : '—')}</b></div>`;
     return `<div class="iv-ring">
-      <svg viewBox="0 0 120 120" role="img" aria-label="${esc(r.nm)}">
-        ${arc(a, 50, 9)}${arc(m, 36, 9)}
-        <text x="60" y="62" text-anchor="middle" font-size="17" font-weight="800" fill="var(--ink-1)"
-              style="font-variant-numeric:tabular-nums" direction="ltr">${esc(headline)}</text>
-        <text x="60" y="78" text-anchor="middle" font-size="8.5" fill="var(--muted)">${a ? 'iOS' : ''}${a && m ? ' · ' : ''}${m ? 'macOS' : ''}</text>
+      <svg viewBox="0 0 124 124" role="img" aria-label="${esc(r.nm)}" direction="ltr">
+        ${half(a, -Math.PI / 2)}${half(m, Math.PI / 2)}${devArc}
+        <text x="62" y="20" text-anchor="middle" font-size="7.5" fill="var(--muted)" font-weight="700">iOS</text>
+        <text x="62" y="110" text-anchor="middle" font-size="7.5" fill="var(--muted)" font-weight="700">macOS</text>
+        <image href="${spIcon(r)}" x="46" y="46" width="32" height="32" clip-path="inset(0 round 9)"/>
       </svg>
-      <div class="cap"><img class="sv-ico" style="width:17px;height:17px" src="${spIcon(r)}" onerror="this.hidden=true" alt=""><span class="sv-name">${esc(r.nm)}</span></div>
-      <div class="iv-lbl">${esc([a && a.apple.label, m && m.apple.label].filter(Boolean).join(' · '))}</div>
+      <div class="cap"><span class="sv-name">${esc(r.nm)}</span></div>
+      ${sideRow(a, 'iOS', SP_SVG.iOS)}${sideRow(m, 'macOS', SP_SVG.macOS)}
+      ${dev ? `<div class="iv-side tone-${dev.tone}"><span class="iv-mark">🛠</span><span class="iv-os">dev</span>
+        <span class="iv-st">${esc(dev.label)}</span><b dir="ltr">${esc(dev.version)}</b></div>` : ''}
     </div>`;
   }).join('') + `</div>`;
 
-  // 2 — MOSAIC: one tile per submission, colour = state, numeral = version
-  const mosaic = `<div class="iv-mosaic">` + rows.flatMap(r => OS.filter(os => r.plats[os]).map(os => {
-    const p = r.plats[os];
-    return `<div class="iv-tile tone-${p.apple.tone}">
-      <span class="os">${esc(os)}</span>
-      <img class="sv-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt="">
-      <span class="sv-name" style="font-size:11px">${esc(r.nm)}</span>
-      <span class="big" dir="ltr">${esc(p.apple.version || '—')}</span>
-      <span class="st">${esc(p.apple.label)}</span>
+  // 2 — MOSAIC: one PROD tile per app holding BOTH platforms as two colour bands (so a tile
+  // can legitimately be two colours when iOS and macOS disagree), with its dev twin beside
+  // it. Name above the tile, bigger icons — Erez, 2026-08-08.
+  const band = (p, os, mark) => `<div class="iv-band tone-${p ? p.apple.tone : 'idle'}">
+      <span class="iv-mark">${mark}</span><span class="iv-bos">${esc(os)}</span>
+      <b dir="ltr">${esc(p ? (p.apple.version || '—') : '—')}</b>
+      <span class="iv-bst">${p ? esc(p.apple.label) : 'אין'}</span></div>`;
+  const mosaic = `<div class="iv-mosaic">` + rows.map(r => {
+    const dev = OS.map(os => r.plats[os] && r.plats[os].mine).find(Boolean);
+    const ready = OS.map(os => r.plats[os] && r.plats[os].ready).find(Boolean);
+    return `<div class="iv-cell">
+      <div class="iv-top"><img class="iv-appico" src="${spIcon(r)}" onerror="this.hidden=true" alt=""><span class="sv-name">${esc(r.nm)}</span></div>
+      <div class="iv-pair">
+        <div class="iv-block">
+          <div class="iv-blab">${SP_SVG.apple}<span>prod</span></div>
+          ${band(r.plats['iOS'], 'iOS', SP_SVG.iOS)}${band(r.plats['macOS'], 'macOS', SP_SVG.macOS)}
+        </div>
+        <div class="iv-block iv-dev">
+          <div class="iv-blab"><span class="iv-devmark">🛠</span><span>dev</span></div>
+          <div class="iv-band tone-${dev ? dev.tone : 'idle'}" style="flex:1">
+            <span class="iv-bos">ערוץ הבדיקות</span>
+            <b dir="ltr">${esc(dev ? dev.version : '—')}</b>
+            <span class="iv-bst">${dev ? esc(dev.label) : 'אין'}</span>
+            ${ready ? `<span class="iv-ready">מוכנה <span dir="ltr">${esc(ready.version)}</span></span>` : ''}
+          </div>
+        </div>
+      </div>
     </div>`;
-  })).join('') + `</div>`;
+  }).join('') + `</div>`;
 
   // 3 — TIMELINE: real chronology of approved releases, one lane per app
   const ev = [];
@@ -1462,8 +1526,8 @@ function renderStoreViews() {
     <div class="sv-note">המטריצה נשארה. חמש האינפוגרפיקות שאחריה מציירות <b>אותם נתונים בדיוק</b> —
       כל אחת נותנת לך תשובה מיידית לשאלה אחרת, בלי לקרוא טבלה.</div>
     ${sec('★', 'מטריצה', 'זו שביקשת להשאיר', mx)}
-    ${sec(1, 'קשתות', 'כמה כל אפליקציה קרובה לחנות — טבעת חיצונית iOS, פנימית macOS', rings)}
-    ${sec(2, 'פסיפס', 'קיר צבעוני — מצב כל הגשה במבט אחד מרחוק', mosaic)}
+    ${sec(1, 'קשתות', 'החצי העליון iOS · התחתון macOS · הטבעת הדקה בפנים היא ערוץ ה-dev', rings)}
+    ${sec(2, 'פסיפס', 'לכל אפליקציה: prod עם שתי הפלטפורמות, ולצידו ה-dev שלה', mosaic)}
     ${sec(3, 'ציר זמן', 'מתי אפל באמת אישרה — כל נקודה היא שחרור אמיתי', timeline)}
     ${sec(4, 'קווי שיפוע', 'הפער בין מה שאנחנו בודקים לבין מה שהמשתמשים מקבלים', slope)}
     ${sec(5, 'טבעת התיק', 'כל הפורטפוליו כמספר אחד', hero)}
