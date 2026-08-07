@@ -802,6 +802,69 @@ footer a { color: var(--muted); }
    nth-child count: the spanning headers shift that count and the line appeared on
    random rows. */
 .sp-seam{box-shadow:inset 1px 0 0 var(--grid)}
+/* ── תצוגות חלופיות למצב בחנות ─────────────────────────────────────────────
+   Five different mental models over the SAME data (spAppRows). All page tokens,
+   all responsive: each view collapses to a single column under 640px. */
+.sv-note{font-size:12px;color:var(--muted);margin:2px 0 12px;line-height:1.5}
+.sv-sec{margin-bottom:26px}
+.sv-h{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+.sv-h b{font-size:14px;color:var(--ink-1)}
+.sv-h span{font-size:11.5px;color:var(--muted)}
+.sv{--g:#1db954;--y:#f5c518;--r:#f5333f;--n:#8e8e93}
+:root[data-theme="dark"] .sv{--g:#2ee36a;--y:#ffd93d;--r:#ff5c66;--n:#9a9a9f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sv{--g:#2ee36a;--y:#ffd93d;--r:#ff5c66;--n:#9a9a9f}}
+.sv-card{background:var(--surface-1);border:1px solid var(--ring);border-radius:12px;padding:12px 14px}
+.sv-ico{width:20px;height:20px;border-radius:6px;object-fit:cover;flex:none}
+.sv-name{font-size:13px;font-weight:600;color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sv-v{font-variant-numeric:tabular-nums}
+.tone-good{--c:var(--g)} .tone-wait{--c:var(--y)} .tone-bad{--c:var(--r)} .tone-idle{--c:var(--n)}
+
+/* 1 — לוח זרימה */
+.sv-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.sv-col{background:var(--tint);border-radius:10px;padding:8px;min-height:70px}
+.sv-col h4{font-size:11.5px;font-weight:700;margin-bottom:6px;color:var(--ink-2);display:flex;gap:5px;align-items:center}
+.sv-dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+.sv-pill{display:flex;align-items:center;gap:6px;background:var(--surface-1);border:1px solid var(--ring);
+         border-radius:8px;padding:4px 6px;margin-bottom:5px;font-size:11.5px;color:var(--ink-1)}
+.sv-pill small{color:var(--muted);font-size:10px;margin-inline-start:auto}
+@media(max-width:640px){.sv-flow{grid-template-columns:1fr}}
+
+/* 2 — ציר התקדמות */
+.sv-track{display:grid;grid-template-columns:22px minmax(70px,1fr) 3fr;gap:8px;align-items:center;padding:7px 0}
+.sv-track+.sv-track{border-top:1px solid var(--grid)}
+.sv-bar{position:relative;height:26px;background:var(--tint);border-radius:13px;overflow:hidden}
+.sv-fill{position:absolute;inset-inline-start:0;top:0;bottom:0;background:var(--c);opacity:.85;border-radius:13px}
+.sv-bar em{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+           font-style:normal;font-size:11px;font-weight:700;color:#111;mix-blend-mode:normal}
+@media(max-width:640px){.sv-track{grid-template-columns:22px 1fr;row-gap:4px}.sv-bar{grid-column:1/-1}}
+
+/* 3 — מטריצה */
+.sv-mx{width:100%;border-collapse:collapse;font-size:12px}
+.sv-mx th{font-size:10.5px;color:var(--muted);font-weight:700;padding:0 4px 6px;text-align:center;border-bottom:1px solid var(--grid)}
+.sv-mx td{padding:5px 4px;text-align:center;border-bottom:1px solid var(--grid)}
+.sv-mx td:first-child{text-align:start}
+.sv-cell{display:block;border-radius:6px;padding:4px 2px;background:color-mix(in srgb,var(--c) 20%,transparent);
+         border:1px solid color-mix(in srgb,var(--c) 45%,transparent);color:var(--ink-1);font-size:11px;font-weight:600}
+.sv-cell b{display:block;font-size:9.5px;font-weight:700;color:var(--c)}
+@media(max-width:640px){.sv-mx th:nth-child(n+4),.sv-mx td:nth-child(n+4){display:none}}
+
+/* 4 — כרטיסי אפליקציה */
+.sv-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.sv-app{background:var(--surface-1);border:1px solid var(--ring);border-radius:12px;padding:10px 12px;
+        border-top:3px solid var(--c)}
+.sv-app header{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.sv-badge{display:flex;align-items:center;gap:6px;font-size:11.5px;padding:3px 0;color:var(--ink-2)}
+.sv-badge i{font-style:normal;width:7px;height:7px;border-radius:50%;background:var(--c);flex:none}
+.sv-badge b{margin-inline-start:auto;font-variant-numeric:tabular-nums;color:var(--ink-1);font-weight:600}
+
+/* 5 — רק מה שדורש טיפול */
+.sv-alert{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:10px;margin-bottom:7px;
+          background:color-mix(in srgb,var(--c) 12%,transparent);border-inline-start:4px solid var(--c)}
+.sv-alert .why{font-size:12px;color:var(--ink-1)}
+.sv-alert .why b{color:var(--c)}
+.sv-ok{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 11px;border-radius:10px;
+       background:var(--tint);font-size:12px;color:var(--muted)}
+.sv-ok img{width:18px;height:18px;border-radius:5px}
 </style>
 </head>
 <body>
@@ -836,6 +899,7 @@ footer a { color: var(--muted); }
     <button class="tab-btn" data-tab="items"><span class="tab-ico">🔔</span>לטיפולך<span class="tab-badge" id="tabBadgeItems" hidden></span></button>
     <button class="tab-btn" data-tab="info"><span class="tab-ico">📊</span>אינפו<span class="tab-badge" id="tabBadgeInfo" hidden></span></button>
     <button class="tab-btn" data-tab="common"><span class="tab-ico">🧩</span>קומונליות</button>
+    <button class="tab-btn" data-tab="storeviews"><span class="tab-ico">🎨</span>תצוגות</button>
   </nav>
 
   <div id="machineRoom" class="mrwrap" hidden>
@@ -927,6 +991,10 @@ footer a { color: var(--muted); }
   </details>
     </section>
 
+    <section class="tab-panel" data-tab="storeviews" hidden>
+      <div id="dynStoreViews"></div>
+    </section>
+
     <section class="tab-panel" data-tab="common" hidden>
 
   <details class="prio-panel" data-pgk="skills" style="--panel-accent:#2a9d8f">
@@ -961,7 +1029,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=93a617cb"></script>
+<script src="data.enc.js?v=1ebdc2aa"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1214,6 +1282,145 @@ function spChip(label, tone, version, aria) {
     (version ? `<span class="sp-v" dir="ltr">${esc(version)}</span>` : '') + `</span>`;
 }
 
+
+// ── מצב בחנות: מודל משותף ────────────────────────────────────────────────────
+// Every view below renders from spAppRows(). Five presentations that each derived
+// their own state would drift apart the first time a rule changed, and the user
+// would have no way to tell which one was lying.
+function spAppRows() {
+  const D = window.ERZA_DATA || {};
+  const rows = [];
+  for (const a of (D.apps || [])) {
+    if (a.category !== 'native-app' || !a.asc || !a.asc.platforms) continue;
+    const nm = spName(a);
+    const devV = (a.versions || {}).dev || null;
+    const plats = {};
+    let worst = 9;
+    for (const [key, p] of Object.entries(a.asc.platforms)) {
+      if (!p || !p.latest) continue;
+      const os = SP_OS[key] || key;
+      const pending = SP_APPLE[p.latest.state];
+      let apple;
+      if (pending) { const [label, tone, rank] = pending;
+        apple = { label, tone, version: p.latest.version }; if (rank < worst) worst = rank; }
+      else if (p.live) apple = { label: 'בחנות', tone: 'good', version: p.live.version };
+      else apple = { label: 'טרם עלתה', tone: 'idle', version: '' };
+
+      const live = p.live ? p.live.version : null;
+      const prepping = p.latest.state === 'PREPARE_FOR_SUBMISSION' && (!live || live !== p.latest.version);
+      let mine = null;
+      if (devV) {
+        const d = spCmp(devV, live || (a.versions || {}).prod);
+        mine = d < 0 ? { label: 'dev מפגר', tone: 'bad', version: devV }
+             : d > 0 ? { label: 'בפיתוח',  tone: 'wait', version: devV }
+                     : { label: 'מסונכרן', tone: 'idle', version: devV };
+      }
+      plats[os] = { apple, mine, ready: prepping ? { label: 'מוכנה', tone: 'good', version: p.latest.version } : null };
+    }
+    if (Object.keys(plats).length) rows.push({ a, nm, plats, rank: worst });
+  }
+  rows.sort((x, y) => x.rank - y.rank || x.nm.localeCompare(y.nm));
+  return rows;
+}
+const SP_TONE_TEXT = { good: 'תקין', wait: 'בתנועה', bad: 'דורש טיפול', idle: 'ללא שינוי' };
+const spIcon = r => `icons/${esc(r.a.dir)}.png?v=${window.ERZA_ICONV || '1'}`;
+
+
+// ── חמש תצוגות חלופיות ───────────────────────────────────────────────────────
+// Five different QUESTIONS over one dataset, not five skins: where is everything /
+// how far has each moved / one dense grid / one card per app / only what is broken.
+function renderStoreViews() {
+  const el = document.getElementById('dynStoreViews');
+  if (!el) return;
+  const rows = spAppRows();
+  if (!rows.length) { el.innerHTML = '<div class="sv-note">אין נתוני חנות עדיין.</div>'; return; }
+  const OS = ['iOS', 'macOS'];
+  const sec = (n, title, why, body) => `<div class="sv-sec"><div class="sv-h"><b>${n}. ${title}</b><span>${why}</span></div>${body}</div>`;
+
+  // 1 — flow board: WHERE IS EVERYTHING right now
+  const STAGES = [
+    { key: 'bad',  title: 'דורש טיפול', tone: 'bad'  },
+    { key: 'wait', title: 'אצל אפל',    tone: 'wait' },
+    { key: 'ready',title: 'מוכן להגשה', tone: 'good' },
+    { key: 'good', title: 'בחנות',      tone: 'good' },
+  ];
+  const bucket = { bad: [], wait: [], ready: [], good: [] };
+  for (const r of rows) for (const os of OS) {
+    const p = r.plats[os]; if (!p) continue;
+    const k = p.apple.tone === 'bad' ? 'bad' : p.apple.tone === 'wait' ? 'wait' : (p.ready ? 'ready' : 'good');
+    bucket[k].push({ r, os, v: (p.ready && k === 'ready') ? p.ready.version : p.apple.version });
+  }
+  const flow = `<div class="sv-flow">` + STAGES.map(st => `
+    <div class="sv-col tone-${st.tone}">
+      <h4><span class="sv-dot"></span>${st.title} <span style="color:var(--muted);font-weight:600">${bucket[st.key].length}</span></h4>
+      ${bucket[st.key].map(x => `<div class="sv-pill"><img class="sv-ico" style="width:16px;height:16px" src="${spIcon(x.r)}" onerror="this.hidden=true" alt="">
+        ${esc(x.r.nm.slice(0, 14))}<small>${esc(x.os)} ${esc(x.v || '')}</small></div>`).join('') || '<div class="sv-note" style="margin:0">—</div>'}
+    </div>`).join('') + `</div>`;
+
+  // 2 — progress track: HOW FAR each platform has moved toward being live
+  const STEP = { idle: 0.15, bad: 0.35, wait: 0.65, good: 1 };
+  const track = rows.map(r => OS.filter(os => r.plats[os]).map(os => {
+    const p = r.plats[os];
+    const t = p.apple.tone;
+    return `<div class="sv-track tone-${t}">
+      <img class="sv-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt="">
+      <span class="sv-name">${esc(r.nm)} <span style="color:var(--muted);font-size:11px">${esc(os)}</span></span>
+      <div class="sv-bar"><div class="sv-fill" style="width:${STEP[t] * 100}%"></div>
+        <em>${esc(p.apple.label)} ${esc(p.apple.version || '')}</em></div>
+    </div>`;
+  }).join('')).join('');
+
+  // 3 — matrix: the densest possible full picture
+  const cell = x => x ? `<span class="sv-cell tone-${x.tone}"><b>${esc(x.label)}</b><span class="sv-v">${esc(x.version || '—')}</span></span>` : '<span class="sv-note">—</span>';
+  const mx = `<div style="overflow-x:auto"><table class="sv-mx"><thead><tr>
+      <th style="text-align:start">אפליקציה</th><th>iOS · אפל</th><th>macOS · אפל</th><th>iOS · אצלנו</th><th>macOS · אצלנו</th>
+    </tr></thead><tbody>` + rows.map(r => `<tr>
+      <td><div style="display:flex;align-items:center;gap:7px"><img class="sv-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt=""><span class="sv-name">${esc(r.nm)}</span></div></td>
+      ${OS.map(os => `<td>${cell(r.plats[os] && r.plats[os].apple)}</td>`).join('')}
+      ${OS.map(os => `<td>${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
+    </tr>`).join('') + `</tbody></table></div>`;
+
+  // 4 — app cards: one object per app, thumb-friendly
+  const cards = `<div class="sv-cards">` + rows.map(r => {
+    const worstTone = OS.some(os => r.plats[os] && r.plats[os].apple.tone === 'bad') ? 'bad'
+      : OS.some(os => r.plats[os] && r.plats[os].apple.tone === 'wait') ? 'wait' : 'good';
+    return `<div class="sv-app tone-${worstTone}">
+      <header><img class="sv-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt=""><span class="sv-name">${esc(r.nm)}</span></header>
+      ${OS.filter(os => r.plats[os]).map(os => {
+        const p = r.plats[os];
+        return `<div class="sv-badge tone-${p.apple.tone}"><i></i>${esc(os)} · ${esc(p.apple.label)}<b>${esc(p.apple.version || '—')}</b></div>` +
+          (p.ready ? `<div class="sv-badge tone-good"><i></i>${esc(os)} · מוכנה<b>${esc(p.ready.version)}</b></div>` : '');
+      }).join('')}
+    </div>`;
+  }).join('') + `</div>`;
+
+  // 5 — exceptions only: everything healthy collapses to one line
+  const problems = [];
+  for (const r of rows) for (const os of OS) {
+    const p = r.plats[os]; if (!p) continue;
+    if (p.apple.tone === 'bad') problems.push({ r, tone: 'bad', text: `${os} — ${p.apple.label} ${p.apple.version}` });
+    else if (p.mine && p.mine.tone === 'bad') problems.push({ r, tone: 'bad', text: `${os} — ערוץ dev ישן מהחנות (${p.mine.version})` });
+    else if (p.ready) problems.push({ r, tone: 'wait', text: `${os} — ${p.ready.version} מוכנה להגשה` });
+  }
+  const healthy = rows.filter(r => !problems.some(x => x.r === r));
+  const exc = (problems.length
+      ? problems.map(x => `<div class="sv-alert tone-${x.tone}"><img class="sv-ico" src="${spIcon(x.r)}" onerror="this.hidden=true" alt="">
+          <span class="why"><b>${esc(x.r.nm)}</b> · ${esc(x.text)}</span></div>`).join('')
+      : '<div class="sv-note">אין שום דבר שדורש טיפול.</div>')
+    + (healthy.length ? `<div class="sv-ok">${healthy.map(r => `<img src="${spIcon(r)}" onerror="this.hidden=true" alt="" title="${esc(r.nm)}">`).join('')}
+        <span>${healthy.length} אפליקציות — הכל תקין, אין מה לעשות</span></div>` : '');
+
+  el.innerHTML = `<div class="sv">
+    <div class="sv-note">חמש דרכים להציג <b>בדיוק אותם נתונים</b> — כולן קוראות מאותו מקור, כך שהן לא יכולות לסתור זו את זו.
+      בחר את זו שהכי עוזרת לך, ואחליף אליה את הפאנל הראשי.</div>
+    ${sec(1, 'לוח זרימה', 'איפה כל דבר נמצא ברגע זה', `<div class="sv-card">${flow}</div>`)}
+    ${sec(2, 'ציר התקדמות', 'כמה כל פלטפורמה התקדמה לקראת החנות', `<div class="sv-card">${track}</div>`)}
+    ${sec(3, 'מטריצה', 'התמונה המלאה בשטח הקטן ביותר', `<div class="sv-card">${mx}</div>`)}
+    ${sec(4, 'כרטיס לכל אפליקציה', 'אפליקציה כאובייקט אחד — נוח בנייד', `<div class="sv-card">${cards}</div>`)}
+    ${sec(5, 'רק מה שדורש טיפול', 'מסתיר את מה שתקין במקום להציג הכל', `<div class="sv-card">${exc}</div>`)}
+  </div>`;
+}
+
 function renderStorePanel() {
   try { return storePanelBody(); } catch (e) { console.error('store panel:', e); }
 }
@@ -1304,6 +1511,7 @@ function storePanelBody() {
 
   function render() {
     renderStorePanel();
+    renderStoreViews();
     const byRank = (a, b) => ((mrAppRanks[a.dir] ?? 99) - (mrAppRanks[b.dir] ?? 99));
     const vn = natives.filter(match).sort(byRank), vw = webs.filter(match), vr = rest.filter(match);
 
