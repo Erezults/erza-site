@@ -934,7 +934,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.0'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=a4de64ad"></script>
+<script src="data.enc.js?v=9a91cf01"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1169,10 +1169,14 @@ function spName(a) {
 }
 
 function renderStorePanel() {
+  try { return storePanelBody(); } catch (e) { console.error('store panel:', e); }
+}
+
+function storePanelBody() {
   const el = document.getElementById('storePanel');
   if (!el) return;
   const rows = [];
-  for (const a of (DATA.apps || [])) {
+  for (const a of ((window.ERZA_DATA || {}).apps || [])) {
     if (a.category !== 'native-app' || !a.asc || !a.asc.platforms) continue;
     for (const [plat, p] of Object.entries(a.asc.platforms)) {
       if (!p || !p.latest) continue;
@@ -1188,9 +1192,10 @@ function renderStorePanel() {
   rows.sort((x, y) => x.rank - y.rank || spName(x.a).localeCompare(spName(y.a)));
 
   const need = rows.filter(r => r.rank <= 1).length;
-  const upd = DATA.ascFetchedAt
-    ? new Date(DATA.ascFetchedAt).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-    : (DATA.generatedAt || '');
+  const D = window.ERZA_DATA || {};
+  const upd = D.ascFetchedAt
+    ? new Date(D.ascFetchedAt).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : (D.generatedAt || '');
 
   el.innerHTML = `<div class="sp-wrap">
     <div class="sp-head">
@@ -1201,7 +1206,7 @@ function renderStorePanel() {
     <div class="sp-rows" role="list">` +
     rows.map(r => `<div class="sp-row" role="listitem" data-tone="${r.tone}"
         aria-label="${esc(spName(r.a) + ' ' + r.plat + ' גרסה ' + r.v + ' — ' + r.label)}">
-      <img class="sp-icon" src="icons/${esc(r.a.dir)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">
+      <img class="sp-icon" src="icons/${esc(r.a.dir)}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.hidden=true" alt="">
       <span class="sp-name">${esc(spName(r.a))}</span>
       <span class="sp-plat">${esc(r.plat)}</span>
       <span class="sp-ver" dir="ltr">${esc(r.v)}${r.live ? ` <span class="sp-live">(בחנות ${esc(r.live)})</span>` : ''}</span>
