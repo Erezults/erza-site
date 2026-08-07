@@ -1054,7 +1054,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=46d97550"></script>
+<script src="data.enc.js?v=bd0def6e"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1276,23 +1276,37 @@ const SP_SVG = {
          '<rect x="2.4" y="3.6" width="19.2" height="13" rx="1.9"/><path d="M8 20.4h8" stroke-linecap="round"/></svg>',
   // Apple's own mark, drawn as a path — Erez asked for the official logo rather than
   // the 🍎 emoji, which renders differently per platform and reads as decoration.
+  wrench: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.6 6.4a3.9 3.9 0 0 0 5.1 5.1l-7.6 7.6a2.2 2.2 0 0 1-3.1-3.1l7.6-7.6Z"/><path d="M14.6 6.4 17 4"/></svg>',
   apple: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 1.43c0 1.14-.42 2.2-1.12 3.01-.85.99-2.24 1.75-3.37 1.66-.14-1.1.4-2.27 1.06-3.02.75-.86 2.05-1.5 3.13-1.55.02.09.03.19.03.29zM20.9 17.06c-.55 1.27-.81 1.84-1.52 2.96-.99 1.56-2.38 3.5-4.1 3.51-1.53.01-1.93-.99-4.01-.98-2.08.01-2.51 1-4.04.98-1.72-.02-3.04-1.77-4.03-3.33C.62 15.9.35 10.79 2.05 8.07c1.21-1.93 3.12-3.06 4.92-3.06 1.83 0 2.98 1.01 4.49 1.01 1.47 0 2.36-1.01 4.48-1.01 1.6 0 3.3.87 4.51 2.38-3.96 2.17-3.32 7.83.45 9.67z"/></svg>',
 };
 const SP_APPLE = {
+  // Short words on purpose: the matrix is a dense grid and every extra character costs
+  // column width (Erez, 2026-08-08). The tone colour carries the nuance the word drops.
   REJECTED:                  ['נדחתה',  'bad',  0],
   DEVELOPER_REJECTED:        ['נדחתה',  'bad',  0],
   METADATA_REJECTED:         ['נדחתה',  'bad',  0],
-  INVALID_BINARY:            ['בילד פסול','bad',0],
+  INVALID_BINARY:            ['פסול',   'bad',  0],
   PENDING_DEVELOPER_RELEASE: ['לשחרור', 'good', 1],
-  IN_REVIEW:                 ['בסקירה', 'wait', 2],
-  WAITING_FOR_REVIEW:        ['בסקירה', 'wait', 2],
-  PENDING_APPLE_RELEASE:     ['לשחרור אפל','wait',2],
-  PROCESSING_FOR_APP_STORE:  ['בעיבוד', 'wait', 3],
+  IN_REVIEW:                 ['סקירה',  'wait', 2],
+  WAITING_FOR_REVIEW:        ['סקירה',  'wait', 2],
+  PENDING_APPLE_RELEASE:     ['אפל',    'wait', 2],
+  PROCESSING_FOR_APP_STORE:  ['עיבוד',  'wait', 3],
 };
 const SP_OS = { IOS: 'iOS', MAC_OS: 'macOS', TV_OS: 'tvOS' };
 const SP_ORDER = { iOS: 0, macOS: 1, tvOS: 2 };
 
-function spName(a) { return String(a.displayName || a.name || '').split('(')[0].trim() || a.name || ''; }
+// The ASC listing name ("Ownest: Property Manager") is right for the store and wrong for a
+// dense grid. Erez gave the short forms he wants (2026-08-08); anything unlisted falls back
+// to the trimmed display name, so a new app is never nameless.
+const SP_SHORT = {
+  xpensy: 'Xpensy', HealtyNative: 'Healthy', HomeNetIP: 'HomeNetIP', Emoryx: 'Emoryx',
+  Coin: 'Coin', SalarixNative: 'Salarix', OwnestNative: 'Ownest',
+  GroupyNative_New: 'Groupy', FundivaNative: 'Fundiva',
+};
+function spName(a) {
+  return SP_SHORT[a.dir] || SP_SHORT[a.name]
+    || String(a.displayName || a.name || '').split('(')[0].trim() || a.name || '';
+}
 
 // Compare only the numeric core: "1.4.1-dev02" vs "1.4.0" — the dev suffix is noise here.
 function spCmp(a, b) {
@@ -1328,17 +1342,17 @@ function spAppRows() {
       let apple;
       if (pending) { const [label, tone, rank] = pending;
         apple = { label, tone, version: p.latest.version }; if (rank < worst) worst = rank; }
-      else if (p.live) apple = { label: 'בחנות', tone: 'good', version: p.live.version };
-      else apple = { label: 'טרם עלתה', tone: 'idle', version: '' };
+      else if (p.live) apple = { label: 'חנות', tone: 'good', version: p.live.version };
+      else apple = { label: 'טרם', tone: 'idle', version: '' };
 
       const live = p.live ? p.live.version : null;
       const prepping = p.latest.state === 'PREPARE_FOR_SUBMISSION' && (!live || live !== p.latest.version);
       let mine = null;
       if (devV) {
         const d = spCmp(devV, live || (a.versions || {}).prod);
-        mine = d < 0 ? { label: 'dev מפגר', tone: 'bad', version: devV }
-             : d > 0 ? { label: 'בפיתוח',  tone: 'wait', version: devV }
-                     : { label: 'מסונכרן', tone: 'idle', version: devV };
+        mine = d < 0 ? { label: 'מפגר',  tone: 'bad',  version: devV }
+             : d > 0 ? { label: 'פיתוח',  tone: 'wait', version: devV }
+                     : { label: 'תקין',   tone: 'idle', version: devV };
       }
       plats[os] = { apple, mine, live, ready: prepping ? { label: 'מוכנה', tone: 'good', version: p.latest.version } : null };
     }
@@ -1365,6 +1379,49 @@ function ivArc(cx, cy, r, from, to) {
   return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${to - from > Math.PI ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
 }
 
+
+// ── סדר האפליקציות במטריצה ───────────────────────────────────────────────────
+// Persisted to registry/ui_layout.json (the same server-side store the panel order uses),
+// NOT localStorage: Erez asked for an order that follows him to any device.
+let svReorder = false;
+function svApplyOrder(rows) {
+  const saved = (mrLayout && mrLayout.storeMatrix) || [];
+  if (!saved.length) return rows;
+  const by = new Map(rows.map(r => [r.a.dir, r]));
+  // Saved first, in his order; anything new (or renamed) keeps its urgency position at the
+  // end rather than vanishing because it is missing from the saved list.
+  const out = saved.map(k => by.get(k)).filter(Boolean);
+  rows.forEach(r => { if (!out.includes(r)) out.push(r); });
+  return out;
+}
+function svToggleReorder() {
+  svReorder = !svReorder;
+  renderStoreViews();
+  if (!svReorder) return;
+  const tb = document.getElementById('mxBody'); if (!tb) return;
+  let dragged = null;
+  tb.querySelectorAll('tr').forEach(tr => {
+    tr.ondragstart = e => { dragged = tr; tr.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; };
+    tr.ondragend = () => { tr.classList.remove('dragging'); dragged = null; svSaveOrder(); };
+    tr.ondragover = e => {
+      e.preventDefault(); if (!dragged || dragged === tr) return;
+      const b = tr.getBoundingClientRect();
+      tb.insertBefore(dragged, (e.clientY - b.top) / b.height > .5 ? tr.nextSibling : tr);
+    };
+  });
+}
+async function svSaveOrder() {
+  const order = [...document.querySelectorAll('#mxBody tr')].map(tr => tr.dataset.appk).filter(Boolean);
+  if (!order.length) return;   // never persist an empty order over a saved one
+  mrLayout = { ...mrLayout, storeMatrix: order, updatedAt: new Date().toISOString() };
+  try {
+    let sha; try { sha = (await gh('registry/ui_layout.json', undefined, { headers: { Accept: 'application/vnd.github+json' } })).sha; } catch {}
+    await gh('registry/ui_layout.json', undefined, { method: 'PUT', body: JSON.stringify({
+      message: 'סדר האפליקציות במטריצה — מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
+      content: btoa(unescape(encodeURIComponent(JSON.stringify(mrLayout, null, 2)))) }) });
+  } catch (e) { console.error('store-matrix order save failed:', e); }
+}
+
 function renderStoreViews() {
   const el = document.getElementById('dynStoreViews');
   if (!el) return;
@@ -1373,21 +1430,33 @@ function renderStoreViews() {
   const OS = ['iOS', 'macOS'];
   const sec = (n, title, why, body) => `<div class="sv-sec"><div class="sv-h"><b>${n} ${title}</b><span>${why}</span></div><div class="sv-card">${body}</div></div>`;
 
-  // ★ matrix — kept exactly as Erez asked
+  // ★ MATRIX — the view Erez kept, reworked 2026-08-08:
+  //   · one Apple mark centred over its PAIR of columns, not one per column
+  //   · the two Apple columns and the two dev columns each get a tinted band, so the
+  //     boundary between "at Apple" and "ours" is visible without a word saying so
+  //   · the app cell is icon-over-name, which buys the grid a column's worth of width
+  //   · drag to reorder, persisted to registry/ui_layout.json — the same server-side
+  //     store the panel order already uses, so the order follows him to any device
   const cell = x => x ? `<span class="sv-cell tone-${x.tone}"><b>${esc(x.label)}</b><span class="sv-v" dir="ltr">${esc(x.version || '—')}</span></span>` : '<span class="sv-note">—</span>';
-  // Headers carry the SAME marks as the main store panel — a different vocabulary for the
-  // same columns is how a reader ends up unsure which column means what.
-  const hdr = (mark, os, side) => `<th><span class="mx-h">${mark}<span>${esc(os)}</span><small>${side}</small></span></th>`;
-  const mx = `<div style="overflow-x:auto"><table class="sv-mx"><thead><tr>
-      <th style="text-align:start">אפליקציה</th>
-      ${hdr(SP_SVG.apple + SP_SVG.iOS, 'iOS', 'אצל אפל')}
-      ${hdr(SP_SVG.apple + SP_SVG.macOS, 'macOS', 'אצל אפל')}
-      ${hdr(SP_SVG.iOS, 'iOS', 'אצלנו · dev')}
-      ${hdr(SP_SVG.macOS, 'macOS', 'אצלנו · dev')}
-    </tr></thead><tbody>` + rows.map(r => `<tr>
-      <td><div style="display:flex;align-items:center;gap:7px"><img class="sv-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt=""><span class="sv-name">${esc(r.nm)}</span></div></td>
-      ${OS.map(os => `<td>${cell(r.plats[os] && r.plats[os].apple)}</td>`).join('')}
-      ${OS.map(os => `<td>${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
+  const ordered = svApplyOrder(rows);
+  const mx = `
+    <div class="mx-bar">
+      <button class="mx-btn${svReorder ? ' on' : ''}" onclick="svToggleReorder()">${svReorder ? '✓ סיום סידור' : '↕ שינוי סדר'}</button>
+      ${svReorder ? '<span class="mx-hint">גרור שורה למקום הרצוי — הסדר נשמר בשרת</span>' : ''}
+    </div>
+    <div style="overflow-x:auto"><table class="sv-mx${svReorder ? ' reordering' : ''}"><thead>
+      <tr class="mx-grp"><th></th><th colspan="2" class="mx-apple">${SP_SVG.apple}</th><th colspan="2" class="mx-ours">${SP_SVG.wrench}</th></tr>
+      <tr><th></th>
+        <th class="mx-apple"><span class="mx-h">${SP_SVG.iOS}<span>iOS</span></span></th>
+        <th class="mx-apple"><span class="mx-h">${SP_SVG.macOS}<span>macOS</span></span></th>
+        <th class="mx-ours"><span class="mx-h">${SP_SVG.iOS}<span>iOS</span></span></th>
+        <th class="mx-ours"><span class="mx-h">${SP_SVG.macOS}<span>macOS</span></span></th>
+      </tr></thead><tbody id="mxBody">` + ordered.map(r => `<tr data-appk="${esc(r.a.dir)}"${svReorder ? ' draggable="true"' : ''}>
+      <td><div class="mx-app">${svReorder ? '<span class="mx-grip">⋮⋮</span>' : ''}
+        <img class="mx-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt="">
+        <span class="mx-nm">${esc(r.nm)}</span></div></td>
+      ${OS.map(os => `<td class="mx-apple">${cell(r.plats[os] && r.plats[os].apple)}</td>`).join('')}
+      ${OS.map(os => `<td class="mx-ours">${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
     </tr>`).join('') + `</tbody></table></div>`;
 
   // 1 — RINGS: the ring is SPLIT, not nested — the top half is iOS and the bottom half is
