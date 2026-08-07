@@ -751,40 +751,45 @@ footer a { color: var(--muted); }
 .info-empty { color: var(--muted); font-size: 12.5px; padding: 6px 0; }
 
 /* ── מצב בחנות ─────────────────────────────────────────────────────────────
-   Two SIDES, because they answer to different owners (Erez 2026-08-07):
-   אצל אפל = anything waiting on Apple or already decided by Apple (live/rejected).
-   אצלנו   = work we are doing here — the dev channel and versions being prepared.
-   Something we are still preparing is NOT "at Apple", even though ASC knows about it.
-
-   Chips are OPAQUE and vivid — status must be readable across the room. Text colour
-   is picked per background for contrast (black on yellow, white on the rest), and the
-   glyph + Hebrew label stay so colour is never the only signal. */
+   Two SIDES by OWNER (Erez 2026-08-07): אצל אפל = waiting on Apple or already
+   decided by it; אצלנו = our own work. Both sides use the SAME colour language, so
+   the dev side is no longer an undifferentiated grey block:
+     green  = nothing pending / prepared and ready
+     yellow = moving (in review, or dev changes not released yet)
+     red    = needs attention (rejected, or a dev channel older than what ships)
+     grey   = genuinely nothing to say
+   Vivid panel-local colours: the page tokens are deliberately muted for body text
+   and read washed-out on a status chip. Contrast text is picked per background. */
+.sp{--g:#1db954;--y:#f5c518;--r:#f5333f;--n:#8e8e93}
+:root[data-theme="dark"] .sp{--g:#2ee36a;--y:#ffd93d;--r:#ff5c66;--n:#9a9a9f}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .sp{--g:#2ee36a;--y:#ffd93d;--r:#ff5c66;--n:#9a9a9f}}
 .sp-card{background:var(--surface-1);border:1px solid var(--ring);border-radius:12px;padding:12px 14px;margin-bottom:18px}
 .sp-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .sp-title{font-size:13px;font-weight:700;color:var(--ink-1)}
-.sp-need{font-size:12px;font-weight:700;color:var(--red)}
+.sp-need{font-size:12px;font-weight:700;color:var(--r)}
 .sp-meta{font-size:11.5px;color:var(--muted);margin-inline-start:auto}
 .sp-scroll{overflow-x:auto}
-.sp-grid{display:grid;grid-template-columns:20px minmax(74px,auto) repeat(4,minmax(84px,1fr));
-         align-items:center;gap:6px 8px;min-width:520px}
+.sp-grid{display:grid;grid-template-columns:20px minmax(70px,auto) repeat(4,minmax(74px,1fr));
+         align-items:center;gap:5px 7px;min-width:470px}
 .sp-side{font-size:11px;font-weight:700;color:var(--ink-2);grid-column:span 2;text-align:center;
-         padding:3px 6px;border-radius:6px;background:var(--tint)}
-.sp-os-h{font-size:10.5px;font-weight:700;color:var(--muted);text-align:center;
-         padding-bottom:4px;border-bottom:1px solid var(--grid)}
+         padding:3px 6px;border-radius:6px;background:var(--tint);display:flex;align-items:center;justify-content:center;gap:5px}
+.sp-os-h{display:flex;align-items:center;justify-content:center;gap:4px;font-size:10.5px;font-weight:700;
+         color:var(--ink-2);padding-bottom:4px;border-bottom:1px solid var(--grid)}
+.sp-os-h svg,.sp-side svg{width:17px;height:17px;flex:none;color:var(--blue)}
+.sp-os-h{color:var(--ink-1)}
+.sp-side svg{width:18px;height:18px}
 .sp-ico{width:18px;height:18px;border-radius:5px;object-fit:cover}
 .sp-app{font-size:12.5px;font-weight:600;color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sp-cell{display:flex;flex-direction:column;gap:3px;align-items:stretch}
-.sp-chip{display:flex;align-items:center;justify-content:center;gap:5px;
-         font-size:11px;font-weight:700;line-height:1;padding:4px 7px;border-radius:6px;
-         white-space:nowrap;background:var(--c);color:#fff}
-.sp-chip .sp-v{font-variant-numeric:tabular-nums;font-weight:600;opacity:.92}
-.sp-chip.good{--c:var(--green)}
-.sp-chip.wait{--c:var(--yellow);color:#171717}          /* black on yellow — contrast */
-.sp-chip.bad {--c:var(--red)}
-.sp-chip.idle{--c:var(--muted)}
-.sp-dash{color:var(--muted);font-size:11.5px;text-align:center}
+.sp-cell{display:flex;flex-direction:column;gap:3px;align-items:center}
+.sp-chip{display:inline-flex;align-items:baseline;gap:4px;font-size:10.5px;font-weight:700;line-height:1.35;
+         padding:2px 6px;border-radius:5px;white-space:nowrap;background:var(--c);color:#fff}
+.sp-chip .sp-v{font-size:9.5px;font-variant-numeric:tabular-nums;font-weight:600;opacity:.9}
+.sp-chip.good{--c:var(--g)}
+.sp-chip.wait{--c:var(--y);color:#141414}       /* black on yellow — contrast */
+.sp-chip.bad {--c:var(--r)}
+.sp-chip.idle{--c:var(--n)}
+.sp-dash{color:var(--n);font-size:11px}
 .sp-div{grid-column:1/-1;height:1px;background:var(--grid)}
-/* the vertical seam between "at Apple" and "here" */
 .sp-grid>*:nth-child(6n+5){box-shadow:inset 1px 0 0 var(--grid)}
 </style>
 </head>
@@ -1154,29 +1159,46 @@ function boot(D, locked) {
 
 // ── מצב בחנות ──────────────────────────────────────────────────────────────
 // Same registry/asc_status.json the ASC webhook refreshes — one source of truth.
-// AT APPLE: waiting on Apple, or already decided by it (live / rejected).
-// HERE: our own work — the dev channel, and versions we are still preparing.
+// Platform marks are drawn inline (Apple's own device/App Store shapes) rather than
+// emoji: emoji render at different sizes per platform and looked like decoration.
+const SP_SVG = {
+  // Stroke geometry, not filled paths: it stays crisp at 17px and cannot smear the way
+  // a hand-traced fill does. currentColor so the header can brighten them.
+  iOS: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">' +
+       '<rect x="7" y="2.2" width="10" height="19.6" rx="2.6"/><path d="M10.6 4.6h2.8" stroke-linecap="round"/></svg>',
+  macOS: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">' +
+         '<rect x="2.4" y="3.6" width="19.2" height="13" rx="1.9"/><path d="M8 20.4h8" stroke-linecap="round"/></svg>',
+  // App Store mark: the rounded square with its stylised "A". Deliberately NOT the Apple
+  // logo — Erez asked for the store's own icon.
+  store: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.6" y="1.6" width="20.8" height="20.8" rx="5.4" fill="currentColor"/>' +
+         '<path d="M7.1 16.6 11.4 9m5.5 7.6L12.6 9M9.1 14.1h5.8" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/></svg>',
+};
 const SP_APPLE = {
-  REJECTED:                  ['נדחתה',       'bad',  '✕', 0],
-  DEVELOPER_REJECTED:        ['נדחתה על ידך','bad',  '✕', 0],
-  METADATA_REJECTED:         ['מטא-דאטה',    'bad',  '✕', 0],
-  INVALID_BINARY:            ['בילד פסול',   'bad',  '✕', 0],
-  PENDING_DEVELOPER_RELEASE: ['לשחרור שלך',  'good', '▶', 1],
-  IN_REVIEW:                 ['בסקירה',      'wait', '◷', 2],
-  WAITING_FOR_REVIEW:        ['ממתינה',      'wait', '◷', 2],
-  PENDING_APPLE_RELEASE:     ['ממתינה לאפל', 'wait', '◷', 2],
-  PROCESSING_FOR_APP_STORE:  ['בעיבוד',      'wait', '◷', 3],
+  REJECTED:                  ['נדחתה',  'bad',  0],
+  DEVELOPER_REJECTED:        ['נדחתה',  'bad',  0],
+  METADATA_REJECTED:         ['נדחתה',  'bad',  0],
+  INVALID_BINARY:            ['בילד פסול','bad',0],
+  PENDING_DEVELOPER_RELEASE: ['לשחרור', 'good', 1],
+  IN_REVIEW:                 ['בסקירה', 'wait', 2],
+  WAITING_FOR_REVIEW:        ['בסקירה', 'wait', 2],
+  PENDING_APPLE_RELEASE:     ['לשחרור אפל','wait',2],
+  PROCESSING_FOR_APP_STORE:  ['בעיבוד', 'wait', 3],
 };
 const SP_OS = { IOS: 'iOS', MAC_OS: 'macOS', TV_OS: 'tvOS' };
-const SP_OS_ICON = { iOS: '📱', macOS: '🖥️', tvOS: '📺' };
 const SP_ORDER = { iOS: 0, macOS: 1, tvOS: 2 };
 
-// displayName carries documentation asides — 'Groupy Calendar (icon label "Groupy")'.
 function spName(a) { return String(a.displayName || a.name || '').split('(')[0].trim() || a.name || ''; }
 
-function spChip(label, tone, glyph, version, aria) {
-  return `<span class="sp-chip ${tone}" aria-label="${esc(aria)}">` +
-    `<span aria-hidden="true">${glyph}</span>${esc(label)}` +
+// Compare only the numeric core: "1.4.1-dev02" vs "1.4.0" — the dev suffix is noise here.
+function spCmp(a, b) {
+  const n = v => (String(v || '').match(/\d+/g) || []).map(Number);
+  const x = n(a), y = n(b);
+  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0);
+  return 0;
+}
+
+function spChip(label, tone, version, aria) {
+  return `<span class="sp-chip ${tone}" aria-label="${esc(aria)}">${esc(label)}` +
     (version ? `<span class="sp-v" dir="ltr">${esc(version)}</span>` : '') + `</span>`;
 }
 
@@ -1193,48 +1215,56 @@ function storePanelBody() {
   for (const a of (D.apps || [])) {
     if (a.category !== 'native-app' || !a.asc || !a.asc.platforms) continue;
     const nm = spName(a);
-    // One dev build serves both platforms (a single OTA bundle), so the same value
-    // appears in both dev columns — that is the truth, not a placeholder.
-    const devV = (a.versions || {}).dev || null;
+    const v = a.versions || {};
+    const devV = v.dev || null;                 // one OTA bundle serves both platforms
     const apple = {}, ours = {};
     let worst = 9;
 
     for (const [key, p] of Object.entries(a.asc.platforms)) {
       if (!p || !p.latest) continue;
       const os = SP_OS[key] || key;
-      const pending = SP_APPLE[p.latest.state];
 
+      // ── at Apple
+      const pending = SP_APPLE[p.latest.state];
       if (pending) {
-        const [label, tone, glyph, rank] = pending;
-        apple[os] = spChip(label, tone, glyph, p.latest.version, `${nm} ${os} ${p.latest.version} — ${label}`);
+        const [label, tone, rank] = pending;
+        apple[os] = spChip(label, tone, p.latest.version, `${nm} ${os} ${p.latest.version} — ${label}`);
         if (rank < worst) worst = rank;
       } else if (p.live) {
-        apple[os] = spChip('בחנות', 'good', '✓', p.live.version, `${nm} ${os} ${p.live.version} — בחנות`);
+        apple[os] = spChip('בחנות', 'good', p.live.version, `${nm} ${os} ${p.live.version} — בחנות`);
       } else {
-        apple[os] = spChip('טרם עלתה', 'idle', '○', '', `${nm} ${os} — טרם עלתה`);
+        apple[os] = spChip('טרם', 'idle', '', `${nm} ${os} — טרם עלתה לחנות`);
       }
 
-      // Ours: a version we are preparing is our work, even though ASC knows about it.
+      // ── ours: same colour language, so this side is not one grey block
       const mine = [];
-      if (p.latest.state === 'PREPARE_FOR_SUBMISSION' && (!p.live || p.live.version !== p.latest.version))
-        mine.push(spChip('מכינים', 'idle', '⚙', p.latest.version, `${nm} ${os} ${p.latest.version} — מכינים להגשה`));
-      if (devV) mine.push(spChip('dev', 'idle', '◆', devV, `${nm} ${os} dev ${devV}`));
+      const prepping = p.latest.state === 'PREPARE_FOR_SUBMISSION' &&
+                       (!p.live || p.live.version !== p.latest.version);
+      if (prepping) mine.push(spChip('מוכנה', 'good', p.latest.version,
+        `${nm} ${os} ${p.latest.version} — מוכנה להגשה`));
+      if (devV) {
+        const d = spCmp(devV, p.live ? p.live.version : v.prod);
+        const [label, tone, why] = d < 0 ? ['dev מפגר', 'bad', 'ישן ממה שבחנות — בודקים גרסה לא עדכנית']
+                                 : d > 0 ? ['בפיתוח', 'wait', 'יש שינויים שטרם שוחררו']
+                                         : ['מסונכרן', 'idle', 'זהה למה שבחנות'];
+        mine.push(spChip(label, tone, devV, `${nm} ${os} dev ${devV} — ${why}`));
+      }
       ours[os] = mine.join('');
     }
     rows.push({ a, nm, apple, ours, rank: worst });
   }
   if (!rows.length) { el.innerHTML = ''; return; }
-  // Most urgent first: a rejection must never rest below a row that needs nothing.
   rows.sort((x, y) => x.rank - y.rank || x.nm.localeCompare(y.nm));
 
   const need = rows.filter(r => r.rank <= 1).length;
   const upd = D.ascFetchedAt
     ? new Date(D.ascFetchedAt).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
     : (D.generatedAt || '');
-  const OS = ['iOS', 'macOS'].sort((x, y) => SP_ORDER[x] - SP_ORDER[y]);
-  const cell = v => v ? v : '<span class="sp-dash">—</span>';
+  const OS = ['iOS', 'macOS'];
+  const head = OS.map(o => `<span class="sp-os-h">${SP_SVG[o]}${o}</span>`).join('');
+  const cell = x => x || '<span class="sp-dash">—</span>';
 
-  el.innerHTML = `<div class="sp-card">
+  el.innerHTML = `<div class="sp-card sp">
     <div class="sp-top">
       <span class="sp-title">📱 מצב בחנות</span>
       ${need ? `<span class="sp-need">${need} דורשות טיפול</span>` : ''}
@@ -1242,11 +1272,9 @@ function storePanelBody() {
     </div>
     <div class="sp-scroll"><div class="sp-grid">
       <span></span><span></span>
-      <span class="sp-side">🍎 אצל אפל</span>
-      <span class="sp-side">🛠️ אצלנו — dev</span>
-      <span></span><span></span>
-      ${OS.map(o => `<span class="sp-os-h">${SP_OS_ICON[o]} ${o}</span>`).join('')}
-      ${OS.map(o => `<span class="sp-os-h">${SP_OS_ICON[o]} ${o}</span>`).join('')}` +
+      <span class="sp-side">${SP_SVG.store}אצל אפל</span>
+      <span class="sp-side">אצלנו — dev</span>
+      <span></span><span></span>${head}${head}` +
     rows.map(r => `
       <img class="sp-ico" src="icons/${esc(r.a.dir)}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.hidden=true" alt="">
       <span class="sp-app">${esc(r.nm)}</span>
