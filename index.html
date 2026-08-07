@@ -775,17 +775,18 @@ footer a { color: var(--muted); }
          padding:3px 6px;border-radius:6px;background:var(--tint);display:flex;align-items:center;justify-content:center;gap:5px}
 .sp-os-h{display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;font-weight:700;
          color:var(--ink-2);padding-bottom:4px;border-bottom:1px solid var(--grid)}
-.sp-os-h svg,.sp-side svg{width:17px;height:17px;flex:none;color:var(--blue)}
+.sp-os-h svg,.sp-side svg{width:21px;height:21px;flex:none;color:var(--blue)}
 .sp-os-h{color:var(--ink-1)}
-.sp-side svg{width:18px;height:18px}
+.sp-side svg{width:22px;height:22px}
 .sp-ico{width:18px;height:18px;border-radius:5px;object-fit:cover}
 .sp-app{font-size:13.5px;font-weight:600;color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sp-cell{display:flex;flex-direction:column;gap:3px;align-items:center}
-/* Every chip is the same size: full cell width, one padding, one type scale — a chip
-   that is wider because its label is longer reads as more important. */
-.sp-chip{display:flex;align-items:baseline;justify-content:center;gap:5px;width:100%;
-         font-size:12px;font-weight:700;line-height:1.5;min-height:22px;
-         padding:3px 7px;border-radius:6px;white-space:nowrap;background:var(--c);color:#fff}
+/* One padding, one type scale and one height for every chip — but sized to its content,
+   not stretched across the column. A modest min-width keeps short labels from looking
+   like a different component. */
+.sp-chip{display:inline-flex;align-items:baseline;justify-content:center;gap:5px;
+         font-size:12px;font-weight:700;line-height:1.5;min-height:22px;min-width:76px;
+         padding:3px 8px;border-radius:6px;white-space:nowrap;background:var(--c);color:#fff}
 .sp-chip .sp-v{font-size:11px;font-variant-numeric:tabular-nums;font-weight:600;opacity:.92}
 .sp-chip.good{--c:var(--g);color:#0d2b16}   /* dark on green — white washed out */
 .sp-chip.wait{--c:var(--y);color:#141414}       /* black on yellow — contrast */
@@ -1231,10 +1232,12 @@ function storePanelBody() {
       // Showing only the pending one hid that Groupy iOS still serves 1.9.0 while macOS
       // had moved to 1.11.0 — exactly the divergence Erez suspected (2026-08-07).
       const at = [];
-      at.push(p.live
-        ? spChip('בחנות', 'good', p.live.version, `${nm} ${os} ${p.live.version} — בחנות`)
-        : spChip('טרם עלתה', 'idle', '', `${nm} ${os} — טרם עלתה לחנות`));
       const pending = SP_APPLE[p.latest.state];
+      // Show what customers have now — but only when there IS something. Every app is set
+      // to release automatically on approval, so "not launched yet" next to a pending
+      // review states the obvious (Erez 2026-08-07).
+      if (p.live) at.push(spChip('בחנות', 'good', p.live.version, `${nm} ${os} ${p.live.version} — בחנות`));
+      else if (!pending) at.push(spChip('טרם עלתה', 'idle', '', `${nm} ${os} — טרם עלתה לחנות`));
       if (pending) {
         const [label, tone, rank] = pending;
         at.push(spChip(label, tone, p.latest.version, `${nm} ${os} ${p.latest.version} — ${label}`));
