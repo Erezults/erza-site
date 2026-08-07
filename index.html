@@ -769,8 +769,8 @@ footer a { color: var(--muted); }
 .sp-need{font-size:12px;font-weight:700;color:var(--r)}
 .sp-meta{font-size:12px;color:var(--muted);margin-inline-start:auto}
 .sp-scroll{overflow-x:auto}
-.sp-grid{display:grid;grid-template-columns:20px minmax(76px,auto) repeat(4,minmax(96px,1fr));
-         align-items:center;gap:5px 7px;min-width:560px}
+.sp-grid{display:grid;grid-template-columns:20px minmax(76px,auto) repeat(4,minmax(106px,1fr));
+         align-items:center;gap:5px 7px;min-width:600px}
 .sp-side{font-size:12.5px;font-weight:700;color:var(--ink-2);grid-column:span 2;text-align:center;
          padding:3px 6px;border-radius:6px;background:var(--tint);display:flex;align-items:center;justify-content:center;gap:5px}
 .sp-os-h{display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;font-weight:700;
@@ -780,21 +780,28 @@ footer a { color: var(--muted); }
 .sp-side svg{width:22px;height:22px}
 .sp-ico{width:18px;height:18px;border-radius:5px;object-fit:cover}
 .sp-app{font-size:13.5px;font-weight:600;color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sp-cell{display:flex;flex-direction:column;gap:3px;align-items:center}
-/* One padding, one type scale and one height for every chip — but sized to its content,
-   not stretched across the column. A modest min-width keeps short labels from looking
-   like a different component. */
-.sp-chip{display:inline-flex;align-items:baseline;justify-content:center;gap:5px;
-         font-size:12px;font-weight:700;line-height:1.5;min-height:22px;min-width:76px;
-         padding:3px 8px;border-radius:6px;white-space:nowrap;background:var(--c);color:#fff}
-.sp-chip .sp-v{font-size:11px;font-variant-numeric:tabular-nums;font-weight:600;opacity:.92}
+.sp-cell{display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center}
+/* EXACTLY the same size for every chip — one fixed width and height, never the full
+   column. Uniformity is the point: a chip that is bigger because its text is longer
+   reads as more important than it is.
+   Label above, version below: on one line "מסונכרן 1.19.2-dev08" would have forced
+   every chip to that width. Stacked, the width is set by the longest single token. */
+.sp-chip{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+         width:98px;height:34px;flex:none;
+         font-size:12px;font-weight:700;line-height:1.2;
+         padding:3px 5px;border-radius:6px;white-space:nowrap;background:var(--c);color:#fff}
+.sp-chip .sp-v{font-size:10.5px;font-variant-numeric:tabular-nums;font-weight:600;opacity:.9;
+               max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .sp-chip.good{--c:var(--g);color:#0d2b16}   /* dark on green — white washed out */
 .sp-chip.wait{--c:var(--y);color:#141414}       /* black on yellow — contrast */
 .sp-chip.bad {--c:var(--r)}
 .sp-chip.idle{--c:var(--n)}
 .sp-dash{color:var(--n);font-size:12px}
 .sp-div{grid-column:1/-1;height:1px;background:var(--grid)}
-.sp-grid>*:nth-child(6n+5){box-shadow:inset 1px 0 0 var(--grid)}
+/* The seam between the two sides is marked on the element, not derived from an
+   nth-child count: the spanning headers shift that count and the line appeared on
+   random rows. */
+.sp-seam{box-shadow:inset 1px 0 0 var(--grid)}
 </style>
 </head>
 <body>
@@ -952,7 +959,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.0'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=0d2ed4fa"></script>
+<script src="data.enc.js?v=43a7e215"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1270,7 +1277,8 @@ function storePanelBody() {
     ? new Date(D.ascFetchedAt).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
     : (D.generatedAt || '');
   const OS = ['iOS', 'macOS'];
-  const head = OS.map(o => `<span class="sp-os-h">${SP_SVG[o]}${o}</span>`).join('');
+  const head = seam => OS.map((o, k) =>
+    `<span class="sp-os-h${seam && k === 0 ? ' sp-seam' : ''}">${SP_SVG[o]}${o}</span>`).join('');
   const cell = x => x || '<span class="sp-dash">—</span>';
 
   el.innerHTML = `<div class="sp-card sp">
@@ -1283,12 +1291,12 @@ function storePanelBody() {
       <span></span><span></span>
       <span class="sp-side">${SP_SVG.apple}אצל אפל</span>
       <span class="sp-side">אצלנו — dev</span>
-      <span></span><span></span>${head}${head}` +
+      <span></span><span></span>${head(false)}${head(true)}` +
     rows.map(r => `
       <img class="sp-ico" src="icons/${esc(r.a.dir)}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.hidden=true" alt="">
       <span class="sp-app">${esc(r.nm)}</span>
       ${OS.map(o => `<span class="sp-cell">${cell(r.apple[o])}</span>`).join('')}
-      ${OS.map(o => `<span class="sp-cell">${cell(r.ours[o])}</span>`).join('')}`
+      ${OS.map((o, k) => `<span class="sp-cell${k === 0 ? ' sp-seam' : ''}">${cell(r.ours[o])}</span>`).join('')}`
     ).join('<span class="sp-div"></span>') + `</div></div></div>`;
 }
 
