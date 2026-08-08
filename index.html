@@ -1423,7 +1423,10 @@ function spAppRows() {
       if (!b) return null;
       const ok = b.state === 'VALID' && !b.expired;
       return {
-        label: b.expired ? 'פג' : ok ? 'TestFlight' : 'מעבד',
+        // The ROW already says TestFlight (its icon), so repeating the word here would
+        // spend the width Erez asked to reclaim. Spend it on the build number instead —
+        // the one fact that distinguishes two uploads of the same version.
+        label: b.expired ? 'פג' : ok ? (b.build || '') : 'מעבד',
         tone: b.expired ? 'idle' : ok ? 'good' : 'wait',
         version: b.version || b.build,
         build: b.build,
