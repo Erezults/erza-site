@@ -1068,7 +1068,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=9b17dcae"></script>
+<script src="data.enc.js?v=50cf7f5c"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1370,7 +1370,25 @@ function spAppRows() {
       }
       plats[os] = { apple, mine, live, ready: prepping ? { label: 'מוכנה', tone: 'good', version: p.latest.version } : null };
     }
-    if (Object.keys(plats).length) rows.push({ a, nm, plats, rank: worst });
+    // TestFlight, per platform AND per channel — Erez asked for it beside the store
+    // row (2026-08-08) because "uploaded" and "in the store" are different facts and
+    // he was reading one as the other. A build that is still processing is not yet
+    // installable, so it is toned as in-motion rather than good.
+    const tf = (a.asc && a.asc.testflight) || {};
+    const tfCell = (ch, key) => {
+      const b = (tf[ch] || {})[key];
+      if (!b) return null;
+      const ok = b.state === 'VALID' && !b.expired;
+      return {
+        label: b.expired ? 'פג' : ok ? 'TestFlight' : 'מעבד',
+        tone: b.expired ? 'idle' : ok ? 'good' : 'wait',
+        version: b.version || b.build,
+        build: b.build,
+      };
+    };
+    const flight = {};
+    for (const [key, os] of Object.entries(SP_OS)) flight[os] = { dev: tfCell('dev', key), prod: tfCell('prod', key) };
+    if (Object.keys(plats).length) rows.push({ a, nm, plats, flight, rank: worst });
   }
   rows.sort((x, y) => x.rank - y.rank || x.nm.localeCompare(y.nm));
   return rows;
@@ -1413,19 +1431,32 @@ function svToggleReorder() {
   renderStorePanel();          // redraw with/without the grips — the matrix now lives here
   if (!svReorder) return;
   const tb = document.getElementById('mxBody'); if (!tb) return;
-  let dragged = null;
+  // Each app is now a PAIR of rows (TestFlight + store), so dragging moves the pair.
+  // Moving one alone would tear an app's two halves apart and leave its icon cell —
+  // which spans both — anchored to the wrong app.
+  const pairOf = tr => [...tb.querySelectorAll(`tr[data-appk="${CSS.escape(tr.dataset.appk)}"]`)];
+  let dragged = null;   // the app key being dragged, not a single row
+  tb.querySelectorAll('tr.mx-tf').forEach(tr => {
+    tr.ondragstart = e => { dragged = tr.dataset.appk; pairOf(tr).forEach(x => x.classList.add('dragging')); e.dataTransfer.effectAllowed = 'move'; };
+    tr.ondragend = () => { tb.querySelectorAll('.dragging').forEach(x => x.classList.remove('dragging')); dragged = null; svSaveOrder(); };
+  });
   tb.querySelectorAll('tr').forEach(tr => {
-    tr.ondragstart = e => { dragged = tr; tr.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; };
-    tr.ondragend = () => { tr.classList.remove('dragging'); dragged = null; svSaveOrder(); };
     tr.ondragover = e => {
-      e.preventDefault(); if (!dragged || dragged === tr) return;
+      e.preventDefault();
+      if (!dragged || tr.dataset.appk === dragged) return;
+      const rows = tb.querySelectorAll(`tr[data-appk="${CSS.escape(dragged)}"]`);
       const b = tr.getBoundingClientRect();
-      tb.insertBefore(dragged, (e.clientY - b.top) / b.height > .5 ? tr.nextSibling : tr);
+      const after = (e.clientY - b.top) / b.height > .5;
+      // Anchor on the target PAIR's boundary, never mid-pair.
+      const target = pairOf(tr);
+      const ref = after ? target[target.length - 1].nextSibling : target[0];
+      rows.forEach(x => tb.insertBefore(x, ref));
     };
   });
 }
 async function svSaveOrder() {
-  const order = [...document.querySelectorAll('#mxBody tr')].map(tr => tr.dataset.appk).filter(Boolean);
+  // Two rows per app → de-duplicate, or the saved order would list every app twice.
+  const order = [...new Set([...document.querySelectorAll('#mxBody tr')].map(tr => tr.dataset.appk).filter(Boolean))];
   if (!order.length) return;   // never persist an empty order over a saved one
   mrLayout = { ...mrLayout, storeMatrix: order, updatedAt: new Date().toISOString() };
   try {
@@ -1456,20 +1487,37 @@ function svMatrixHtml(rows, opts = {}) {
       <button class="mx-btn${svReorder ? ' on' : ''}" onclick="svToggleReorder()">${svReorder ? '✓ סיום סידור' : '↕ שינוי סדר'}</button>
       ${svReorder ? '<span class="mx-hint">גרור שורה למקום הרצוי — הסדר נשמר בשרת</span>' : ''}
     </div>
-    <div style="overflow-x:auto"><table class="sv-mx${svReorder ? ' reordering' : ''}"><thead>
-      <tr class="mx-grp"><th></th><th colspan="2" class="mx-apple">${SP_SVG.apple}</th><th colspan="2" class="mx-ours">${SP_SVG.wrench}</th></tr>
-      <tr><th></th>
-        <th class="mx-apple"><span class="mx-h">${SP_SVG.iOS}<span>iOS</span></span></th>
-        <th class="mx-apple"><span class="mx-h">${SP_SVG.macOS}<span>macOS</span></span></th>
-        <th class="mx-ours"><span class="mx-h">${SP_SVG.iOS}<span>iOS</span></span></th>
-        <th class="mx-ours"><span class="mx-h">${SP_SVG.macOS}<span>macOS</span></span></th>
-      </tr></thead><tbody id="mxBody">` + ordered.map(r => `<tr data-appk="${esc(r.a.dir)}"${svReorder ? ' draggable="true"' : ''}>
-      <td><div class="mx-app">${svReorder ? '<span class="mx-grip">⋮⋮</span>' : ''}
+    <div style="overflow-x:auto"><table class="sv-mx sv-mx2${svReorder ? ' reordering' : ''}"><thead>
+      <tr class="mx-grp"><th></th><th></th><th colspan="4" class="mx-apple">${SP_SVG.apple}</th><th colspan="2" class="mx-ours">${SP_SVG.wrench}</th></tr>
+      <tr><th></th><th></th>
+        <th colspan="2" class="mx-apple mx-os"><span class="mx-h">${SP_SVG.iOS}<span>iOS</span></span></th>
+        <th colspan="2" class="mx-apple mx-os"><span class="mx-h">${SP_SVG.macOS}<span>macOS</span></span></th>
+        <th rowspan="2" class="mx-ours"><span class="mx-h">${SP_SVG.iOS}<span>iOS</span></span></th>
+        <th rowspan="2" class="mx-ours"><span class="mx-h">${SP_SVG.macOS}<span>macOS</span></span></th>
+      </tr>
+      <tr class="mx-sub"><th></th><th></th>
+        <th class="mx-apple">dev</th><th class="mx-apple mx-edge">prod</th>
+        <th class="mx-apple">dev</th><th class="mx-apple mx-edge">prod</th>
+      </tr></thead><tbody id="mxBody">` + ordered.map(r => {
+    // Two rows per app: what is installable from TestFlight (split dev|prod) and what
+    // is in the store. The store has no dev/prod split — a customer only ever sees
+    // prod — so its cells span the pair rather than inventing an empty dev column.
+    const appCell = `<td rowspan="2"><div class="mx-app">${svReorder ? '<span class="mx-grip">⋮⋮</span>' : ''}
         <img class="mx-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt="">
-        <span class="mx-nm">${esc(r.nm)}</span></div></td>
-      ${OS.map(os => `<td class="mx-apple">${cell(r.plats[os] && r.plats[os].apple)}</td>`).join('')}
-      ${OS.map(os => `<td class="mx-ours">${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
-    </tr>`).join('') + `</tbody></table></div>`
+        <span class="mx-nm">${esc(r.nm)}</span></div></td>`;
+    return `<tr class="mx-tf" data-appk="${esc(r.a.dir)}"${svReorder ? ' draggable="true"' : ''}>
+      ${appCell}
+      <th class="mx-rowh">TestFlight</th>
+      ${OS.map(os => `
+        <td class="mx-apple">${cell((r.flight[os] || {}).dev)}</td>
+        <td class="mx-apple mx-edge">${cell((r.flight[os] || {}).prod)}</td>`).join('')}
+      ${OS.map(os => `<td class="mx-ours" rowspan="2">${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
+    </tr>
+    <tr class="mx-live" data-appk="${esc(r.a.dir)}">
+      <th class="mx-rowh">בחנות</th>
+      ${OS.map(os => `<td class="mx-apple mx-edge" colspan="2">${cell(r.plats[os] && r.plats[os].apple)}</td>`).join('')}
+    </tr>`;
+  }).join('') + `</tbody></table></div>`
 }
 
 function renderStorePanel() {
