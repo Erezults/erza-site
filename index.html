@@ -845,8 +845,16 @@ footer a { color: var(--muted); }
 /* Two rows per app: TestFlight (dev|prod per platform) + store. The pair has to read
    as ONE app, so only the pair's last row carries the separating rule, and the row
    label sits in its own narrow column rather than crowding the app name. */
-.sv-mx2 .mx-rowh{font-size:9.5px;font-weight:700;color:var(--muted);text-align:end;
-                 padding:0 8px 0 2px;white-space:nowrap;border-bottom:0;letter-spacing:.02em}
+/* The row label is a MARK, not a word (Erez, 2026-08-08): on a phone the words
+   "TestFlight"/"בחנות" cost more width than the values they label. */
+.sv-mx2 .mx-rowh{width:1%;padding:0 6px;border-bottom:0;text-align:center;line-height:0}
+.sv-mx2 .mx-rowh svg{width:15px;height:15px;color:var(--muted);vertical-align:middle}
+.sv-mx2 tr.mx-tf .mx-rowh svg{color:var(--blue)}
+/* Alternating band per APP — striping by ROW would cut every app in half, so both
+   rows of a pair carry it. background-IMAGE layers over the column bands' colour
+   instead of replacing it, so the Apple/ours tinting survives underneath. */
+.sv-mx2 tbody tr.mx-alt>*{background-image:linear-gradient(color-mix(in srgb,var(--ink-1) 5%,transparent),
+                                                           color-mix(in srgb,var(--ink-1) 5%,transparent))}
 .sv-mx2 tbody tr.mx-tf td,.sv-mx2 tbody tr.mx-tf th{border-bottom:0}
 .sv-mx2 tbody tr.mx-live td{border-bottom:1px solid var(--grid)}
 .sv-mx2 tbody tr.mx-tf .mx-apple{padding-bottom:2px}
@@ -855,8 +863,10 @@ footer a { color: var(--muted); }
    reading them as a single wide value. mx-edge closes each platform's pair. */
 .sv-mx2 .mx-edge{box-shadow:inset -1px 0 0 var(--grid)}
 html[dir="rtl"] .sv-mx2 .mx-edge{box-shadow:inset 1px 0 0 var(--grid)}
-.sv-mx2 thead .mx-sub th{font-size:9.5px;font-weight:700;color:var(--muted);
-                         padding:0 4px 5px;text-transform:lowercase;border-bottom:1px solid var(--grid)}
+/* DEV / PROD are the axis the eye needs most in this table — uppercase, heavier and
+   a size up from the other sub-labels (Erez, 2026-08-08). */
+.sv-mx2 thead .mx-sub th{font-size:11.5px;font-weight:800;color:var(--ink-2);
+                         padding:0 4px 5px;letter-spacing:.06em;border-bottom:1px solid var(--grid)}
 .sv-mx2 thead .mx-os{padding-bottom:4px;border-bottom:0}
 .sv-mx2 tbody tr:last-child .mx-apple{border-radius:0 0 9px 9px}
 .sv-mx2 tbody tr.mx-tf:last-of-type .mx-ours{border-radius:0}
@@ -1087,7 +1097,7 @@ html[dir="rtl"] .sv-mx2 .mx-edge{box-shadow:inset 1px 0 0 var(--grid)}
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=91d091e8"></script>
+<script src="data.enc.js?v=1815e64e"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1311,6 +1321,20 @@ const SP_SVG = {
   // the 🍎 emoji, which renders differently per platform and reads as decoration.
   wrench: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.6 6.4a3.9 3.9 0 0 0 5.1 5.1l-7.6 7.6a2.2 2.2 0 0 1-3.1-3.1l7.6-7.6Z"/><path d="M14.6 6.4 17 4"/></svg>',
   apple: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 1.43c0 1.14-.42 2.2-1.12 3.01-.85.99-2.24 1.75-3.37 1.66-.14-1.1.4-2.27 1.06-3.02.75-.86 2.05-1.5 3.13-1.55.02.09.03.19.03.29zM20.9 17.06c-.55 1.27-.81 1.84-1.52 2.96-.99 1.56-2.38 3.5-4.1 3.51-1.53.01-1.93-.99-4.01-.98-2.08.01-2.51 1-4.04.98-1.72-.02-3.04-1.77-4.03-3.33C.62 15.9.35 10.79 2.05 8.07c1.21-1.93 3.12-3.06 4.92-3.06 1.83 0 2.98 1.01 4.49 1.01 1.47 0 2.36-1.01 4.48-1.01 1.6 0 3.3.87 4.51 2.38-3.96 2.17-3.32 7.83.45 9.67z"/></svg>',
+  // Row marks for the two Apple rows. Erez asked for icons instead of the words
+  // "TestFlight" / "בחנות" (2026-08-08): on a phone that label column was eating the
+  // width the value cells needed, and both marks read instantly.
+  testflight: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
+    + '<g transform="translate(12 12)">'
+    + '<path d="M0-8.4c1.8 0 3.2 1.1 3.2 2.5 0 1-.6 1.9-1.4 3L0-.8l-1.8-2.4c-.8-1.1-1.4-2-1.4-3C-3.2-7.3-1.8-8.4 0-8.4Z"/>'
+    + '<path d="M0-8.4c1.8 0 3.2 1.1 3.2 2.5 0 1-.6 1.9-1.4 3L0-.8l-1.8-2.4c-.8-1.1-1.4-2-1.4-3C-3.2-7.3-1.8-8.4 0-8.4Z" transform="rotate(120)"/>'
+    + '<path d="M0-8.4c1.8 0 3.2 1.1 3.2 2.5 0 1-.6 1.9-1.4 3L0-.8l-1.8-2.4c-.8-1.1-1.4-2-1.4-3C-3.2-7.3-1.8-8.4 0-8.4Z" transform="rotate(240)"/>'
+    + '<circle r="1.5"/></g></svg>',
+  appstore: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" '
+    + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<rect x="2.4" y="2.4" width="19.2" height="19.2" rx="4.6"/>'
+    + '<path d="M8.1 16.5 12.1 9l1.7 3.2"/><path d="M15.9 16.5 13 11.1"/>'
+    + '<path d="M6.7 14.3h4.2M13.5 14.3h3.8"/></svg>',
 };
 const SP_APPLE = {
   // Short words on purpose: the matrix is a dense grid and every extra character costs
@@ -1515,25 +1539,28 @@ function svMatrixHtml(rows, opts = {}) {
         <th rowspan="2" class="mx-ours"><span class="mx-h">${SP_SVG.macOS}<span>macOS</span></span></th>
       </tr>
       <tr class="mx-sub"><th></th><th></th>
-        <th class="mx-apple">dev</th><th class="mx-apple mx-edge">prod</th>
-        <th class="mx-apple">dev</th><th class="mx-apple mx-edge">prod</th>
-      </tr></thead><tbody id="mxBody">` + ordered.map(r => {
+        <th class="mx-apple">DEV</th><th class="mx-apple mx-edge">PROD</th>
+        <th class="mx-apple">DEV</th><th class="mx-apple mx-edge">PROD</th>
+      </tr></thead><tbody id="mxBody">` + ordered.map((r, i) => {
     // Two rows per app: what is installable from TestFlight (split dev|prod) and what
     // is in the store. The store has no dev/prod split — a customer only ever sees
     // prod — so its cells span the pair rather than inventing an empty dev column.
     const appCell = `<td rowspan="2"><div class="mx-app">${svReorder ? '<span class="mx-grip">⋮⋮</span>' : ''}
         <img class="mx-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt="">
         <span class="mx-nm">${esc(r.nm)}</span></div></td>`;
-    return `<tr class="mx-tf" data-appk="${esc(r.a.dir)}"${svReorder ? ' draggable="true"' : ''}>
+    // Alternating band per APP (not per row) — with two rows each, striping by row
+    // would cut every app in half and defeat the point. `alt` tags both of a pair.
+    const alt = i % 2 ? ' mx-alt' : '';
+    return `<tr class="mx-tf${alt}" data-appk="${esc(r.a.dir)}"${svReorder ? ' draggable="true"' : ''}>
       ${appCell}
-      <th class="mx-rowh">TestFlight</th>
+      <th class="mx-rowh" title="TestFlight">${SP_SVG.testflight}</th>
       ${OS.map(os => `
         <td class="mx-apple">${cell((r.flight[os] || {}).dev)}</td>
         <td class="mx-apple mx-edge">${cell((r.flight[os] || {}).prod)}</td>`).join('')}
       ${OS.map(os => `<td class="mx-ours" rowspan="2">${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
     </tr>
-    <tr class="mx-live" data-appk="${esc(r.a.dir)}">
-      <th class="mx-rowh">בחנות</th>
+    <tr class="mx-live${alt}" data-appk="${esc(r.a.dir)}">
+      <th class="mx-rowh" title="בחנות">${SP_SVG.appstore}</th>
       ${OS.map(os => `<td class="mx-apple mx-edge" colspan="2">${cell(r.plats[os] && r.plats[os].apple)}</td>`).join('')}
     </tr>`;
   }).join('') + `</tbody></table></div>`
