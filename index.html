@@ -841,6 +841,25 @@ footer a { color: var(--muted); }
 .sv-mx .mx-ours{background:color-mix(in srgb,var(--ink-1) 5%,transparent)}
 .sv-mx thead .mx-apple,.sv-mx thead .mx-ours{border-radius:9px 9px 0 0}
 .sv-mx tbody tr:last-child .mx-apple,.sv-mx tbody tr:last-child .mx-ours{border-radius:0 0 9px 9px}
+
+/* Two rows per app: TestFlight (dev|prod per platform) + store. The pair has to read
+   as ONE app, so only the pair's last row carries the separating rule, and the row
+   label sits in its own narrow column rather than crowding the app name. */
+.sv-mx2 .mx-rowh{font-size:9.5px;font-weight:700;color:var(--muted);text-align:end;
+                 padding:0 8px 0 2px;white-space:nowrap;border-bottom:0;letter-spacing:.02em}
+.sv-mx2 tbody tr.mx-tf td,.sv-mx2 tbody tr.mx-tf th{border-bottom:0}
+.sv-mx2 tbody tr.mx-live td{border-bottom:1px solid var(--grid)}
+.sv-mx2 tbody tr.mx-tf .mx-apple{padding-bottom:2px}
+.sv-mx2 tbody tr.mx-live .mx-apple{padding-top:2px}
+/* dev and prod are adjacent cells under one platform — a hairline keeps the eye from
+   reading them as a single wide value. mx-edge closes each platform's pair. */
+.sv-mx2 .mx-edge{box-shadow:inset -1px 0 0 var(--grid)}
+html[dir="rtl"] .sv-mx2 .mx-edge{box-shadow:inset 1px 0 0 var(--grid)}
+.sv-mx2 thead .mx-sub th{font-size:9.5px;font-weight:700;color:var(--muted);
+                         padding:0 4px 5px;text-transform:lowercase;border-bottom:1px solid var(--grid)}
+.sv-mx2 thead .mx-os{padding-bottom:4px;border-bottom:0}
+.sv-mx2 tbody tr:last-child .mx-apple{border-radius:0 0 9px 9px}
+.sv-mx2 tbody tr.mx-tf:last-of-type .mx-ours{border-radius:0}
 .mx-grp th{padding-bottom:2px;border:0}
 .mx-grp svg{width:19px;height:19px;color:var(--ink-2)}
 .mx-h{display:flex;align-items:center;justify-content:center;gap:5px;line-height:1.2}
@@ -1068,7 +1087,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=50cf7f5c"></script>
+<script src="data.enc.js?v=91d091e8"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
