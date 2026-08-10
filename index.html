@@ -842,34 +842,28 @@ footer a { color: var(--muted); }
 .sv-mx thead .mx-apple,.sv-mx thead .mx-ours{border-radius:9px 9px 0 0}
 .sv-mx tbody tr:last-child .mx-apple,.sv-mx tbody tr:last-child .mx-ours{border-radius:0 0 9px 9px}
 
-/* Two rows per app: TestFlight (dev|prod per platform) + store. The pair has to read
-   as ONE app, so only the pair's last row carries the separating rule, and the row
-   label sits in its own narrow column rather than crowding the app name. */
-/* The row label is a MARK, not a word (Erez, 2026-08-08): on a phone the words
-   "TestFlight"/"בחנות" cost more width than the values they label. */
-.sv-mx2 .mx-rowh{width:1%;padding:0 6px;border-bottom:0;text-align:center;line-height:0}
-.sv-mx2 .mx-rowh svg{width:15px;height:15px;color:var(--muted);vertical-align:middle}
-.sv-mx2 tr.mx-tf .mx-rowh svg{color:var(--blue)}
-/* Alternating band per APP — striping by ROW would cut every app in half, so both
-   rows of a pair carry it. background-IMAGE layers over the column bands' colour
+/* THREE rows per app (Erez, 2026-08-10 — phone width): D dev · P prod · store, with
+   two full-width platform columns instead of four half-width ones. The triple must
+   read as ONE app, so only its last row carries the separating rule. */
+.sv-mx3 .mx-rowh{width:1%;padding:0 7px;border-bottom:0;text-align:center}
+.sv-mx3 .mx-mark{display:inline-flex;align-items:center;gap:2px;line-height:1}
+.sv-mx3 .mx-mark svg{width:15px;height:15px;color:var(--muted)}
+.sv-mx3 .mx-mark i{font-style:normal;font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.02em}
+/* The two TestFlight rows are the ones Erez acts on, so they carry the accent; the
+   store row stays neutral — it is a fact about customers, not a thing to do. */
+.sv-mx3 tr.mx-dev .mx-mark svg,.sv-mx3 tr.mx-dev .mx-mark i,
+.sv-mx3 tr.mx-prod .mx-mark svg,.sv-mx3 tr.mx-prod .mx-mark i{color:var(--blue)}
+/* Alternating band per APP — striping by ROW would cut every app into three and
+   destroy the grouping. background-IMAGE layers over the column bands' colour
    instead of replacing it, so the Apple/ours tinting survives underneath. */
-.sv-mx2 tbody tr.mx-alt>*{background-image:linear-gradient(color-mix(in srgb,var(--ink-1) 5%,transparent),
+.sv-mx3 tbody tr.mx-alt>*{background-image:linear-gradient(color-mix(in srgb,var(--ink-1) 5%,transparent),
                                                            color-mix(in srgb,var(--ink-1) 5%,transparent))}
-.sv-mx2 tbody tr.mx-tf td,.sv-mx2 tbody tr.mx-tf th{border-bottom:0}
-.sv-mx2 tbody tr.mx-live td{border-bottom:1px solid var(--grid)}
-.sv-mx2 tbody tr.mx-tf .mx-apple{padding-bottom:2px}
-.sv-mx2 tbody tr.mx-live .mx-apple{padding-top:2px}
-/* dev and prod are adjacent cells under one platform — a hairline keeps the eye from
-   reading them as a single wide value. mx-edge closes each platform's pair. */
-.sv-mx2 .mx-edge{box-shadow:inset -1px 0 0 var(--grid)}
-html[dir="rtl"] .sv-mx2 .mx-edge{box-shadow:inset 1px 0 0 var(--grid)}
-/* DEV / PROD are the axis the eye needs most in this table — uppercase, heavier and
-   a size up from the other sub-labels (Erez, 2026-08-08). */
-.sv-mx2 thead .mx-sub th{font-size:11.5px;font-weight:800;color:var(--ink-2);
-                         padding:0 4px 5px;letter-spacing:.06em;border-bottom:1px solid var(--grid)}
-.sv-mx2 thead .mx-os{padding-bottom:4px;border-bottom:0}
-.sv-mx2 tbody tr:last-child .mx-apple{border-radius:0 0 9px 9px}
-.sv-mx2 tbody tr.mx-tf:last-of-type .mx-ours{border-radius:0}
+.sv-mx3 tbody tr.mx-dev>*,.sv-mx3 tbody tr.mx-prod>*{border-bottom:0}
+.sv-mx3 tbody tr.mx-live>*{border-bottom:1px solid var(--grid)}
+.sv-mx3 tbody tr.mx-r td{padding-top:2px;padding-bottom:2px}
+.sv-mx3 tbody tr.mx-dev td{padding-top:5px}
+.sv-mx3 tbody tr.mx-live td{padding-bottom:5px}
+.sv-mx3 tbody tr:last-child .mx-apple{border-radius:0 0 9px 9px}
 .mx-grp th{padding-bottom:2px;border:0}
 .mx-grp svg{width:19px;height:19px;color:var(--ink-2)}
 .mx-h{display:flex;align-items:center;justify-content:center;gap:5px;line-height:1.2}
@@ -1477,12 +1471,12 @@ function svToggleReorder() {
   renderStorePanel();          // redraw with/without the grips — the matrix now lives here
   if (!svReorder) return;
   const tb = document.getElementById('mxBody'); if (!tb) return;
-  // Each app is now a PAIR of rows (TestFlight + store), so dragging moves the pair.
-  // Moving one alone would tear an app's two halves apart and leave its icon cell —
-  // which spans both — anchored to the wrong app.
+  // Each app is now a TRIPLE of rows (dev / prod / store), so dragging moves all
+  // three. Moving one alone would tear an app apart and leave its icon cell — which
+  // spans the triple — anchored to the wrong app.
   const pairOf = tr => [...tb.querySelectorAll(`tr[data-appk="${CSS.escape(tr.dataset.appk)}"]`)];
   let dragged = null;   // the app key being dragged, not a single row
-  tb.querySelectorAll('tr.mx-tf').forEach(tr => {
+  tb.querySelectorAll('tr.mx-dev').forEach(tr => {
     tr.ondragstart = e => { dragged = tr.dataset.appk; pairOf(tr).forEach(x => x.classList.add('dragging')); e.dataTransfer.effectAllowed = 'move'; };
     tr.ondragend = () => { tb.querySelectorAll('.dragging').forEach(x => x.classList.remove('dragging')); dragged = null; svSaveOrder(); };
   });
@@ -1533,38 +1527,43 @@ function svMatrixHtml(rows, opts = {}) {
       <button class="mx-btn${svReorder ? ' on' : ''}" onclick="svToggleReorder()">${svReorder ? '✓ סיום סידור' : '↕ שינוי סדר'}</button>
       ${svReorder ? '<span class="mx-hint">גרור שורה למקום הרצוי — הסדר נשמר בשרת</span>' : ''}
     </div>
-    <div style="overflow-x:auto"><table class="sv-mx sv-mx2${svReorder ? ' reordering' : ''}"><thead>
-      <tr class="mx-grp"><th></th><th></th><th colspan="4" class="mx-apple">${SP_SVG.apple}</th><th colspan="2" class="mx-ours">${SP_SVG.wrench}</th></tr>
+    <div style="overflow-x:auto"><table class="sv-mx sv-mx3${svReorder ? ' reordering' : ''}"><thead>
+      <tr class="mx-grp"><th></th><th></th><th colspan="2" class="mx-apple">${SP_SVG.apple}</th><th colspan="2" class="mx-ours">${SP_SVG.wrench}</th></tr>
       <tr><th></th><th></th>
-        <th colspan="2" class="mx-apple mx-os"><span class="mx-h">${SP_SVG.iOS}<span>iOS</span></span></th>
-        <th colspan="2" class="mx-apple mx-os"><span class="mx-h">${SP_SVG.macOS}<span>macOS</span></span></th>
-        <th rowspan="2" class="mx-ours"><span class="mx-h">${SP_SVG.iOS}<span>iOS</span></span></th>
-        <th rowspan="2" class="mx-ours"><span class="mx-h">${SP_SVG.macOS}<span>macOS</span></span></th>
-      </tr>
-      <tr class="mx-sub"><th></th><th></th>
-        <th class="mx-apple">DEV</th><th class="mx-apple mx-edge">PROD</th>
-        <th class="mx-apple">DEV</th><th class="mx-apple mx-edge">PROD</th>
+        <th class="mx-apple"><span class="mx-h">${SP_SVG.iOS}<span>iOS</span></span></th>
+        <th class="mx-apple"><span class="mx-h">${SP_SVG.macOS}<span>macOS</span></span></th>
+        <th class="mx-ours"><span class="mx-h">${SP_SVG.iOS}<span>iOS</span></span></th>
+        <th class="mx-ours"><span class="mx-h">${SP_SVG.macOS}<span>macOS</span></span></th>
       </tr></thead><tbody id="mxBody">` + ordered.map((r, i) => {
-    // Two rows per app: what is installable from TestFlight (split dev|prod) and what
-    // is in the store. The store has no dev/prod split — a customer only ever sees
-    // prod — so its cells span the pair rather than inventing an empty dev column.
-    const appCell = `<td rowspan="2"><div class="mx-app">${svReorder ? '<span class="mx-grip">⋮⋮</span>' : ''}
+    // THREE rows per app, two columns (Erez, 2026-08-10 — for phone width):
+    //   D  dev  TestFlight · P  prod TestFlight · store
+    // Splitting each platform into dev|prod columns halved every cell on a phone; the
+    // same four facts now stack vertically, where there is room, and each platform
+    // keeps one full-width column.
+    const appCell = `<td rowspan="3"><div class="mx-app">${svReorder ? '<span class="mx-grip">⋮⋮</span>' : ''}
         <img class="mx-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt="">
         <span class="mx-nm">${esc(r.nm)}</span></div></td>`;
-    // Alternating band per APP (not per row) — with two rows each, striping by row
-    // would cut every app in half and defeat the point. `alt` tags both of a pair.
+    // The rotor alone cannot say WHICH TestFlight channel, so it carries a D/P badge.
+    // The store row needs no letter — there is only one store.
+    const mark = (svg, letter, title) =>
+      `<th class="mx-rowh" title="${title}"><span class="mx-mark">${svg}${letter ? `<i>${letter}</i>` : ''}</span></th>`;
+    // Alternating band per APP, not per row: striping by row would cut every app into
+    // three and destroy the grouping it exists to create.
     const alt = i % 2 ? ' mx-alt' : '';
-    return `<tr class="mx-tf${alt}" data-appk="${esc(r.a.dir)}"${svReorder ? ' draggable="true"' : ''}>
+    const k = esc(r.a.dir);
+    return `<tr class="mx-r mx-dev${alt}" data-appk="${k}"${svReorder ? ' draggable="true"' : ''}>
       ${appCell}
-      <th class="mx-rowh" title="TestFlight">${SP_SVG.testflight}</th>
-      ${OS.map(os => `
-        <td class="mx-apple">${cell((r.flight[os] || {}).dev)}</td>
-        <td class="mx-apple mx-edge">${cell((r.flight[os] || {}).prod)}</td>`).join('')}
-      ${OS.map(os => `<td class="mx-ours" rowspan="2">${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
+      ${mark(SP_SVG.testflight, 'D', 'TestFlight · dev')}
+      ${OS.map(os => `<td class="mx-apple">${cell((r.flight[os] || {}).dev)}</td>`).join('')}
+      ${OS.map(os => `<td class="mx-ours" rowspan="3">${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
     </tr>
-    <tr class="mx-live${alt}" data-appk="${esc(r.a.dir)}">
-      <th class="mx-rowh" title="בחנות">${SP_SVG.appstore}</th>
-      ${OS.map(os => `<td class="mx-apple mx-edge" colspan="2">${cell(r.plats[os] && r.plats[os].apple)}</td>`).join('')}
+    <tr class="mx-r mx-prod${alt}" data-appk="${k}">
+      ${mark(SP_SVG.testflight, 'P', 'TestFlight · prod')}
+      ${OS.map(os => `<td class="mx-apple">${cell((r.flight[os] || {}).prod)}</td>`).join('')}
+    </tr>
+    <tr class="mx-r mx-live${alt}" data-appk="${k}">
+      ${mark(SP_SVG.appstore, '', 'בחנות')}
+      ${OS.map(os => `<td class="mx-apple">${cell(r.plats[os] && r.plats[os].apple)}</td>`).join('')}
     </tr>`;
   }).join('') + `</tbody></table></div>`
 }
