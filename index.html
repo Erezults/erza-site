@@ -879,6 +879,7 @@ footer a { color: var(--muted); }
 .sv-cell{display:block;border-radius:6px;padding:4px 2px;background:color-mix(in srgb,var(--c) 20%,transparent);
          border:1px solid color-mix(in srgb,var(--c) 45%,transparent);color:var(--ink-1);font-size:11px;font-weight:600}
 .sv-cell b{display:block;font-size:9.5px;font-weight:700;color:var(--c)}
+.tone-dev{--c:#ff9500}
 .sv-sub{display:block;font-size:9px;color:var(--muted);font-weight:600;margin-top:1px}
 
 /* מטריצה — קבוצות מוצללות, אייקון מעל שם, ומצב סידור */
@@ -1146,7 +1147,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=cf2cb896"></script>
+<script src="data.enc.js?v=1d38aa8f"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1462,16 +1463,14 @@ function spAppRows() {
       // live but 1.6.0 exists — I can't tell its status or whether I can submit it").
       // The pending version is the headline; the live version becomes a small context
       // line underneath, so "what's coming" and "what customers have" are both visible.
+      // Row 3 = the STORE row (Erez 2026-08-10): live versions and versions already
+      // IN the review pipeline only. A version still being prepared (PREPARE_FOR_
+      // SUBMISSION) has not reached the store's world yet — its readiness story
+      // belongs to row 2 (prod TestFlight), not here.
       const liveSub = p.live ? `חנות ${p.live.version}` : null;
       let apple;
       if (pending) { const [label, tone, rank] = pending;
         apple = { label, tone, version: p.latest.version, sub: liveSub }; if (rank < worst) worst = rank; }
-      else if (p.latest.state === 'PREPARE_FOR_SUBMISSION' && (!p.live || p.live.version !== p.latest.version)) {
-        // A version parked in ASC. With a build attached Erez can go review/submit it;
-        // without one it is an empty shell and the next step is a BUILD — say which.
-        if (p.latest.buildAttached) { apple = { label: 'מוכנה להגשה', tone: 'wait', version: p.latest.version, sub: liveSub }; if (worst > 1) worst = 1; }
-        else { apple = { label: 'דרוש בילד', tone: 'wait', version: p.latest.version, sub: liveSub }; if (worst > 1) worst = 1; }
-      }
       else if (p.live) apple = { label: 'חנות', tone: 'good', version: p.live.version };
       else apple = { label: 'טרם', tone: 'idle', version: '' };
 
@@ -1495,14 +1494,32 @@ function spAppRows() {
       const b = (tf[ch] || {})[key];
       if (!b) return null;
       const ok = b.state === 'VALID' && !b.expired;
+      // Row 2's question is "can this go to review the moment Erez approves?"
+      // (Erez 2026-08-10). Answered from the ASC version that matches this build:
+      //   version exists + THIS build attached → מוכנה להגשה
+      //   version exists, build not attached  → בהכנה (the tick's prep attaches it)
+      //   no ASC version yet                  → בהכנה
+      let sub = null;
+      if (ch === 'prod' && ok) {
+        const plat = (a.asc.platforms || {})[key];
+        const pend = plat && plat.latest && plat.latest.state === 'PREPARE_FOR_SUBMISSION' ? plat.latest : null;
+        if (pend && pend.version === b.version) {
+          sub = pend.buildAttached === b.build ? '✓ מוכנה להגשה' : '⚙ בהכנה להגשה';
+        } else if (pend) sub = '⚙ בהכנה להגשה';
+        else if (plat && plat.latest && /REVIEW|PENDING/.test(plat.latest.state) && plat.latest.version === b.version) sub = 'בסקירה';
+      }
+      // Colour rules (Erez 2026-08-10):
+      //   dev  → always ORANGE (never submits, never goes live)
+      //   prod → GREEN when identical to the live version ("nothing newer to act on"),
+      //          YELLOW when newer than live ("this is the candidate — test me")
+      const liveV = ((a.asc.platforms || {})[key] || {}).live?.version || null;
+      const prodTone = (b.version && liveV && b.version === liveV) ? 'good' : 'wait';
       return {
-        // The ROW already says TestFlight (its icon), so repeating the word here would
-        // spend the width Erez asked to reclaim. Spend it on the build number instead —
-        // the one fact that distinguishes two uploads of the same version.
         label: b.expired ? 'פג' : ok ? (b.build || '') : 'מעבד',
-        tone: b.expired ? 'idle' : ok ? 'good' : 'wait',
+        tone: b.expired ? 'idle' : ch === 'dev' ? 'dev' : !ok ? 'wait' : prodTone,
         version: b.version || b.build,
         build: b.build,
+        sub,
       };
     };
     const flight = {};
@@ -1632,7 +1649,7 @@ function svMatrixHtml(rows, opts = {}) {
     const k = esc(r.a.dir);
     return `<tr class="mx-r mx-dev${alt}" data-appk="${k}"${svReorder ? ' draggable="true"' : ''}>
       ${appCell}
-      ${mark(SP_SVG.rotor('D', '#f5333f'), 'TestFlight · dev')}
+      ${mark(SP_SVG.rotor('D', '#ff9500'), 'TestFlight · dev')}
       ${OS.map(os => `<td class="mx-apple">${cell((r.flight[os] || {}).dev)}</td>`).join('')}
       ${OS.map(os => `<td class="mx-ours" rowspan="3">${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
     </tr>
