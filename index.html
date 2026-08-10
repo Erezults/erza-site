@@ -876,11 +876,29 @@ footer a { color: var(--muted); }
 .sv-mx th{font-size:10.5px;color:var(--muted);font-weight:700;padding:0 4px 6px;text-align:center;border-bottom:1px solid var(--grid)}
 .sv-mx td{padding:5px 4px;text-align:center;border-bottom:1px solid var(--grid)}
 .sv-mx td:first-child{text-align:start}
-.sv-cell{display:block;border-radius:6px;padding:4px 2px;background:color-mix(in srgb,var(--c) 20%,transparent);
-         border:1px solid color-mix(in srgb,var(--c) 45%,transparent);color:var(--ink-1);font-size:11px;font-weight:600}
-.sv-cell b{display:block;font-size:9.5px;font-weight:700;color:var(--c)}
-.tone-dev{--c:#ff9500}
-.sv-sub{display:block;font-size:9px;color:var(--muted);font-weight:600;margin-top:1px}
+/* Opaque METALLIC cells (Erez 2026-08-10): solid saturated fills — green, purple,
+   yellow, grey — with a vertical sheen (light top edge → deep bottom) that reads as
+   brushed metal, and WHITE bold text for guaranteed contrast. The old translucent
+   tints made the values hard to read; nothing here depends on the page theme. */
+.sv-cell{display:block;border-radius:7px;padding:5px 3px;color:#fff;font-size:11.5px;font-weight:800;
+         background:linear-gradient(180deg,
+           color-mix(in srgb,var(--c) 78%, #fff) 0%,
+           var(--c) 38%,
+           color-mix(in srgb,var(--c) 72%, #000) 100%);
+         border:1px solid color-mix(in srgb,var(--c) 55%, #000);
+         box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 1px 2px rgba(0,0,0,.25);
+         text-shadow:0 1px 1px rgba(0,0,0,.35)}
+.sv-cell b{display:block;font-size:9.5px;font-weight:800;color:#fff;opacity:.92}
+.sv-cell .sv-v{color:#fff}
+/* yellow is the one fill where white fails — dark text there, per contrast */
+.tone-wait.sv-cell, .sv-cell.tone-wait{color:#231a00;text-shadow:0 1px 0 rgba(255,255,255,.25)}
+.tone-wait.sv-cell b, .sv-cell.tone-wait b, .sv-cell.tone-wait .sv-v{color:#231a00}
+.tone-dev{--c:#8b5cf6}   /* dev = purple (Erez: orange didn't look good) */
+.tone-good{--c:#1fa347}
+.tone-wait{--c:#f5c518}
+.tone-bad{--c:#dc2626}
+.tone-idle{--c:#6b7280}
+.sv-sub{display:block;font-size:9px;color:inherit;opacity:.85;font-weight:700;margin-top:1px}
 
 /* מטריצה — קבוצות מוצללות, אייקון מעל שם, ומצב סידור */
 .mx-bar{display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-wrap:wrap}
@@ -1650,7 +1668,7 @@ function svMatrixHtml(rows, opts = {}) {
     const k = esc(r.a.dir);
     return `<tr class="mx-r mx-dev${alt}" data-appk="${k}"${svReorder ? ' draggable="true"' : ''}>
       ${appCell}
-      ${mark(SP_SVG.rotor('D', '#ff9500'), 'TestFlight · dev')}
+      ${mark(SP_SVG.rotor('D', '#8b5cf6'), 'TestFlight · dev')}
       ${OS.map(os => `<td class="mx-apple">${cell((r.flight[os] || {}).dev)}</td>`).join('')}
       ${OS.map(os => `<td class="mx-ours" rowspan="3">${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
     </tr>
