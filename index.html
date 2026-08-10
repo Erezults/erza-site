@@ -1543,6 +1543,15 @@ function spAppRows() {
     };
     const flight = {};
     for (const [key, os] of Object.entries(SP_OS)) flight[os] = { dev: tfCell('dev', key), prod: tfCell('prod', key) };
+    // Row D shows the FULL dev version — base-devNN, OTA bumps included (Erez
+    // 2026-08-10: "1.4.1-dev05 is what belongs on the dev row"). The TF build number
+    // stays as the label (it names the BINARY); the version line is what the dev app
+    // runs right now, refreshed ≤5min by the tick (gather-versions + OTA collectors).
+    // An app with a dev version but no TF dev build yet still shows the version.
+    if (devV) for (const os of Object.values(SP_OS)) {
+      if (flight[os]?.dev) flight[os].dev.version = devV;
+      else if (flight[os]) flight[os].dev = { label: '—', tone: 'dev', version: devV };
+    }
     if (Object.keys(plats).length) rows.push({ a, nm, plats, flight, rank: worst });
   }
   rows.sort((x, y) => x.rank - y.rank || x.nm.localeCompare(y.nm));
@@ -1643,12 +1652,10 @@ function svMatrixHtml(rows, opts = {}) {
       ${svReorder ? '<span class="mx-hint">גרור שורה למקום הרצוי — הסדר נשמר בשרת</span>' : ''}
     </div>
     <div style="overflow-x:auto"><table class="sv-mx sv-mx3${svReorder ? ' reordering' : ''}"><thead>
-      <tr class="mx-grp"><th></th><th></th><th colspan="2" class="mx-apple">${SP_SVG.apple}</th><th colspan="2" class="mx-ours">${SP_SVG.wrench}</th></tr>
+      <tr class="mx-grp"><th></th><th></th><th colspan="2" class="mx-apple">${SP_SVG.apple}</th></tr>
       <tr><th></th><th></th>
         <th class="mx-apple"><span class="mx-h">${SP_SVG.iOS}<span>iOS</span></span></th>
         <th class="mx-apple"><span class="mx-h">${SP_SVG.macOS}<span>macOS</span></span></th>
-        <th class="mx-ours"><span class="mx-h">${SP_SVG.iOS}<span>iOS</span></span></th>
-        <th class="mx-ours"><span class="mx-h">${SP_SVG.macOS}<span>macOS</span></span></th>
       </tr></thead><tbody id="mxBody">` + ordered.map((r, i) => {
     // THREE rows per app, two columns (Erez, 2026-08-10 — for phone width):
     //   D  dev  TestFlight · P  prod TestFlight · store
@@ -1670,7 +1677,6 @@ function svMatrixHtml(rows, opts = {}) {
       ${appCell}
       ${mark(SP_SVG.rotor('D', '#8b5cf6'), 'TestFlight · dev')}
       ${OS.map(os => `<td class="mx-apple">${cell((r.flight[os] || {}).dev)}</td>`).join('')}
-      ${OS.map(os => `<td class="mx-ours" rowspan="3">${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
     </tr>
     <tr class="mx-r mx-prod${alt}" data-appk="${k}">
       ${mark(SP_SVG.rotor('P', '#16b364'), 'TestFlight · prod')}
