@@ -850,14 +850,9 @@ footer a { color: var(--muted); }
    and at 15px the letter inside the rotor was unreadable on a phone. */
 .sv-mx3 .mx-mark{display:inline-flex;line-height:0}
 .sv-mx3 .mx-mark svg{width:22px;height:22px}
-/* The two TestFlight rows are the ones Erez acts on, so they carry the accent; the
-   store mark paints itself in Apple's blue and ignores currentColor. */
-/* dev red, prod vivid green (Erez, 2026-08-10). Same rotor, opposite colours: the
-   channel is the thing that must never be misread, and colour separates the two rows
-   faster than the letter inside them does. Both tokens follow the theme, so the marks
-   stay legible in dark mode instead of being pinned to one palette. */
-.sv-mx3 tr.mx-dev .mx-mark svg{color:var(--r)}
-.sv-mx3 tr.mx-prod .mx-mark svg{color:var(--g)}
+/* dev red, prod vivid green (Erez, 2026-08-10). The colours now travel INSIDE each
+   mark as fill attributes rather than as CSS on the svg — see SP_SVG.rotor. They are
+   picked to hold up on both themes without a second rule that could fail to reach. */
 /* Alternating band per APP — striping by ROW would cut every app into three and
    destroy the grouping. background-IMAGE layers over the column bands' colour
    instead of replacing it, so the Apple/ours tinting survives underneath. */
@@ -1327,17 +1322,22 @@ const SP_SVG = {
   // Both TestFlight rows use the SAME rotor: they are the same kind of thing (a
   // TestFlight build) and differ only by channel, so the letter is the difference and
   // the shape is the constant. Blades are pushed outward to leave the hub free for it.
-  rotor: (letter) => '<svg viewBox="0 0 24 24" aria-hidden="true">'
-    + '<g fill="currentColor" transform="translate(12 12)">'
-    + '<path d="M0-10.2c1.9 0 3.3 1.1 3.3 2.5 0 1-.6 1.9-1.4 2.9L0-4.9l-1.9-2.4c-.8-1-1.4-1.9-1.4-2.9 0-1.4 1.4-2.5 3.3-2.5Z"/>'
-    + '<path d="M0-10.2c1.9 0 3.3 1.1 3.3 2.5 0 1-.6 1.9-1.4 2.9L0-4.9l-1.9-2.4c-.8-1-1.4-1.9-1.4-2.9 0-1.4 1.4-2.5 3.3-2.5Z" transform="rotate(120)"/>'
-    + '<path d="M0-10.2c1.9 0 3.3 1.1 3.3 2.5 0 1-.6 1.9-1.4 2.9L0-4.9l-1.9-2.4c-.8-1-1.4-1.9-1.4-2.9 0-1.4 1.4-2.5 3.3-2.5Z" transform="rotate(240)"/>'
+  // Every dimension and colour is an ATTRIBUTE, not only CSS: these marks went
+  // invisible in Erez's browser while the markup and the stylesheet both checked out
+  // (2026-08-10). An SVG that carries its own width/height/fill renders even when a
+  // rule fails to reach it, so the mark can no longer disappear silently.
+  rotor: (letter, color) => '<svg width="24" height="24" viewBox="0 0 24 24" '
+    + 'xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="display:block">'
+    + '<g transform="translate(12 12)" fill="' + color + '">'
+    + '<path fill="' + color + '" d="M0-10.2c1.9 0 3.3 1.1 3.3 2.5 0 1-.6 1.9-1.4 2.9L0-4.9l-1.9-2.4c-.8-1-1.4-1.9-1.4-2.9 0-1.4 1.4-2.5 3.3-2.5Z"/>'
+    + '<path fill="' + color + '" transform="rotate(120)" d="M0-10.2c1.9 0 3.3 1.1 3.3 2.5 0 1-.6 1.9-1.4 2.9L0-4.9l-1.9-2.4c-.8-1-1.4-1.9-1.4-2.9 0-1.4 1.4-2.5 3.3-2.5Z"/>'
+    + '<path fill="' + color + '" transform="rotate(240)" d="M0-10.2c1.9 0 3.3 1.1 3.3 2.5 0 1-.6 1.9-1.4 2.9L0-4.9l-1.9-2.4c-.8-1-1.4-1.9-1.4-2.9 0-1.4 1.4-2.5 3.3-2.5Z"/>'
     + '</g>'
-    + '<text x="12" y="12.4" text-anchor="middle" dominant-baseline="central" '
-    + 'font-family="inherit" font-size="9" font-weight="800" fill="currentColor">' + letter + '</text></svg>',
-  // The App Store mark keeps Apple's own blue rather than currentColor — Erez asked
-  // for the real thing, and a store row that is grey reads as disabled.
-  appstore: '<svg viewBox="0 0 24 24" aria-hidden="true">'
+    + '<text x="12" y="12" text-anchor="middle" dominant-baseline="central" '
+    + 'font-size="9.5" font-weight="800" fill="' + color + '" '
+    + 'style="font-family:system-ui,-apple-system,sans-serif">' + letter + '</text></svg>',
+  appstore: '<svg width="24" height="24" viewBox="0 0 24 24" '
+    + 'xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="display:block">'
     + '<rect x="1.6" y="1.6" width="20.8" height="20.8" rx="5" fill="#0D96F6"/>'
     + '<g fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'
     + '<path d="M7.7 16.8 12.1 8.6l1.9 3.5"/><path d="M16.3 16.8 13.1 10.9"/>'
@@ -1566,12 +1566,12 @@ function svMatrixHtml(rows, opts = {}) {
     const k = esc(r.a.dir);
     return `<tr class="mx-r mx-dev${alt}" data-appk="${k}"${svReorder ? ' draggable="true"' : ''}>
       ${appCell}
-      ${mark(SP_SVG.rotor('D'), 'TestFlight · dev')}
+      ${mark(SP_SVG.rotor('D', '#f5333f'), 'TestFlight · dev')}
       ${OS.map(os => `<td class="mx-apple">${cell((r.flight[os] || {}).dev)}</td>`).join('')}
       ${OS.map(os => `<td class="mx-ours" rowspan="3">${cell(r.plats[os] && (r.plats[os].ready || r.plats[os].mine))}</td>`).join('')}
     </tr>
     <tr class="mx-r mx-prod${alt}" data-appk="${k}">
-      ${mark(SP_SVG.rotor('P'), 'TestFlight · prod')}
+      ${mark(SP_SVG.rotor('P', '#16b364'), 'TestFlight · prod')}
       ${OS.map(os => `<td class="mx-apple">${cell((r.flight[os] || {}).prod)}</td>`).join('')}
     </tr>
     <tr class="mx-r mx-live${alt}" data-appk="${k}">
