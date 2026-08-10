@@ -852,7 +852,12 @@ footer a { color: var(--muted); }
 .sv-mx3 .mx-mark svg{width:22px;height:22px}
 /* The two TestFlight rows are the ones Erez acts on, so they carry the accent; the
    store mark paints itself in Apple's blue and ignores currentColor. */
-.sv-mx3 tr.mx-dev .mx-mark svg,.sv-mx3 tr.mx-prod .mx-mark svg{color:var(--blue)}
+/* dev red, prod vivid green (Erez, 2026-08-10). Same rotor, opposite colours: the
+   channel is the thing that must never be misread, and colour separates the two rows
+   faster than the letter inside them does. Both tokens follow the theme, so the marks
+   stay legible in dark mode instead of being pinned to one palette. */
+.sv-mx3 tr.mx-dev .mx-mark svg{color:var(--r)}
+.sv-mx3 tr.mx-prod .mx-mark svg{color:var(--g)}
 /* Alternating band per APP — striping by ROW would cut every app into three and
    destroy the grouping. background-IMAGE layers over the column bands' colour
    instead of replacing it, so the Apple/ours tinting survives underneath. */
@@ -1091,7 +1096,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=c38d31bf"></script>
+<script src="data.enc.js?v=dd005391"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
