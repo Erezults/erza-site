@@ -421,6 +421,7 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .btn-reject { background: color-mix(in srgb, var(--red) 10%, transparent); color: var(--red); border-color: color-mix(in srgb, var(--red) 35%, transparent) !important; }
 .btn-opuscheck { background: color-mix(in srgb, var(--blue) 12%, transparent); color: var(--blue); border-color: color-mix(in srgb, var(--blue) 40%, transparent); }
 .opuscheck-tag { font-size: 11.5px; color: var(--blue); font-weight: 700; align-self: center; }
+.model-tag { font-size: 11px; color: var(--muted); font-weight: 700; align-self: center; }
 .appr-form { margin-top: 10px; }
 .appr-form textarea { width: 100%; min-height: 90px; border: 1px solid var(--grid); background: var(--page); color: var(--ink-1); border-radius: 10px; padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical; }
 .appr-form .files { margin: 8px 0; font-size: 13px; color: var(--ink-2); }
@@ -2851,6 +2852,7 @@ function mrRender(live) {
           : `<div class="appr-actions">
           <button class="btn-approve${isBuild ? ' btn-build' : isMig ? ' btn-mig' : ''}">${isBuild ? '🔨 אשר בניית בילד' : isMig ? '🗄️ אשר מיגרציה ⇒ OTA אוטומטי' : '✓ בדקתי — מאושר'}</button>
           <button class="btn-reject">✗ לא מאושר — יש לי הערות</button>
+            ${it.modelUsed ? `<span class="model-tag" title="המודל שביצע את העבודה">${/fable/i.test(it.modelUsed) ? '🧠 בוצע ב-Fable' : /opus/i.test(it.modelUsed) ? '🧠 בוצע ב-Opus' : '⚡ בוצע ב-Sonnet'}</span>` : ''}
             ${it.opusCheckAvailable && !it.opusCheckRequested ? `<button class="btn-opuscheck">🔍 בדיקה עם Opus</button>` : ''}
             ${it.opusCheckRequested ? `<span class="opuscheck-tag">🔍 בדיקת Opus הוזמנה${it.opusCheckSpawned ? ' · ' + esc(String(it.opusCheckSpawned)) : ''}</span>` : ''}
         </div>
