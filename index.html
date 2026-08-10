@@ -415,16 +415,64 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 }
 .appr-item ul { padding-inline-start: 20px; font-size: 13px; color: var(--ink-2); margin: 6px 0; }
 .appr-item h5 { font-size: 12px; color: var(--muted); margin: 8px 0 2px; }
-.appr-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-.appr-actions button { border: 1px solid var(--grid); border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
-.btn-approve { background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent) !important; }
-.btn-reject { background: color-mix(in srgb, var(--red) 10%, transparent); color: var(--red); border-color: color-mix(in srgb, var(--red) 35%, transparent) !important; }
-.btn-opuscheck { background: color-mix(in srgb, var(--blue) 12%, transparent); color: var(--blue); border-color: color-mix(in srgb, var(--blue) 40%, transparent); }
+/* מה בוצע / מה לבדוק — קונטיינרים נפרדים חזותית (ארז 2026-08-10): "בוצע" הוא
+   תיעוד; "לבדוק" הוא הפעולה שדורשת ממנו תשומת לב, ולכן מודגש בירוק עם רקע. */
+.wr-done { margin: 8px 0; }
+.wr-done h5 { font-size: 12px; color: var(--muted); margin: 0 0 3px; font-weight: 700; }
+.wr-check { margin: 10px 0; padding: 10px 12px; border-radius: 10px;
+  background: color-mix(in srgb, var(--green) 9%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--green) 40%, transparent); }
+.wr-check h5 { font-size: 12.5px; color: var(--green); margin: 0 0 4px; font-weight: 800; }
+.wr-check ul { margin: 0; }
+.wr-check li { font-size: 13.5px; line-height: 1.5; }
+.wr-nocheck { margin: 10px 0; padding: 8px 12px; border-radius: 10px; font-size: 13px;
+  color: var(--muted); background: color-mix(in srgb, var(--ink-1) 4%, transparent);
+  border: 1px dashed var(--grid); }
+
+.appr-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+/* Rectangular, saturated, 3D-pressed buttons (Erez 2026-08-10): the three decisions
+   on this desk are the most consequential clicks in the whole dashboard, so they get
+   full-colour weight instead of thin outlined chips — green=approve, red=reject,
+   orange=Opus-check. The 3D comes from a darker bottom edge + inset top highlight;
+   :active flattens it (translateY + shadow collapse) so a press reads as a press. */
+.appr-actions button, .appr-form .btn-reject.send {
+  border: none; border-radius: 10px; padding: 11px 22px; font-size: 14.5px; font-weight: 800;
+  color: #fff; cursor: pointer; letter-spacing: .01em;
+  box-shadow: 0 3px 0 var(--btn-shadow, rgba(0,0,0,.28)), 0 1px 2px rgba(0,0,0,.15),
+    inset 0 1px 0 rgba(255,255,255,.25);
+  transition: transform .08s ease, box-shadow .08s ease;
+}
+.appr-actions button:active, .appr-form .btn-reject.send:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--btn-shadow, rgba(0,0,0,.28)), inset 0 1px 0 rgba(255,255,255,.15);
+}
+.appr-actions button:disabled { opacity: .6; cursor: default; transform: none; box-shadow: 0 1px 0 var(--btn-shadow, rgba(0,0,0,.28)); }
+.btn-approve { background: linear-gradient(180deg, #34c85a, #1fa347); --btn-shadow: #0f7a30; }
+/* Both red — "reject" and "send the rejection" are the same decision, one is just
+   the confirming step. The send button is the one Erez said was "a small, unclear
+   button" — it gets extra size/weight so it reads as the primary action once the
+   form is open, not an afterthought next to the textarea. */
+.btn-reject { background: linear-gradient(180deg, #f04a4a, #dc2626); --btn-shadow: #a11616; }
+.btn-reject.send { font-size: 15.5px; padding: 13px 28px; box-shadow: 0 4px 0 #a11616, 0 2px 4px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.25); }
+.btn-reject.send:active { box-shadow: 0 1px 0 #a11616, inset 0 1px 0 rgba(255,255,255,.15); }
+.btn-opuscheck { background: linear-gradient(180deg, #ff9d3d, #f5820b); --btn-shadow: #b85e02; }
+.btn-build { background: linear-gradient(180deg, #fbbf24, #ea9d0a); --btn-shadow: #9c6900; }
+.btn-mig { background: linear-gradient(180deg, #a855f7, #8b2fe0); --btn-shadow: #5f1a9c; }
+.opuscheck-tag { font-size: 12px; color: #f5820b; font-weight: 800; align-self: center; }
 .opuscheck-tag { font-size: 11.5px; color: var(--blue); font-weight: 700; align-self: center; }
 .model-tag { font-size: 11px; color: var(--muted); font-weight: 700; align-self: center; }
 .appr-form { margin-top: 10px; }
 .appr-form textarea { width: 100%; min-height: 90px; border: 1px solid var(--grid); background: var(--page); color: var(--ink-1); border-radius: 10px; padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical; }
-.appr-form .files { margin: 8px 0; font-size: 13px; color: var(--ink-2); }
+.appr-form .files { margin: 10px 0; }
+.file-add-btn { display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  background: color-mix(in srgb, var(--blue) 12%, transparent); color: var(--blue);
+  border: 1.5px solid color-mix(in srgb, var(--blue) 45%, transparent); border-radius: 8px;
+  padding: 7px 14px; font-size: 13px; font-weight: 700; }
+.file-add-btn:hover { background: color-mix(in srgb, var(--blue) 20%, transparent); }
+.file-hint { display: block; font-size: 11.5px; color: var(--muted); margin-top: 5px; }
+.file-list { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+.file-list .chip { font-size: 12px; background: var(--tint); border: 1px solid var(--grid);
+  border-radius: 6px; padding: 3px 9px; color: var(--ink-2); }
 .appr-fb { border-top: 1px dashed var(--grid); margin-top: 10px; padding-top: 8px; font-size: 13px; color: var(--ink-2); white-space: pre-wrap; }
 .appr-fb .att a { color: var(--blue); margin-inline-end: 10px; font-size: 12.5px; }
 .appr-status { font-size: 12px; font-weight: 700; }
@@ -509,7 +557,7 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .chan-prod { background: color-mix(in srgb, var(--green) 18%, transparent);  color: var(--green);  border:1px solid color-mix(in srgb, var(--green) 55%, transparent); }
 .plat-pill { background: color-mix(in srgb, var(--ink-2) 12%, transparent); color: var(--ink-1); border:1px solid color-mix(in srgb, var(--ink-2) 30%, transparent); }
 /* item 5 — build-approval button is a SOLID amber fill so a build is unmistakable vs a test-approval */
-.btn-build { background: var(--yellow); color:#1a1400; border-color: var(--yellow) !important; }
+/* .btn-build fill: see the 3D button block above (Erez 2026-08-10 redesign) */
 .appr-item.build { box-shadow: inset 3px 0 0 var(--yellow); }
 /* item 6 — dev/prod ribbon ON the app icon itself (dev app vs prod app, visually unmistakable) */
 .icon-wrap { position: relative; display: inline-block; margin-inline-end: 8px; }
@@ -519,7 +567,7 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 .icon-tag.dev { background: var(--red); }
 .icon-tag.prod { background: var(--green); }
 /* migration approval — dedicated purple button; approving runs the migration then auto-OTA */
-.btn-mig { background: #8e44ad; color: #fff; border-color: #8e44ad !important; }
+/* .btn-mig fill: see the 3D button block above (Erez 2026-08-10 redesign) */
 .appr-item.mig { box-shadow: inset 3px 0 0 #8e44ad; }
 /* pull-to-refresh — swipe down from the top reloads (PWA has no browser refresh) */
 html, body { overscroll-behavior-y: contain; }
@@ -1097,7 +1145,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=5a2fa367"></script>
+<script src="data.enc.js?v=839c1228"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2036,6 +2084,14 @@ function bindApprovals() {
       try { await saveApprovals(); mrRender(mrLastLive); } catch { e.target.textContent = 'שגיאה — נסה שוב'; e.target.disabled = false; it.status = 'pending'; }
     };
     el.querySelector('.btn-reject:not(.send)').onclick = () => { form.hidden = !form.hidden; };
+    // Live file chips (Erez 2026-08-10): the bare native input gave no feedback on
+    // what got picked. The label wraps a hidden input, so selecting still works —
+    // this just reflects the choice back.
+    const fileInput = form.querySelector('input[type=file]');
+    const fileList = form.querySelector('.file-list');
+    if (fileInput && fileList) fileInput.onchange = () => {
+      fileList.innerHTML = [...fileInput.files].map(f => `<span class="chip">📎 ${esc(f.name)}</span>`).join('');
+    };
     form.querySelector('.send').onclick = async e => {
       const text = form.querySelector('textarea').value.trim();
       if (!text) { form.querySelector('textarea').focus(); return; }
@@ -2832,8 +2888,10 @@ function mrRender(live) {
               ${(c.done || []).length ? `<div class="ota-chg-b"><b>מה בוצע (טכני)</b><ul>${c.done.map(d => `<li>${esc(d)}</li>`).join('')}</ul></div>` : ''}
             </details>`).join('')}
           </div>`).join('')}`;
-        })() : `<h5>מה בוצע</h5><ul>${(it.done || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul>
-        ${(it.check || []).length ? `<h5>מה לבדוק כדי לאשר</h5><ul>${it.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}`}
+        })() : `<div class="wr-done"><h5>מה בוצע</h5><ul>${(it.done || []).map(d => `<li>${esc(d)}</li>`).join('')}</ul></div>
+        ${(it.check || []).length
+          ? `<div class="wr-check"><h5>🔍 מה לבדוק כדי לאשר</h5><ul>${it.check.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>`
+          : `<div class="wr-nocheck">✓ שינוי פנימי — אין מה לבדוק ידנית, אפשר לאשר</div>`}`}
         ${(it.decisions || []).length ? `${(() => { const tot = it.decisions.length, done = it.decisions.filter(d => d.taskCreated).length, saved = it.decisions.filter(d => d.chosen && !d.taskCreated).length, left = tot - done - saved;
           return done + saved ? `<div class="mdl" style="--bc:${left ? 'var(--yellow)' : 'var(--green)'};margin:6px 0">${done ? `✓ ${done} הפכו למשימות` : ''}${done && saved ? ' · ' : ''}${saved ? `💾 ${saved} נשמרו (יהפכו למשימות תוך ~5 דק׳)` : ''}${left ? ` · נותרו ${left} להכרעה — הפריט ייסגר ויֵעלם רק כשכל השורות יוכרעו` : ' · כל השורות הוכרעו — הפריט ייסגר בטיק הקרוב'}</div>` : ''; })()}<h5>🗳️ החלטות בתוך הרשומה — סמן ליד כל אחת</h5>
           ${it.decisions.map(d => `<div class="mr-task" data-key="${esc(d.key)}">
@@ -2858,7 +2916,7 @@ function mrRender(live) {
         </div>
         <div class="appr-form" hidden>
           <textarea placeholder="כתוב כאן בחופשיות מה לא בוצע כמו שצריך, באגים, שיפורים — ללא הגבלת אורך…"></textarea>
-          <div class="files"><input type="file" multiple> 📎 אפשר לצרף צילומי מסך ומסמכים — ללא הגבלה (נשמר בארכיון)</div>
+          <div class="files"><label class="file-add-btn">📎 הוסף קובץ / תמונה<input type="file" multiple hidden></label><span class="file-hint">אפשר לצרף כמה קבצים — צילומי מסך, מסמכים, כל דבר שעוזר להסביר (נשמר בארכיון)</span><div class="file-list"></div></div>
           <button class="btn-reject send">שלח משוב ל־ERZA</button>
         </div>`) : ''}
       </div>`;
