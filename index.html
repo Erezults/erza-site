@@ -879,6 +879,7 @@ footer a { color: var(--muted); }
 .sv-cell{display:block;border-radius:6px;padding:4px 2px;background:color-mix(in srgb,var(--c) 20%,transparent);
          border:1px solid color-mix(in srgb,var(--c) 45%,transparent);color:var(--ink-1);font-size:11px;font-weight:600}
 .sv-cell b{display:block;font-size:9.5px;font-weight:700;color:var(--c)}
+.sv-sub{display:block;font-size:9px;color:var(--muted);font-weight:600;margin-top:1px}
 
 /* מטריצה — קבוצות מוצללות, אייקון מעל שם, ומצב סידור */
 .mx-bar{display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-wrap:wrap}
@@ -1145,7 +1146,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=a4b5cb66"></script>
+<script src="data.enc.js?v=48b604a1"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1457,9 +1458,20 @@ function spAppRows() {
       if (!p || !p.latest) continue;
       const os = SP_OS[key] || key;
       const pending = SP_APPLE[p.latest.state];
+      // The store cell tells the WHOLE story (Erez 2026-08-10: "Healthy shows 1.5.0
+      // live but 1.6.0 exists — I can't tell its status or whether I can submit it").
+      // The pending version is the headline; the live version becomes a small context
+      // line underneath, so "what's coming" and "what customers have" are both visible.
+      const liveSub = p.live ? `חנות ${p.live.version}` : null;
       let apple;
       if (pending) { const [label, tone, rank] = pending;
-        apple = { label, tone, version: p.latest.version }; if (rank < worst) worst = rank; }
+        apple = { label, tone, version: p.latest.version, sub: liveSub }; if (rank < worst) worst = rank; }
+      else if (p.latest.state === 'PREPARE_FOR_SUBMISSION' && (!p.live || p.live.version !== p.latest.version)) {
+        // A version parked in ASC. With a build attached Erez can go review/submit it;
+        // without one it is an empty shell and the next step is a BUILD — say which.
+        if (p.latest.buildAttached) { apple = { label: 'מוכנה להגשה', tone: 'wait', version: p.latest.version, sub: liveSub }; if (worst > 1) worst = 1; }
+        else { apple = { label: 'דרוש בילד', tone: 'wait', version: p.latest.version, sub: liveSub }; if (worst > 1) worst = 1; }
+      }
       else if (p.live) apple = { label: 'חנות', tone: 'good', version: p.live.version };
       else apple = { label: 'טרם', tone: 'idle', version: '' };
 
@@ -1587,7 +1599,7 @@ function svMatrixHtml(rows, opts = {}) {
   //   · the app cell is icon-over-name, which buys the grid a column's worth of width
   //   · drag to reorder, persisted to registry/ui_layout.json — the same server-side
   //     store the panel order already uses, so the order follows him to any device
-  const cell = x => x ? `<span class="sv-cell tone-${x.tone}"><b>${esc(x.label)}</b><span class="sv-v" dir="ltr">${esc(x.version || '—')}</span></span>` : '<span class="sv-note">—</span>';
+  const cell = x => x ? `<span class="sv-cell tone-${x.tone}"><b>${esc(x.label)}</b><span class="sv-v" dir="ltr">${esc(x.version || '—')}</span>${x.sub ? `<span class="sv-sub">${esc(x.sub)}</span>` : ''}</span>` : '<span class="sv-note">—</span>';
   const ordered = svApplyOrder(rows);
   return `
     <div class="mx-bar">
