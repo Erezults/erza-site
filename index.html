@@ -845,11 +845,14 @@ footer a { color: var(--muted); }
 /* THREE rows per app (Erez, 2026-08-10 — phone width): D dev · P prod · store, with
    two full-width platform columns instead of four half-width ones. The triple must
    read as ONE app, so only its last row carries the separating rule. */
-.sv-mx3 .mx-rowh{width:1%;padding:0 8px;border-bottom:0;text-align:center}
+/* min-width, not just width:1%: a mark that fails to paint used to collapse this
+   column to nothing, so the row lost its label with no sign anything was missing
+   (2026-08-10). The column now holds its place whatever happens inside it. */
+.sv-mx3 .mx-rowh{width:1%;min-width:32px;padding:0 8px;border-bottom:0;text-align:center;vertical-align:middle}
 /* Bigger than the platform glyphs on purpose (Erez, 2026-08-10): these name the row,
    and at 15px the letter inside the rotor was unreadable on a phone. */
-.sv-mx3 .mx-mark{display:inline-flex;line-height:0}
-.sv-mx3 .mx-mark svg{width:22px;height:22px}
+.sv-mx3 .mx-mark{display:inline-block;width:24px;height:24px;line-height:0}
+.sv-mx3 .mx-mark svg{width:24px;height:24px;display:block}
 /* dev red, prod vivid green (Erez, 2026-08-10). The colours now travel INSIDE each
    mark as fill attributes rather than as CSS on the svg — see SP_SVG.rotor. They are
    picked to hold up on both themes without a second rule that could fail to reach. */
