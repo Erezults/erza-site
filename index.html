@@ -702,6 +702,17 @@ footer a { color: var(--muted); }
 .tab-badge[hidden] { display: none; }
 .tab-btn.on .tab-badge { background: var(--page); color: var(--red); }
 .tab-panel[hidden] { display: none; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; margin-top: 10px; }
+.stats-card { background: var(--card, #fff); border: 1px solid var(--line, #e5e7eb); border-radius: 14px; padding: 14px 16px; }
+.stats-card h4 { margin: 0 0 2px; font-size: 15px; display: flex; align-items: center; gap: 7px; }
+.stats-sub { font-size: 11px; opacity: .65; margin-bottom: 8px; }
+.stats-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0 4px; }
+.stats-num { text-align: center; background: var(--tint, #f3f4f6); border-radius: 10px; padding: 7px 4px; }
+.stats-num b { display: block; font-size: 17px; }
+.stats-num span { font-size: 10px; opacity: .7; }
+.stats-rev { font-size: 12.5px; margin-top: 6px; font-weight: 600; }
+.stats-spark { margin-top: 8px; }
+.stats-empty { padding: 26px; text-align: center; opacity: .7; font-size: 14px; border: 1px dashed var(--line, #d1d5db); border-radius: 14px; margin-top: 12px; }
 .tab-panel { animation: tabin .18s ease; }
 @keyframes tabin { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .tab-panel { animation: none; } }
@@ -1039,6 +1050,7 @@ footer a { color: var(--muted); }
     <button class="tab-btn" data-tab="instructions"><span class="tab-ico">💬</span>הוראות</button>
     <button class="tab-btn" data-tab="items"><span class="tab-ico">🔔</span>לטיפולך<span class="tab-badge" id="tabBadgeItems" hidden></span></button>
     <button class="tab-btn" data-tab="info"><span class="tab-ico">📊</span>אינפו<span class="tab-badge" id="tabBadgeInfo" hidden></span></button>
+    <button class="tab-btn" data-tab="stats"><span class="tab-ico">📈</span>סטטיסטיקות</button>
     <button class="tab-btn" data-tab="common"><span class="tab-ico">🧩</span>קומונליות</button>
   </nav>
 
@@ -1131,6 +1143,11 @@ footer a { color: var(--muted); }
   </details>
     </section>
 
+    <section class="tab-panel" data-tab="stats" hidden>
+      <div class="tab-h">📈 סטטיסטיקות App Store <span class="tab-h-sub" id="statsUpdated"></span></div>
+      <div id="statsPanel"></div>
+    </section>
+
     <section class="tab-panel" data-tab="common" hidden>
 
   <details class="prio-panel" data-pgk="skills" style="--panel-accent:#2a9d8f">
@@ -1165,7 +1182,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=b9341cc6"></script>
+<script src="data.enc.js?v=61cce664"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2468,6 +2485,57 @@ const mrLabel = app => displayApp(app);
 // the panel is not enough, which is exactly how the תצוגות tab shipped dead (2026-08-07).
 const TABS = ['overview', 'instructions', 'items', 'info', 'common'];
 
+function renderStats() {
+  const el = document.getElementById('statsPanel');
+  const an = (window.ERZA_DATA || {}).analytics;
+  const upd = document.getElementById('statsUpdated');
+  if (!an || !an.days || !Object.keys(an.days).length) {
+    el.innerHTML = '<div class="stats-empty">אין עדיין נתוני מכירות — ממתין להגדרת מספר הספק (Vendor #) ב-ERZA.<br>הנתונים יופיעו כאן אוטומטית אחרי הרענון הראשון.</div>';
+    return;
+  }
+  if (upd) upd.textContent = 'עודכן: ' + (an.updatedAt || '').slice(0, 16).replace('T', ' ') + ' · 30 יום אחרונים';
+  const days = Object.keys(an.days).sort();
+  const apps = {};
+  for (const d of days) {
+    for (const [k, v] of Object.entries(an.days[d].apps || {})) {
+      const a = apps[k] ??= {sku: v.sku, title: v.title, appleId: v.appleId, series: {}, u: {}, rev: {}};
+      a.series[d] = (a.series[d] || 0) + (v.units.downloads || 0);
+      for (const [b, n] of Object.entries(v.units)) a.u[b] = (a.u[b] || 0) + n;
+      for (const [c, n] of Object.entries(v.proceeds || {})) a.rev[c] = Math.round(((a.rev[c] || 0) + n) * 100) / 100;
+    }
+  }
+  const byBundle = {};
+  for (const app of (window.ERZA_DATA.apps || [])) if (app.bundleId) byBundle[app.bundleId] = app;
+  const last7 = new Set(days.slice(-7));
+  const cards = Object.values(apps).sort((x, y) => (y.u.downloads || 0) - (x.u.downloads || 0)).map(a => {
+    const app = byBundle[a.sku] || {};
+    const name = app.displayName || app.name || a.title || a.sku;
+    const d7 = days.filter(d => last7.has(d)).reduce((s2, d) => s2 + (a.series[d] || 0), 0);
+    const revTxt = Object.entries(a.rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join(' · ') || '—';
+    const maxV = Math.max(1, ...days.map(d => a.series[d] || 0));
+    const W = 260, H = 34, bw = Math.max(2, Math.floor(W / days.length) - 1);
+    const bars = days.map((d, i) => {
+      const v = a.series[d] || 0, h = Math.max(1, Math.round(v / maxV * (H - 4)));
+      return `<rect x="${i * (bw + 1)}" y="${H - h}" width="${bw}" height="${h}" rx="1" fill="var(--ink-1,#111)" opacity="${v ? .75 : .15}"><title>${d}: ${v}</title></rect>`;
+    }).join('');
+    return `<div class="stats-card"><h4>${name}</h4>
+      <div class="stats-sub">${a.sku || ''}</div>
+      <div class="stats-nums">
+        <div class="stats-num"><b>${(a.u.downloads || 0).toLocaleString()}</b><span>הורדות · 30 יום</span></div>
+        <div class="stats-num"><b>${d7.toLocaleString()}</b><span>הורדות · 7 ימים</span></div>
+        <div class="stats-num"><b>${(a.u.iap || 0).toLocaleString()}</b><span>רכישות/מנויים</span></div>
+      </div>
+      <div class="stats-nums">
+        <div class="stats-num"><b>${(a.u.updates || 0).toLocaleString()}</b><span>עדכונים</span></div>
+        <div class="stats-num"><b>${(a.u.redownloads || 0).toLocaleString()}</b><span>הורדות חוזרות</span></div>
+        <div class="stats-num"><b style="font-size:13px">${revTxt}</b><span>הכנסות (נטו)</span></div>
+      </div>
+      <svg class="stats-spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${bars}</svg>
+    </div>`;
+  });
+  el.innerHTML = cards.length ? `<div class="stats-grid">${cards.join('')}</div>` : '<div class="stats-empty">אין מכירות בתקופה</div>';
+}
+
 function switchTab(name, opts = {}) {
   if (!TABS.includes(name)) name = 'overview';
   document.querySelectorAll('#tabbar .tab-btn').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
@@ -2479,6 +2547,7 @@ function switchTab(name, opts = {}) {
 function initTabs() {
   const bar = document.getElementById('tabbar'); if (bar) bar.hidden = false;
   document.querySelectorAll('#tabbar .tab-btn').forEach(b => { b.onclick = () => switchTab(b.dataset.tab); });
+  try { renderStats(); } catch (e) { console.warn('stats render', e); }
   const fromHash = (location.hash.match(/tab=(\w+)/) || [])[1];
   let start = fromHash || (() => { try { return localStorage.getItem('erza-tab'); } catch { return null; } })() || 'overview';
   switchTab(start, { noScroll: true, hash: false });
