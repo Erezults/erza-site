@@ -1047,10 +1047,10 @@ footer a { color: var(--muted); }
 
   <nav class="tabbar" id="tabbar" hidden>
     <button class="tab-btn on" data-tab="overview"><span class="tab-ico">🏠</span>ראשי</button>
+    <button class="tab-btn" data-tab="stats"><span class="tab-ico">📈</span>סטטיסטיקות</button>
     <button class="tab-btn" data-tab="instructions"><span class="tab-ico">💬</span>הוראות</button>
     <button class="tab-btn" data-tab="items"><span class="tab-ico">🔔</span>לטיפולך<span class="tab-badge" id="tabBadgeItems" hidden></span></button>
     <button class="tab-btn" data-tab="info"><span class="tab-ico">📊</span>אינפו<span class="tab-badge" id="tabBadgeInfo" hidden></span></button>
-    <button class="tab-btn" data-tab="stats"><span class="tab-ico">📈</span>סטטיסטיקות</button>
     <button class="tab-btn" data-tab="common"><span class="tab-ico">🧩</span>קומונליות</button>
   </nav>
 
@@ -1182,7 +1182,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=7960bb94"></script>
+<script src="data.enc.js?v=a8132bf9"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2483,7 +2483,7 @@ const mrIcon = app => app === 'ERZA'
 const mrLabel = app => displayApp(app);
 // A tab missing from this list silently falls back to 'overview' — adding the button and
 // the panel is not enough, which is exactly how the תצוגות tab shipped dead (2026-08-07).
-const TABS = ['overview', 'instructions', 'items', 'info', 'common'];
+const TABS = ['overview', 'instructions', 'items', 'info', 'common', 'stats'];
 
 function renderStats() {
   const el = document.getElementById('statsPanel');
