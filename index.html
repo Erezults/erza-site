@@ -1182,7 +1182,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=20d1129d"></script>
+<script src="data.enc.js?v=dd930d81"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2504,12 +2504,42 @@ function renderStats() {
       for (const [c, n] of Object.entries(v.proceeds || {})) a.rev[c] = Math.round(((a.rev[c] || 0) + n) * 100) / 100;
     }
   }
-  const byBundle = {};
-  for (const app of (window.ERZA_DATA.apps || [])) if (app.bundleId) byBundle[app.bundleId] = app;
+  // Map a sales row to its portfolio app: Apple numeric id first, then report
+  // SKU, then bundle id. IAP-only rows (product SKUs like emoryx.premium.*) are
+  // FOLDED into the app whose SKU/name prefixes them.
+  const lookup = {};
+  for (const app of (window.ERZA_DATA.apps || [])) {
+    for (const id of (app.asc && app.asc.appleIds) || []) lookup['id:' + id] = app;
+    for (const sk of (app.asc && app.asc.skus) || []) lookup['sku:' + String(sk).toLowerCase()] = app;
+    if (app.bundleId) lookup['sku:' + app.bundleId.toLowerCase()] = app;
+  }
+  const findApp = (a) => lookup['id:' + a.appleId] || lookup['sku:' + String(a.sku || '').toLowerCase()] || null;
+  const merged = {};
+  const orphans = [];
+  for (const a of Object.values(apps)) {
+    const app = findApp(a);
+    if (app) {
+      const m = merged[app.bundleId || app.name] ??= {app, series: {}, u: {}, rev: {}, skus: new Set()};
+      m.skus.add(a.sku);
+      for (const [d, v] of Object.entries(a.series)) m.series[d] = (m.series[d] || 0) + v;
+      for (const [b, n] of Object.entries(a.u)) m.u[b] = (m.u[b] || 0) + n;
+      for (const [c, n] of Object.entries(a.rev)) m.rev[c] = Math.round(((m.rev[c] || 0) + n) * 100) / 100;
+    } else orphans.push(a);
+  }
+  // fold orphan IAP rows into the app whose sku/name is their prefix
+  for (const o of orphans) {
+    const os = String(o.sku || '').toLowerCase();
+    const host = Object.values(merged).find(m => [...m.skus].some(sk => os.startsWith(String(sk).toLowerCase().split('.')[0])))
+      || Object.values(merged).find(m => os.startsWith(String(m.app.name || '').toLowerCase()));
+    const tgt = host || (merged[o.sku] ??= {app: {name: o.title || o.sku}, series: {}, u: {}, rev: {}, skus: new Set([o.sku])});
+    for (const [b, n] of Object.entries(o.u)) tgt.u[b] = (tgt.u[b] || 0) + n;
+    for (const [c, n] of Object.entries(o.rev)) tgt.rev[c] = Math.round(((tgt.rev[c] || 0) + n) * 100) / 100;
+  }
   const last7 = new Set(days.slice(-7));
-  const cards = Object.values(apps).sort((x, y) => (y.u.downloads || 0) - (x.u.downloads || 0)).map(a => {
-    const app = byBundle[a.sku] || {};
-    const name = app.displayName || app.name || a.title || a.sku;
+  const cards = Object.values(merged).sort((x, y) => (y.u.downloads || 0) - (x.u.downloads || 0)).map(m => {
+    const a = {sku: [...m.skus].join(' · '), series: m.series, u: m.u, rev: m.rev};
+    const app = m.app;
+    const name = app.displayName || app.name || a.sku;
     const d7 = days.filter(d => last7.has(d)).reduce((s2, d) => s2 + (a.series[d] || 0), 0);
     const revTxt = Object.entries(a.rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join(' · ') || '—';
     const maxV = Math.max(1, ...days.map(d => a.series[d] || 0));
