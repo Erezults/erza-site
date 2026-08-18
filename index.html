@@ -707,7 +707,10 @@ footer a { color: var(--muted); }
 .stats-wrap { overflow-x: auto; margin-top: 10px; }
 .stats-table { width: 100%; border-collapse: collapse; font-size: 12.5px; color: var(--ink-1); }
 .stats-table th { font-size: 10.5px; font-weight: 600; color: var(--ink-2); padding: 6px 4px; border-bottom: 1px solid var(--baseline); white-space: nowrap; }
-.stats-table td { text-align: center; padding: 7px 4px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+.stats-table td { text-align: center; padding: 6px 4px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+.stats-appcell { vertical-align: middle; border-bottom: 2px solid var(--baseline) !important; }
+.stats-platcell { font-size: 13px; width: 26px; }
+.stats-blockend td { border-bottom: 2px solid var(--baseline); }
 .stats-table tr:last-child td { border-bottom: none; }
 .stats-app { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; border: none; background: none; padding: 2px 4px; color: var(--ink-1); }
 .stats-app img { width: 38px; height: 38px; border-radius: 9px; box-shadow: 0 1px 3px var(--ring); }
@@ -2556,60 +2559,67 @@ function renderStats() {
   }
   const last7 = new Set(days.slice(-7));
   const revTxt = (rev) => Object.entries(rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—';
-  const rows = [];
+  // one app block = app cell (rowspan) + a sub-row per platform
+  const blocks = [];
   for (const slot of Object.values(per)) {
     const plats = Object.keys((slot.app.asc && slot.app.asc.platforms) || {});
-    const hasIos = plats.includes('IOS') || (slot.ios.u.downloads || 0) > 0;
-    const hasMac = plats.includes('MAC_OS') || (slot.mac.u.downloads || 0) > 0;
-    if (hasIos) rows.push({app: slot.app, plat: 'ios', d: slot.ios});
-    if (hasMac) rows.push({app: slot.app, plat: 'mac', d: slot.mac});
+    const subs = [];
+    if (plats.includes('IOS') || (slot.ios.u.downloads || 0) > 0) subs.push({plat: 'ios', d: slot.ios});
+    if (plats.includes('MAC_OS') || (slot.mac.u.downloads || 0) > 0) subs.push({plat: 'mac', d: slot.mac});
+    if (subs.length) blocks.push({app: slot.app, subs, total: subs.reduce((n, r) => n + (r.d.u.downloads || 0), 0)});
   }
-  rows.sort((x, y) => ((y.d.u.downloads || 0) - (x.d.u.downloads || 0)) || String(x.app.name).localeCompare(y.app.name) || x.plat.localeCompare(y.plat));
-  window.__statsRows = rows; window.__statsDays = days;
+  blocks.sort((x, y) => (y.total - x.total) || String(x.app.name).localeCompare(y.app.name));
+  window.__statsBlocks = blocks; window.__statsDays = days;
   const tot = {d30: 0, d7: 0, upd: 0, iap: 0, rev: {}};
-  const tr = rows.map((r, i) => {
-    const m = r.d;
-    const d7 = days.filter(d => last7.has(d)).reduce((s2, d) => s2 + (m.series[d] || 0), 0);
-    tot.d30 += m.u.downloads || 0; tot.d7 += d7; tot.upd += m.u.updates || 0; tot.iap += m.u.iap || 0;
-    for (const [c, n] of Object.entries(m.rev)) tot.rev[c] = r2((tot.rev[c] || 0) + n);
-    const nm = displayApp(r.app.dir || r.app.name, r.plat === 'mac' ? 'macos' : undefined);
-    const platTag = r.plat === 'mac' ? '💻 Mac' : '📱 iOS';
-    return `<tr>
-      <td><button class="stats-app" onclick="openStatsModal(${i})"><img src="icons/${r.app.dir || r.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'"><span>${nm}</span><span class="stats-plat">${platTag}</span></button></td>
-      <td><b>${(m.u.downloads || 0).toLocaleString()}</b></td>
-      <td>${d7.toLocaleString()}</td>
-      <td>${(m.u.updates || 0).toLocaleString()}</td>
-      <td>${(m.u.iap || 0).toLocaleString()}</td>
-      <td class="stats-rev-cell">${revTxt(m.rev)}</td>
-    </tr>`;
+  const rowsHtml = blocks.map((b, bi) => {
+    const nm = displayApp(b.app.dir || b.app.name);
+    return b.subs.map((r, si) => {
+      const m = r.d;
+      const d7 = days.filter(d => last7.has(d)).reduce((s2, d) => s2 + (m.series[d] || 0), 0);
+      tot.d30 += m.u.downloads || 0; tot.d7 += d7; tot.upd += m.u.updates || 0; tot.iap += m.u.iap || 0;
+      for (const [c, n] of Object.entries(m.rev)) tot.rev[c] = r2((tot.rev[c] || 0) + n);
+      const appCell = si === 0
+        ? `<td rowspan="${b.subs.length}" class="stats-appcell"><button class="stats-app" onclick="openStatsModal(${bi})"><img src="icons/${b.app.dir || b.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'"><span>${nm}</span></button></td>`
+        : '';
+      return `<tr${si === b.subs.length - 1 ? ' class="stats-blockend"' : ''}>${appCell}
+        <td class="stats-platcell">${r.plat === 'mac' ? '💻' : '📱'}</td>
+        <td><b>${(m.u.downloads || 0).toLocaleString()}</b></td>
+        <td>${d7.toLocaleString()}</td>
+        <td>${(m.u.updates || 0).toLocaleString()}</td>
+        <td>${(m.u.iap || 0).toLocaleString()}</td>
+        <td class="stats-rev-cell">${revTxt(m.rev)}</td>
+      </tr>`;
+    }).join('');
   }).join('');
   el.innerHTML = `<div class="stats-wrap"><table class="stats-table">
-    <thead><tr><th>אפליקציה</th><th>הורדות · 30י</th><th>הורדות · 7י</th><th>עדכונים</th><th>רכישות</th><th>הכנסות</th></tr></thead>
-    <tbody>${tr}
-    <tr class="stats-total"><td>סה"כ</td><td>${tot.d30.toLocaleString()}</td><td>${tot.d7.toLocaleString()}</td><td>${tot.upd.toLocaleString()}</td><td>${tot.iap.toLocaleString()}</td><td class="stats-rev-cell">${revTxt(tot.rev)}</td></tr>
+    <thead><tr><th>אפליקציה</th><th></th><th>הורדות · 30י</th><th>הורדות · 7י</th><th>עדכונים</th><th>רכישות</th><th>הכנסות</th></tr></thead>
+    <tbody>${rowsHtml}
+    <tr class="stats-total"><td colspan="2">סה"כ</td><td>${tot.d30.toLocaleString()}</td><td>${tot.d7.toLocaleString()}</td><td>${tot.upd.toLocaleString()}</td><td>${tot.iap.toLocaleString()}</td><td class="stats-rev-cell">${revTxt(tot.rev)}</td></tr>
     </tbody></table></div>
     <div class="stats-modal" id="statsModal" hidden onclick="if(event.target===this)this.hidden=true">
       <div class="stats-modal-card"><button class="stats-modal-x" onclick="document.getElementById('statsModal').hidden=true">✕</button><div id="statsModalBody"></div></div>
     </div>`;
 }
 
-function openStatsModal(i) {
-  const r = (window.__statsRows || [])[i]; if (!r) return;
-  const m = r.d;
+function openStatsModal(bi) {
+  const b = (window.__statsBlocks || [])[bi]; if (!b) return;
   const days = window.__statsDays || [];
-  const nm = displayApp(r.app.dir || r.app.name, r.plat === 'mac' ? 'macos' : undefined);
-  const maxV = Math.max(1, ...days.map(d => m.series[d] || 0));
-  const W = 480, H = 120, bw = Math.max(4, Math.floor(W / days.length) - 2);
-  const bars = days.map((d, j) => {
-    const v = m.series[d] || 0, h = Math.max(2, Math.round(v / maxV * (H - 24)));
-    return `<rect x="${j * (bw + 2)}" y="${H - 18 - h}" width="${bw}" height="${h}" rx="2" fill="var(--blue)" opacity="${v ? .9 : .18}"><title>${d}: ${v}</title></rect>`
-      + (v ? `<text x="${j * (bw + 2) + bw / 2}" y="${H - 20 - h}" text-anchor="middle" font-size="8" fill="var(--ink-2)">${v}</text>` : '');
-  }).join('');
-  const lbl = (idx) => `<text x="${idx * (bw + 2) + bw / 2}" y="${H - 6}" text-anchor="middle" font-size="7.5" fill="var(--muted)">${days[idx].slice(5)}</text>`;
-  document.getElementById('statsModalBody').innerHTML =
-    `<h4><img src="icons/${r.app.dir || r.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'">${nm} · ${r.plat === 'mac' ? '💻 macOS' : '📱 iOS'}</h4>
-     <div class="stats-modal-sub">הורדות יומיות · 30 יום אחרונים</div>
-     <div style="overflow-x:auto"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${bars}${lbl(0)}${lbl(Math.floor(days.length / 2))}${lbl(days.length - 1)}</svg></div>`;
+  const nm = displayApp(b.app.dir || b.app.name);
+  const chart = (m, label) => {
+    const maxV = Math.max(1, ...days.map(d => m.series[d] || 0));
+    const W = 480, H = 100, bw = Math.max(4, Math.floor(W / days.length) - 2);
+    const bars = days.map((d, j) => {
+      const v = m.series[d] || 0, h = Math.max(2, Math.round(v / maxV * (H - 26)));
+      return `<rect x="${j * (bw + 2)}" y="${H - 18 - h}" width="${bw}" height="${h}" rx="2" fill="var(--blue)" opacity="${v ? .9 : .18}"><title>${d}: ${v}</title></rect>`
+        + (v ? `<text x="${j * (bw + 2) + bw / 2}" y="${H - 21 - h}" text-anchor="middle" font-size="8" fill="var(--ink-2)">${v}</text>` : '');
+    }).join('');
+    const lbl = (idx) => `<text x="${idx * (bw + 2) + bw / 2}" y="${H - 5}" text-anchor="middle" font-size="7.5" fill="var(--muted)">${days[idx].slice(5)}</text>`;
+    return `<div class="stats-modal-sub" style="margin-top:8px">${label} · הורדות יומיות</div>
+      <div style="overflow-x:auto"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${bars}${lbl(0)}${lbl(Math.floor(days.length / 2))}${lbl(days.length - 1)}</svg></div>`;
+  };
+  let body = `<h4><img src="icons/${b.app.dir || b.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'">${nm}</h4>`;
+  for (const r of b.subs) body += chart(r.d, r.plat === 'mac' ? '💻 macOS' : '📱 iOS');
+  document.getElementById('statsModalBody').innerHTML = body;
   document.getElementById('statsModal').hidden = false;
 }
 
