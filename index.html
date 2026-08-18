@@ -711,6 +711,7 @@ footer a { color: var(--muted); }
 .stats-table tr:last-child td { border-bottom: none; }
 .stats-app { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; border: none; background: none; padding: 2px 4px; color: var(--ink-1); }
 .stats-app img { width: 38px; height: 38px; border-radius: 9px; box-shadow: 0 1px 3px var(--ring); }
+.stats-app .stats-plat { font-size: 8.5px; color: var(--muted); }
 .stats-app span { font-size: 9.5px; color: var(--ink-2); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stats-total td { font-weight: 700; background: var(--tint); border-top: 2px solid var(--baseline); }
 .stats-rev-cell { font-size: 11px; white-space: nowrap; }
@@ -1191,7 +1192,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=538a98bb"></script>
+<script src="data.enc.js?v=d853c8d0"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2504,55 +2505,77 @@ function renderStats() {
   }
   if (upd) upd.textContent = 'עודכן: ' + (an.updatedAt || '').slice(0, 16).replace('T', ' ') + ' · 30 יום אחרונים';
   const days = Object.keys(an.days).sort();
+  // aggregate raw rows: per report-app, per platform, with per-day download series
   const raw = {};
   for (const d of days) {
     for (const [k, v] of Object.entries(an.days[d].apps || {})) {
-      const a = raw[k] ??= {sku: v.sku, title: v.title, appleId: v.appleId, series: {}, u: {}, rev: {}};
-      a.series[d] = (a.series[d] || 0) + (v.units.downloads || 0);
-      for (const [b, n] of Object.entries(v.units)) a.u[b] = (a.u[b] || 0) + n;
-      for (const [c, n] of Object.entries(v.proceeds || {})) a.rev[c] = Math.round(((a.rev[c] || 0) + n) * 100) / 100;
+      const a = raw[k] ??= {sku: v.sku, appleId: v.appleId, plat: {ios: mk(), mac: mk()}};
+      for (const [pl, pv] of Object.entries(v.plat || {ios: {units: v.units, proceeds: v.proceeds}})) {
+        const t = a.plat[pl] ??= mk();
+        t.series[d] = (t.series[d] || 0) + ((pv.units || {}).downloads || 0);
+        for (const [b, n] of Object.entries(pv.units || {})) t.u[b] = (t.u[b] || 0) + n;
+        for (const [c, n] of Object.entries(pv.proceeds || {})) t.rev[c] = r2(((t.rev[c] || 0) + n));
+      }
     }
   }
-  // live (prod) portfolio apps only — dev builds never appear in sales reports,
-  // and non-portfolio rows fold into their parent app by sku prefix.
+  function mk() { return {series: {}, u: {}, rev: {}}; }
+  function r2(n) { return Math.round(n * 100) / 100; }
+  // fold every report row into its LIVE portfolio app (dev never appears in sales)
   const lookup = {};
-  for (const app of (window.ERZA_DATA.apps || [])) {
-    if (app.role !== 'native') continue;
+  const natives = ((window.ERZA_DATA || {}).apps || []).filter(a => a.role === 'native');
+  for (const app of natives) {
     for (const id of (app.asc && app.asc.appleIds) || []) lookup['id:' + id] = app;
     for (const sk of (app.asc && app.asc.skus) || []) lookup['sku:' + String(sk).toLowerCase()] = app;
     if (app.bundleId) lookup['sku:' + app.bundleId.toLowerCase()] = app;
   }
-  const merged = {}; const orphans = [];
+  const per = {};  // app.dir → {app, ios: mk, mac: mk}
+  const ensure = (app) => per[app.dir || app.name] ??= {app, ios: mk(), mac: mk()};
+  const fold = (tgt, src) => {
+    for (const [d, v] of Object.entries(src.series)) tgt.series[d] = (tgt.series[d] || 0) + v;
+    for (const [b, n] of Object.entries(src.u)) tgt.u[b] = (tgt.u[b] || 0) + n;
+    for (const [c, n] of Object.entries(src.rev)) tgt.rev[c] = r2((tgt.rev[c] || 0) + n);
+  };
+  const orphans = [];
   for (const a of Object.values(raw)) {
     const app = lookup['id:' + a.appleId] || lookup['sku:' + String(a.sku || '').toLowerCase()];
-    if (app) {
-      const m = merged[app.dir || app.name] ??= {app, series: {}, u: {}, rev: {}, skus: new Set()};
-      m.skus.add(String(a.sku || '').toLowerCase());
-      for (const [d, v] of Object.entries(a.series)) m.series[d] = (m.series[d] || 0) + v;
-      for (const [b, n] of Object.entries(a.u)) m.u[b] = (m.u[b] || 0) + n;
-      for (const [c, n] of Object.entries(a.rev)) m.rev[c] = Math.round(((m.rev[c] || 0) + n) * 100) / 100;
-    } else orphans.push(a);
+    if (!app) { orphans.push(a); continue; }
+    const slot = ensure(app);
+    fold(slot.ios, a.plat.ios || mk()); fold(slot.mac, a.plat.mac || mk());
   }
-  for (const o of orphans) {
+  for (const o of orphans) {  // IAP product rows → parent app by sku prefix
     const os = String(o.sku || '').toLowerCase();
-    const host = Object.values(merged).find(m => [...m.skus].some(sk => sk && os.startsWith(sk.split('.')[0])))
-      || Object.values(merged).find(m => os.startsWith(String(m.app.name || '').toLowerCase().split(' ')[0]));
-    if (!host) continue;  // dev/unknown rows are not displayed
-    for (const [b, n] of Object.entries(o.u)) host.u[b] = (host.u[b] || 0) + n;
-    for (const [c, n] of Object.entries(o.rev)) host.rev[c] = Math.round(((host.rev[c] || 0) + n) * 100) / 100;
+    const hostApp = natives.find(app => [...((app.asc && app.asc.skus) || []), app.name].some(sk => sk && os.startsWith(String(sk).toLowerCase().split('.')[0])));
+    if (!hostApp) continue;
+    const slot = ensure(hostApp);
+    fold(slot.ios, o.plat.ios || mk()); fold(slot.mac, o.plat.mac || mk());
+  }
+  // every LIVE app appears, both its platforms, even at zero
+  for (const app of natives) {
+    const plats = Object.keys((app.asc && app.asc.platforms) || {});
+    if (plats.length) ensure(app);
   }
   const last7 = new Set(days.slice(-7));
   const revTxt = (rev) => Object.entries(rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—';
-  const rows = Object.values(merged).sort((x, y) => (y.u.downloads || 0) - (x.u.downloads || 0));
-  window.__statsRows = rows;  // for the modal
+  const rows = [];
+  for (const slot of Object.values(per)) {
+    const plats = Object.keys((slot.app.asc && slot.app.asc.platforms) || {});
+    const hasIos = plats.includes('IOS') || (slot.ios.u.downloads || 0) > 0;
+    const hasMac = plats.includes('MAC_OS') || (slot.mac.u.downloads || 0) > 0;
+    if (hasIos) rows.push({app: slot.app, plat: 'ios', d: slot.ios});
+    if (hasMac) rows.push({app: slot.app, plat: 'mac', d: slot.mac});
+  }
+  rows.sort((x, y) => ((y.d.u.downloads || 0) - (x.d.u.downloads || 0)) || String(x.app.name).localeCompare(y.app.name) || x.plat.localeCompare(y.plat));
+  window.__statsRows = rows; window.__statsDays = days;
   const tot = {d30: 0, d7: 0, upd: 0, iap: 0, rev: {}};
-  const tr = rows.map((m, i) => {
+  const tr = rows.map((r, i) => {
+    const m = r.d;
     const d7 = days.filter(d => last7.has(d)).reduce((s2, d) => s2 + (m.series[d] || 0), 0);
     tot.d30 += m.u.downloads || 0; tot.d7 += d7; tot.upd += m.u.updates || 0; tot.iap += m.u.iap || 0;
-    for (const [c, n] of Object.entries(m.rev)) tot.rev[c] = Math.round(((tot.rev[c] || 0) + n) * 100) / 100;
-    const nm = m.app.displayName || m.app.name;
+    for (const [c, n] of Object.entries(m.rev)) tot.rev[c] = r2((tot.rev[c] || 0) + n);
+    const nm = displayApp(r.app.dir || r.app.name, r.plat === 'mac' ? 'macos' : undefined);
+    const platTag = r.plat === 'mac' ? '💻 Mac' : '📱 iOS';
     return `<tr>
-      <td><button class="stats-app" onclick="openStatsModal(${i})"><img src="icons/${m.app.dir || m.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'"><span>${nm}</span></button></td>
+      <td><button class="stats-app" onclick="openStatsModal(${i})"><img src="icons/${r.app.dir || r.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'"><span>${nm}</span><span class="stats-plat">${platTag}</span></button></td>
       <td><b>${(m.u.downloads || 0).toLocaleString()}</b></td>
       <td>${d7.toLocaleString()}</td>
       <td>${(m.u.updates || 0).toLocaleString()}</td>
@@ -2568,13 +2591,13 @@ function renderStats() {
     <div class="stats-modal" id="statsModal" hidden onclick="if(event.target===this)this.hidden=true">
       <div class="stats-modal-card"><button class="stats-modal-x" onclick="document.getElementById('statsModal').hidden=true">✕</button><div id="statsModalBody"></div></div>
     </div>`;
-  window.__statsDays = days;
 }
 
 function openStatsModal(i) {
-  const m = (window.__statsRows || [])[i]; if (!m) return;
+  const r = (window.__statsRows || [])[i]; if (!r) return;
+  const m = r.d;
   const days = window.__statsDays || [];
-  const nm = m.app.displayName || m.app.name;
+  const nm = displayApp(r.app.dir || r.app.name, r.plat === 'mac' ? 'macos' : undefined);
   const maxV = Math.max(1, ...days.map(d => m.series[d] || 0));
   const W = 480, H = 120, bw = Math.max(4, Math.floor(W / days.length) - 2);
   const bars = days.map((d, j) => {
@@ -2584,7 +2607,7 @@ function openStatsModal(i) {
   }).join('');
   const lbl = (idx) => `<text x="${idx * (bw + 2) + bw / 2}" y="${H - 6}" text-anchor="middle" font-size="7.5" fill="var(--muted)">${days[idx].slice(5)}</text>`;
   document.getElementById('statsModalBody').innerHTML =
-    `<h4><img src="icons/${m.app.dir || m.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'">${nm}</h4>
+    `<h4><img src="icons/${r.app.dir || r.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'">${nm} · ${r.plat === 'mac' ? '💻 macOS' : '📱 iOS'}</h4>
      <div class="stats-modal-sub">הורדות יומיות · 30 יום אחרונים</div>
      <div style="overflow-x:auto"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${bars}${lbl(0)}${lbl(Math.floor(days.length / 2))}${lbl(days.length - 1)}</svg></div>`;
   document.getElementById('statsModal').hidden = false;
