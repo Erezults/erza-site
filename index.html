@@ -702,17 +702,19 @@ footer a { color: var(--muted); }
 .tab-badge[hidden] { display: none; }
 .tab-btn.on .tab-badge { background: var(--page); color: var(--red); }
 .tab-panel[hidden] { display: none; }
+/* Theme-correct stats cards (2026-08-18: the first pass used non-existent
+   --card/--line vars — white cards with white text under the dark theme). */
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; margin-top: 10px; }
-.stats-card { background: var(--card, #fff); border: 1px solid var(--line, #e5e7eb); border-radius: 14px; padding: 14px 16px; }
-.stats-card h4 { margin: 0 0 2px; font-size: 15px; display: flex; align-items: center; gap: 7px; }
-.stats-sub { font-size: 11px; opacity: .65; margin-bottom: 8px; }
+.stats-card { background: var(--surface-1); border: 1px solid var(--grid); border-radius: 14px; padding: 14px 16px; color: var(--ink-1); }
+.stats-card h4 { margin: 0 0 2px; font-size: 15px; display: flex; align-items: center; gap: 7px; color: var(--ink-1); }
+.stats-sub { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
 .stats-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0 4px; }
-.stats-num { text-align: center; background: var(--tint, #f3f4f6); border-radius: 10px; padding: 7px 4px; }
-.stats-num b { display: block; font-size: 17px; }
-.stats-num span { font-size: 10px; opacity: .7; }
-.stats-rev { font-size: 12.5px; margin-top: 6px; font-weight: 600; }
+.stats-num { text-align: center; background: var(--tint); border-radius: 10px; padding: 7px 4px; }
+.stats-num b { display: block; font-size: 17px; color: var(--ink-1); }
+.stats-num span { font-size: 10px; color: var(--ink-2); }
+.stats-rev { font-size: 12.5px; margin-top: 6px; font-weight: 600; color: var(--ink-1); }
 .stats-spark { margin-top: 8px; }
-.stats-empty { padding: 26px; text-align: center; opacity: .7; font-size: 14px; border: 1px dashed var(--line, #d1d5db); border-radius: 14px; margin-top: 12px; }
+.stats-empty { padding: 26px; text-align: center; color: var(--ink-2); font-size: 14px; border: 1px dashed var(--baseline); border-radius: 14px; margin-top: 12px; }
 .tab-panel { animation: tabin .18s ease; }
 @keyframes tabin { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .tab-panel { animation: none; } }
@@ -2546,7 +2548,7 @@ function renderStats() {
     const W = 260, H = 34, bw = Math.max(2, Math.floor(W / days.length) - 1);
     const bars = days.map((d, i) => {
       const v = a.series[d] || 0, h = Math.max(1, Math.round(v / maxV * (H - 4)));
-      return `<rect x="${i * (bw + 1)}" y="${H - h}" width="${bw}" height="${h}" rx="1" fill="var(--ink-1,#111)" opacity="${v ? .75 : .15}"><title>${d}: ${v}</title></rect>`;
+      return `<rect x="${i * (bw + 1)}" y="${H - h}" width="${bw}" height="${h}" rx="1" fill="var(--blue)" opacity="${v ? .75 : .15}"><title>${d}: ${v}</title></rect>`;
     }).join('');
     return `<div class="stats-card"><h4>${name}</h4>
       <div class="stats-sub">${a.sku || ''}</div>
