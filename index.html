@@ -706,7 +706,7 @@ footer a { color: var(--muted); }
    live apps only, icon+name cells, click opens a chart modal, mobile-first. */
 .stats-wrap { overflow-x: auto; margin-top: 10px; }
 .stats-table { width: 100%; border-collapse: collapse; font-size: 12.5px; color: var(--ink-1); }
-.stats-table th { font-size: 10.5px; font-weight: 600; color: var(--ink-2); padding: 6px 4px; border-bottom: 1px solid var(--baseline); white-space: nowrap; }
+.stats-table th { font-size: 10.5px; font-weight: 600; color: var(--ink-2); padding: 6px 4px; border-bottom: 1px solid var(--baseline); white-space: nowrap; text-align: center; }
 .stats-table td { text-align: center; padding: 6px 4px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
 .stats-appcell { vertical-align: middle; border-bottom: 2px solid var(--baseline) !important; }
 .stats-platcell { font-size: 13px; width: 26px; }
@@ -1196,7 +1196,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=e71d321e"></script>
+<script src="data.enc.js?v=3b583e2a"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2617,7 +2617,7 @@ function renderStats() {
     }).join('');
   }).join('');
   el.innerHTML = `<div class="stats-wrap"><table class="stats-table">
-    <thead><tr><th>אפליקציה</th><th></th><th>הורדות · 30י</th><th>הורדות · 7י</th><th>עדכונים</th><th>רכישות</th><th>הכנסות</th></tr></thead>
+    <thead><tr><th colspan="2">אפליקציה</th><th>הורדות · 30י</th><th>הורדות · 7י</th><th>עדכונים</th><th>רכישות</th><th>הכנסות</th></tr></thead>
     <tbody>${rowsHtml}
     <tr class="stats-total"><td colspan="2">סה"כ</td><td>${tot.d30.toLocaleString()}</td><td>${tot.d7.toLocaleString()}</td><td>${tot.upd.toLocaleString()}</td><td>${tot.iap.toLocaleString()}</td><td class="stats-rev-cell">${Object.entries(tot.rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—'}</td></tr>
     </tbody></table></div>
