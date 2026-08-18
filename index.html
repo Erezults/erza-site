@@ -702,19 +702,26 @@ footer a { color: var(--muted); }
 .tab-badge[hidden] { display: none; }
 .tab-btn.on .tab-badge { background: var(--page); color: var(--red); }
 .tab-panel[hidden] { display: none; }
-/* Theme-correct stats cards (2026-08-18: the first pass used non-existent
-   --card/--line vars — white cards with white text under the dark theme). */
-.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; margin-top: 10px; }
-.stats-card { background: var(--surface-1); border: 1px solid var(--grid); border-radius: 14px; padding: 14px 16px; color: var(--ink-1); }
-.stats-card h4 { margin: 0 0 2px; font-size: 15px; display: flex; align-items: center; gap: 7px; color: var(--ink-1); }
-.stats-sub { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
-.stats-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0 4px; }
-.stats-num { text-align: center; background: var(--tint); border-radius: 10px; padding: 7px 4px; }
-.stats-num b { display: block; font-size: 17px; color: var(--ink-1); }
-.stats-num span { font-size: 10px; color: var(--ink-2); }
-.stats-rev { font-size: 12.5px; margin-top: 6px; font-weight: 600; color: var(--ink-1); }
-.stats-spark { margin-top: 8px; }
+/* 📈 stats — compact table (Erez 2026-08-18): identical metrics ⇒ one table,
+   live apps only, icon+name cells, click opens a chart modal, mobile-first. */
+.stats-wrap { overflow-x: auto; margin-top: 10px; }
+.stats-table { width: 100%; border-collapse: collapse; font-size: 12.5px; color: var(--ink-1); }
+.stats-table th { font-size: 10.5px; font-weight: 600; color: var(--ink-2); padding: 6px 4px; border-bottom: 1px solid var(--baseline); white-space: nowrap; }
+.stats-table td { text-align: center; padding: 7px 4px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+.stats-table tr:last-child td { border-bottom: none; }
+.stats-app { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; border: none; background: none; padding: 2px 4px; color: var(--ink-1); }
+.stats-app img { width: 38px; height: 38px; border-radius: 9px; box-shadow: 0 1px 3px var(--ring); }
+.stats-app span { font-size: 9.5px; color: var(--ink-2); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stats-total td { font-weight: 700; background: var(--tint); border-top: 2px solid var(--baseline); }
+.stats-rev-cell { font-size: 11px; white-space: nowrap; }
 .stats-empty { padding: 26px; text-align: center; color: var(--ink-2); font-size: 14px; border: 1px dashed var(--baseline); border-radius: 14px; margin-top: 12px; }
+.stats-modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 90; padding: 18px; }
+.stats-modal[hidden] { display: none; }
+.stats-modal-card { background: var(--surface-1); color: var(--ink-1); border: 1px solid var(--grid); border-radius: 16px; padding: 16px; width: min(560px, 100%); }
+.stats-modal-card h4 { margin: 0 0 2px; display: flex; align-items: center; gap: 8px; }
+.stats-modal-card h4 img { width: 30px; height: 30px; border-radius: 7px; }
+.stats-modal-sub { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+.stats-modal-x { float: left; border: none; background: var(--tint); color: var(--ink-1); border-radius: 8px; width: 30px; height: 30px; font-size: 15px; cursor: pointer; }
 .tab-panel { animation: tabin .18s ease; }
 @keyframes tabin { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .tab-panel { animation: none; } }
@@ -1184,7 +1191,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=aff90f78"></script>
+<script src="data.enc.js?v=a6a8af09"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2492,80 +2499,95 @@ function renderStats() {
   const an = (window.ERZA_DATA || {}).analytics;
   const upd = document.getElementById('statsUpdated');
   if (!an || !an.days || !Object.keys(an.days).length) {
-    el.innerHTML = '<div class="stats-empty">אין עדיין נתוני מכירות — ממתין להגדרת מספר הספק (Vendor #) ב-ERZA.<br>הנתונים יופיעו כאן אוטומטית אחרי הרענון הראשון.</div>';
+    el.innerHTML = '<div class="stats-empty">אין עדיין נתוני מכירות.</div>';
     return;
   }
   if (upd) upd.textContent = 'עודכן: ' + (an.updatedAt || '').slice(0, 16).replace('T', ' ') + ' · 30 יום אחרונים';
   const days = Object.keys(an.days).sort();
-  const apps = {};
+  const raw = {};
   for (const d of days) {
     for (const [k, v] of Object.entries(an.days[d].apps || {})) {
-      const a = apps[k] ??= {sku: v.sku, title: v.title, appleId: v.appleId, series: {}, u: {}, rev: {}};
+      const a = raw[k] ??= {sku: v.sku, title: v.title, appleId: v.appleId, series: {}, u: {}, rev: {}};
       a.series[d] = (a.series[d] || 0) + (v.units.downloads || 0);
       for (const [b, n] of Object.entries(v.units)) a.u[b] = (a.u[b] || 0) + n;
       for (const [c, n] of Object.entries(v.proceeds || {})) a.rev[c] = Math.round(((a.rev[c] || 0) + n) * 100) / 100;
     }
   }
-  // Map a sales row to its portfolio app: Apple numeric id first, then report
-  // SKU, then bundle id. IAP-only rows (product SKUs like emoryx.premium.*) are
-  // FOLDED into the app whose SKU/name prefixes them.
+  // live (prod) portfolio apps only — dev builds never appear in sales reports,
+  // and non-portfolio rows fold into their parent app by sku prefix.
   const lookup = {};
   for (const app of (window.ERZA_DATA.apps || [])) {
+    if (app.role !== 'native') continue;
     for (const id of (app.asc && app.asc.appleIds) || []) lookup['id:' + id] = app;
     for (const sk of (app.asc && app.asc.skus) || []) lookup['sku:' + String(sk).toLowerCase()] = app;
     if (app.bundleId) lookup['sku:' + app.bundleId.toLowerCase()] = app;
   }
-  const findApp = (a) => lookup['id:' + a.appleId] || lookup['sku:' + String(a.sku || '').toLowerCase()] || null;
-  const merged = {};
-  const orphans = [];
-  for (const a of Object.values(apps)) {
-    const app = findApp(a);
+  const merged = {}; const orphans = [];
+  for (const a of Object.values(raw)) {
+    const app = lookup['id:' + a.appleId] || lookup['sku:' + String(a.sku || '').toLowerCase()];
     if (app) {
-      const m = merged[app.bundleId || app.name] ??= {app, series: {}, u: {}, rev: {}, skus: new Set()};
-      m.skus.add(a.sku);
+      const m = merged[app.dir || app.name] ??= {app, series: {}, u: {}, rev: {}, skus: new Set()};
+      m.skus.add(String(a.sku || '').toLowerCase());
       for (const [d, v] of Object.entries(a.series)) m.series[d] = (m.series[d] || 0) + v;
       for (const [b, n] of Object.entries(a.u)) m.u[b] = (m.u[b] || 0) + n;
       for (const [c, n] of Object.entries(a.rev)) m.rev[c] = Math.round(((m.rev[c] || 0) + n) * 100) / 100;
     } else orphans.push(a);
   }
-  // fold orphan IAP rows into the app whose sku/name is their prefix
   for (const o of orphans) {
     const os = String(o.sku || '').toLowerCase();
-    const host = Object.values(merged).find(m => [...m.skus].some(sk => os.startsWith(String(sk).toLowerCase().split('.')[0])))
-      || Object.values(merged).find(m => os.startsWith(String(m.app.name || '').toLowerCase()));
-    const tgt = host || (merged[o.sku] ??= {app: {name: o.title || o.sku}, series: {}, u: {}, rev: {}, skus: new Set([o.sku])});
-    for (const [b, n] of Object.entries(o.u)) tgt.u[b] = (tgt.u[b] || 0) + n;
-    for (const [c, n] of Object.entries(o.rev)) tgt.rev[c] = Math.round(((tgt.rev[c] || 0) + n) * 100) / 100;
+    const host = Object.values(merged).find(m => [...m.skus].some(sk => sk && os.startsWith(sk.split('.')[0])))
+      || Object.values(merged).find(m => os.startsWith(String(m.app.name || '').toLowerCase().split(' ')[0]));
+    if (!host) continue;  // dev/unknown rows are not displayed
+    for (const [b, n] of Object.entries(o.u)) host.u[b] = (host.u[b] || 0) + n;
+    for (const [c, n] of Object.entries(o.rev)) host.rev[c] = Math.round(((host.rev[c] || 0) + n) * 100) / 100;
   }
   const last7 = new Set(days.slice(-7));
-  const cards = Object.values(merged).sort((x, y) => (y.u.downloads || 0) - (x.u.downloads || 0)).map(m => {
-    const a = {sku: [...m.skus].join(' · '), series: m.series, u: m.u, rev: m.rev};
-    const app = m.app;
-    const name = app.displayName || app.name || a.sku;
-    const d7 = days.filter(d => last7.has(d)).reduce((s2, d) => s2 + (a.series[d] || 0), 0);
-    const revTxt = Object.entries(a.rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join(' · ') || '—';
-    const maxV = Math.max(1, ...days.map(d => a.series[d] || 0));
-    const W = 260, H = 34, bw = Math.max(2, Math.floor(W / days.length) - 1);
-    const bars = days.map((d, i) => {
-      const v = a.series[d] || 0, h = Math.max(1, Math.round(v / maxV * (H - 4)));
-      return `<rect x="${i * (bw + 1)}" y="${H - h}" width="${bw}" height="${h}" rx="1" fill="var(--blue)" opacity="${v ? .75 : .15}"><title>${d}: ${v}</title></rect>`;
-    }).join('');
-    return `<div class="stats-card"><h4>${name}</h4>
-      <div class="stats-sub">${a.sku || ''}</div>
-      <div class="stats-nums">
-        <div class="stats-num"><b>${(a.u.downloads || 0).toLocaleString()}</b><span>הורדות · 30 יום</span></div>
-        <div class="stats-num"><b>${d7.toLocaleString()}</b><span>הורדות · 7 ימים</span></div>
-        <div class="stats-num"><b>${(a.u.iap || 0).toLocaleString()}</b><span>רכישות/מנויים</span></div>
-      </div>
-      <div class="stats-nums">
-        <div class="stats-num"><b>${(a.u.updates || 0).toLocaleString()}</b><span>עדכונים</span></div>
-        <div class="stats-num"><b>${(a.u.redownloads || 0).toLocaleString()}</b><span>הורדות חוזרות</span></div>
-        <div class="stats-num"><b style="font-size:13px">${revTxt}</b><span>הכנסות (נטו)</span></div>
-      </div>
-      <svg class="stats-spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${bars}</svg>
+  const revTxt = (rev) => Object.entries(rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—';
+  const rows = Object.values(merged).sort((x, y) => (y.u.downloads || 0) - (x.u.downloads || 0));
+  window.__statsRows = rows;  // for the modal
+  const tot = {d30: 0, d7: 0, upd: 0, iap: 0, rev: {}};
+  const tr = rows.map((m, i) => {
+    const d7 = days.filter(d => last7.has(d)).reduce((s2, d) => s2 + (m.series[d] || 0), 0);
+    tot.d30 += m.u.downloads || 0; tot.d7 += d7; tot.upd += m.u.updates || 0; tot.iap += m.u.iap || 0;
+    for (const [c, n] of Object.entries(m.rev)) tot.rev[c] = Math.round(((tot.rev[c] || 0) + n) * 100) / 100;
+    const nm = m.app.displayName || m.app.name;
+    return `<tr>
+      <td><button class="stats-app" onclick="openStatsModal(${i})"><img src="icons/${m.app.dir || m.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'"><span>${nm}</span></button></td>
+      <td><b>${(m.u.downloads || 0).toLocaleString()}</b></td>
+      <td>${d7.toLocaleString()}</td>
+      <td>${(m.u.updates || 0).toLocaleString()}</td>
+      <td>${(m.u.iap || 0).toLocaleString()}</td>
+      <td class="stats-rev-cell">${revTxt(m.rev)}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `<div class="stats-wrap"><table class="stats-table">
+    <thead><tr><th>אפליקציה</th><th>הורדות · 30י</th><th>הורדות · 7י</th><th>עדכונים</th><th>רכישות</th><th>הכנסות</th></tr></thead>
+    <tbody>${tr}
+    <tr class="stats-total"><td>סה"כ</td><td>${tot.d30.toLocaleString()}</td><td>${tot.d7.toLocaleString()}</td><td>${tot.upd.toLocaleString()}</td><td>${tot.iap.toLocaleString()}</td><td class="stats-rev-cell">${revTxt(tot.rev)}</td></tr>
+    </tbody></table></div>
+    <div class="stats-modal" id="statsModal" hidden onclick="if(event.target===this)this.hidden=true">
+      <div class="stats-modal-card"><button class="stats-modal-x" onclick="document.getElementById('statsModal').hidden=true">✕</button><div id="statsModalBody"></div></div>
     </div>`;
-  });
-  el.innerHTML = cards.length ? `<div class="stats-grid">${cards.join('')}</div>` : '<div class="stats-empty">אין מכירות בתקופה</div>';
+  window.__statsDays = days;
+}
+
+function openStatsModal(i) {
+  const m = (window.__statsRows || [])[i]; if (!m) return;
+  const days = window.__statsDays || [];
+  const nm = m.app.displayName || m.app.name;
+  const maxV = Math.max(1, ...days.map(d => m.series[d] || 0));
+  const W = 480, H = 120, bw = Math.max(4, Math.floor(W / days.length) - 2);
+  const bars = days.map((d, j) => {
+    const v = m.series[d] || 0, h = Math.max(2, Math.round(v / maxV * (H - 24)));
+    return `<rect x="${j * (bw + 2)}" y="${H - 18 - h}" width="${bw}" height="${h}" rx="2" fill="var(--blue)" opacity="${v ? .9 : .18}"><title>${d}: ${v}</title></rect>`
+      + (v ? `<text x="${j * (bw + 2) + bw / 2}" y="${H - 20 - h}" text-anchor="middle" font-size="8" fill="var(--ink-2)">${v}</text>` : '');
+  }).join('');
+  const lbl = (idx) => `<text x="${idx * (bw + 2) + bw / 2}" y="${H - 6}" text-anchor="middle" font-size="7.5" fill="var(--muted)">${days[idx].slice(5)}</text>`;
+  document.getElementById('statsModalBody').innerHTML =
+    `<h4><img src="icons/${m.app.dir || m.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'">${nm}</h4>
+     <div class="stats-modal-sub">הורדות יומיות · 30 יום אחרונים</div>
+     <div style="overflow-x:auto"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${bars}${lbl(0)}${lbl(Math.floor(days.length / 2))}${lbl(days.length - 1)}</svg></div>`;
+  document.getElementById('statsModal').hidden = false;
 }
 
 function switchTab(name, opts = {}) {
