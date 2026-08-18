@@ -717,7 +717,8 @@ footer a { color: var(--muted); }
 .stats-app .stats-plat { font-size: 8.5px; color: var(--muted); }
 .stats-app span { font-size: 9.5px; color: var(--ink-2); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stats-total td { font-weight: 700; background: var(--tint); border-top: 2px solid var(--baseline); }
-.stats-rev-cell { font-size: 11px; white-space: nowrap; }
+.stats-rev-cell { font-size: 10.5px; white-space: nowrap; }
+.stats-rev-line { display: block; line-height: 1.5; }
 .stats-empty { padding: 26px; text-align: center; color: var(--ink-2); font-size: 14px; border: 1px dashed var(--baseline); border-radius: 14px; margin-top: 12px; }
 .stats-modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 90; padding: 18px; }
 .stats-modal[hidden] { display: none; }
@@ -1195,7 +1196,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=fec0ae80"></script>
+<script src="data.enc.js?v=5d8d3bda"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2518,10 +2519,15 @@ function renderStats() {
         t.series[d] = (t.series[d] || 0) + ((pv.units || {}).downloads || 0);
         for (const [b, n] of Object.entries(pv.units || {})) t.u[b] = (t.u[b] || 0) + n;
         for (const [c, n] of Object.entries(pv.proceeds || {})) t.rev[c] = r2(((t.rev[c] || 0) + n));
+        for (const [sk, it] of Object.entries(pv.revItems || {})) {
+          const ti = t.revItems[sk] ??= {units: 0, proceeds: {}};
+          ti.units += it.units || 0;
+          for (const [c, n] of Object.entries(it.proceeds || {})) ti.proceeds[c] = r2((ti.proceeds[c] || 0) + n);
+        }
       }
     }
   }
-  function mk() { return {series: {}, u: {}, rev: {}}; }
+  function mk() { return {series: {}, u: {}, rev: {}, revItems: {}}; }
   function r2(n) { return Math.round(n * 100) / 100; }
   // fold every report row into its LIVE portfolio app (dev never appears in sales)
   const lookup = {};
@@ -2537,6 +2543,11 @@ function renderStats() {
     for (const [d, v] of Object.entries(src.series)) tgt.series[d] = (tgt.series[d] || 0) + v;
     for (const [b, n] of Object.entries(src.u)) tgt.u[b] = (tgt.u[b] || 0) + n;
     for (const [c, n] of Object.entries(src.rev)) tgt.rev[c] = r2((tgt.rev[c] || 0) + n);
+    for (const [sk, it] of Object.entries(src.revItems || {})) {
+      const ti = tgt.revItems[sk] ??= {units: 0, proceeds: {}};
+      ti.units += it.units || 0;
+      for (const [c, n] of Object.entries(it.proceeds || {})) ti.proceeds[c] = r2((ti.proceeds[c] || 0) + n);
+    }
   };
   const orphans = [];
   for (const a of Object.values(raw)) {
@@ -2558,7 +2569,21 @@ function renderStats() {
     if (plats.length) ensure(app);
   }
   const last7 = new Set(days.slice(-7));
-  const revTxt = (rev) => Object.entries(rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—';
+  const revLabel = (sku) => {
+    const k = String(sku).toLowerCase();
+    if (k.includes('lifetime')) return 'Lifetime';
+    if (k.includes('month')) return 'מנוי חודשי';
+    if (k.includes('year') || k.includes('annual')) return 'מנוי שנתי';
+    if (k.includes('week')) return 'מנוי שבועי';
+    return sku;
+  };
+  const revTxt = (m) => {
+    const items = Object.entries(m.revItems || {});
+    if (items.length) return items.map(([sk, it]) =>
+      Object.entries(it.proceeds).map(([c, n]) => `<span class="stats-rev-line">${revLabel(sk)}: ${n.toLocaleString()} ${c}${it.units > 1 ? ` (×${it.units})` : ''}</span>`).join('')
+    ).join('');
+    return Object.entries(m.rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—';
+  };
   // one app block = app cell (rowspan) + a sub-row per platform
   const blocks = [];
   for (const slot of Object.values(per)) {
@@ -2587,14 +2612,14 @@ function renderStats() {
         <td>${d7.toLocaleString()}</td>
         <td>${(m.u.updates || 0).toLocaleString()}</td>
         <td>${(m.u.iap || 0).toLocaleString()}</td>
-        <td class="stats-rev-cell">${revTxt(m.rev)}</td>
+        <td class="stats-rev-cell">${revTxt(m)}</td>
       </tr>`;
     }).join('');
   }).join('');
   el.innerHTML = `<div class="stats-wrap"><table class="stats-table">
     <thead><tr><th>אפליקציה</th><th></th><th>הורדות · 30י</th><th>הורדות · 7י</th><th>עדכונים</th><th>רכישות</th><th>הכנסות</th></tr></thead>
     <tbody>${rowsHtml}
-    <tr class="stats-total"><td colspan="2">סה"כ</td><td>${tot.d30.toLocaleString()}</td><td>${tot.d7.toLocaleString()}</td><td>${tot.upd.toLocaleString()}</td><td>${tot.iap.toLocaleString()}</td><td class="stats-rev-cell">${revTxt(tot.rev)}</td></tr>
+    <tr class="stats-total"><td colspan="2">סה"כ</td><td>${tot.d30.toLocaleString()}</td><td>${tot.d7.toLocaleString()}</td><td>${tot.upd.toLocaleString()}</td><td>${tot.iap.toLocaleString()}</td><td class="stats-rev-cell">${Object.entries(tot.rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—'}</td></tr>
     </tbody></table></div>
     <div class="stats-modal" id="statsModal" hidden onclick="if(event.target===this)this.hidden=true">
       <div class="stats-modal-card"><button class="stats-modal-x" onclick="document.getElementById('statsModal').hidden=true">✕</button><div id="statsModalBody"></div></div>
