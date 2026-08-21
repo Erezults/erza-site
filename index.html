@@ -240,12 +240,6 @@ h1 small { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2
 /* dedicated migrations group — purple, distinct from the per-app groups */
 .appr-miggrp { border-color: color-mix(in srgb, #8e44ad 45%, var(--grid)); }
 .appr-miggrp > summary { background: color-mix(in srgb, #8e44ad 12%, transparent); color: color-mix(in srgb, #8e44ad 70%, var(--ink-1)); }
-/* backlog rows: task text + a "בצע עכשיו" promote button */
-.backlog-row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
-.backlog-row .backlog-txt { flex: 1; min-width: 0; }
-.backlog-row .backlog-run { flex-shrink: 0; border: 1px solid color-mix(in srgb, var(--green) 45%, var(--grid)); background: color-mix(in srgb, var(--green) 12%, transparent); color: var(--green); border-radius: 7px; padding: 4px 9px; font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
-.backlog-row .backlog-run:hover { background: color-mix(in srgb, var(--green) 22%, transparent); }
-.backlog-row .backlog-run:disabled { opacity: .7; cursor: default; }
 /* live chat with ERZA — chat bubbles (you on the right, ERZA on the left) + typing dots */
 .chat-panel .chat-log { max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 4px; margin-top: 6px; }
 .chat-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 24px 12px; }
@@ -1196,7 +1190,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=024762da"></script>
+<script src="data.enc.js?v=2d41e840"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1992,20 +1986,10 @@ async function gh(pathName, ref, opts = {}) {
   return r.status === 204 ? null : r.json();
 }
 
-// "בצע עכשיו": flag a backlog task urgent in user_priorities.json; the tick's
-// promote-urgent-backlog step moves it backlog→queued at top priority (one-shot).
-async function runBacklogNow(taskId) {
-  const cur = await gh('registry/user_priorities.json', undefined, { headers: { Accept: 'application/vnd.github+json' } })
-    .catch(e => { if (e && e.status === 404) return null; throw e; });
-  let data = { tasks: {}, apps: {} }, sha;
-  if (cur) { sha = cur.sha; try { data = JSON.parse(decodeURIComponent(escape(atob(cur.content.replace(/\s/g, ''))))); } catch {} }
-  data.tasks = data.tasks || {};
-  data.tasks[taskId] = { ...(data.tasks[taskId] || {}), urgent: true, star: true, p: 0, urgentAt: new Date().toISOString() };
-  data.updatedAt = new Date().toISOString();
-  const body = { message: 'בצע עכשיו — קידום backlog מהדשבורד', branch: 'main', ...(sha ? { sha } : {}),
-    content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))) };
-  await gh('registry/user_priorities.json', undefined, { method: 'PUT', body: JSON.stringify(body) });
-}
+// (The "בצע עכשיו" backlog-promotion helper is retired — site audit 2026-08-21: the 'backlog'
+//  task status was retired 2026-07-24 (every waiting task is 'queued'), no panel has rendered a
+//  .backlog-run button since, and registry/work_queue.json holds 0 backlog tasks. It was also the
+//  only dashboard writer of user_priorities.json outside savePriorities().)
 async function savePriorities() {
   // Null-safe: a missing button must never abort the save (it used to throw here, before the try,
   // so the whole save silently never ran — Erez 2026-07-29).
@@ -2233,7 +2217,7 @@ function chatTaskIndex() {
   const map = new Map(); const live = mrLastLive || {};
   const add = t => { const id = t && String(t.id || ''); if (id && /^C\d{10,}$/.test(id) && !map.has(id)) map.set(id, { id, title: t.title || t.titleEn || t.titleHe || null, createdAt: t.createdAt || null }); };
   (live.chatTasks || []).forEach(add);
-  for (const a of Object.values(live.apps || {})) { if (a && a.running) add(a.running); for (const k of ['queued', 'recent', 'parked', 'backlog']) (a && a[k] || []).forEach(add); }
+  for (const a of Object.values(live.apps || {})) { if (a && a.running) add(a.running); for (const k of ['queued', 'recent', 'parked']) (a && a[k] || []).forEach(add); }
   return map;
 }
 // tasks derived from a session: chat-request tasks whose C<ms> id (== reply time) fell in the
@@ -2670,7 +2654,7 @@ function updateTabBadges(itemsCount, infoCount) {
   set('tabBadgeInfo', infoCount || 0);
 }
 
-// Tab 1 — app grid centerpiece: per-app 🔴 (awaiting Erez's approval) + 🔵 (queued/backlog) breathing
+// Tab 1 — app grid centerpiece: per-app 🔴 (awaiting Erez's approval) + 🔵 (queued) breathing
 // badges; ⚙️ spinning gear + slow-breathing icon when a task is running on the app.
 function overviewGridHtml(live) {
   const natives = ((window.ERZA_DATA || {}).apps || []).filter(a => a.role === 'native');
@@ -2681,7 +2665,7 @@ function overviewGridHtml(live) {
   const tileFor = (a, plat) => {
     const al = (live.apps || {})[a.name] || {};
     const red = pendByApp[a.name] || 0;
-    const blue = (al.queued || []).length + (al.backlog || []).length;
+    const blue = (al.queued || []).length;   // 'backlog' is a retired status (2026-07-24) — live-status folds it into queued
     const wip = !!al.running;
     const wipModel = wip && al.running.model ? String(al.running.model) : '';
     const MODEL_C = { Fable: 'var(--aqua)', Opus: 'var(--violet)', Sonnet: 'var(--blue)', Haiku: 'var(--muted)' };
@@ -2711,29 +2695,9 @@ function overviewGridHtml(live) {
     <div class="ov-grid">${(tiles + erzaTile) || '<div class="exec-empty">אין אפליקציות נייטיב</div>'}</div>`;
 }
 
-// Tab 1 — executive summary: pending approvals grouped by app, click jumps to Tab 3.
-function execSummaryHtml() {
-  const items = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending'].includes(i.status) && !(i.pipelineStage && i.pipelineStage !== 'ready'));
-  const GENERIC = new Set(['multi', 'general', 'all', '']);
-  const isMig = i => i.type === 'migration' || i.status === 'approved-migration';
-  const byApp = {};
-  for (const it of items) { const k = GENERIC.has(it.app || '') ? '__general__' : it.app; (byApp[k] = byApp[k] || []).push(it); }
-  const keys = Object.keys(byApp).sort((a, b) => (a === '__general__' ? 1 : 0) - (b === '__general__' ? 1 : 0) || (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99) || a.localeCompare(b));
-  const rows = keys.map(app => {
-    const its = byApp[app];
-    const migs = its.filter(isMig).length;
-    const label = app === '__general__' ? '🌐 כללי / חוצה-אפליקציות' : `${mrIcon(app)}<span>${esc(mrLabel(app))}</span>`;
-    return `<tr class="exec-row" data-execapp="${app === '__general__' ? '__general__' : esc(app)}">
-      <td><div class="exec-app">${label}</div></td>
-      <td><span class="exec-count">${its.length}</span>${migs ? ` <span class="exec-pill" style="--bc:#8e44ad">🗄️ ${migs}</span>` : ''}</td>
-      <td class="exec-go">פתח לטיפול ←</td></tr>`;
-  }).join('');
-  return `<div class="tab-h">🧑‍💼 תקציר מנהלים <span class="tab-h-sub">מה ממתין לאישורך, לפי אפליקציה</span></div>
-    <div class="exec-card">${items.length
-      ? `<table class="exec-tbl"><thead><tr><th>אפליקציה</th><th>ממתינים</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
-      : '<div class="exec-empty">🎉 אין פריטים שממתינים לך כרגע — הכול מטופל.</div>'}</div>`;
-}
-
+// (The former 🧑‍💼 "תקציר מנהלים" panel is retired — site audit 2026-08-21: execSummaryHtml()
+//  was never mounted by any setDyn() call, so it rendered nowhere while still being maintained.
+//  Its job is done by the app grid (per-app 🔴 badges) + the 🔎 glance cards below.)
 // Tab 1 — at-a-glance quick cards that jump to the relevant tab.
 function glanceHtml(live) {
   const pend = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending'].includes(i.status) && !(i.pipelineStage && i.pipelineStage !== 'ready')).length;
@@ -2746,7 +2710,9 @@ function glanceHtml(live) {
     { v: pend, l: 'ממתינים לאישורך', tab: 'items' },
     ...(migs ? [{ v: migs, l: 'מיגרציות לאישור', tab: 'items' }] : []),
     { v: running, l: 'משימות רצות כעת', tab: 'overview' },
-    { v: queued, l: 'משימות בתור', tab: 'items' },
+    // the unified 🎯 תור המשימות panel lives on THIS tab (overview) since 2026-07-25 — the card
+    // used to jump to "לטיפולך", a tab with no queue on it at all (site audit 2026-08-21).
+    { v: queued, l: 'משימות בתור', tab: 'overview' },
     { v: buildsRun, l: 'בילדים בבנייה', tab: 'info' },
   ];
   return `<div class="tab-h">🔎 נתונים נוספים במבט-על <span class="tab-h-sub">לחיצה קופצת לטאב הרלוונטי</span></div>
@@ -2863,17 +2829,9 @@ function openAppInfo(appName) {
   });
 }
 
-// bind the Tab-1 exec rows / glance cards / Tab-4 grid tiles after each render.
+// bind the Tab-1 glance cards / Tab-4 grid tiles after each render.
+// (the .exec-row binding went with execSummaryHtml — site audit 2026-08-21)
 function bindDynamicExtras() {
-  document.querySelectorAll('#dynOverview .exec-row').forEach(tr => tr.onclick = () => {
-    const app = tr.dataset.execapp; switchTab('items');
-    setTimeout(() => {
-      const apprPanel = document.querySelector('#dynItems details[data-mrk="appr"]'); if (apprPanel) apprPanel.open = true;
-      const sub = app === '__general__' ? 'appr-general' : 'appr-' + app;
-      const grp = document.querySelector(`#dynItems [data-mrsub="${sub}"]`) || document.querySelector('#dynItems [data-mrsub="appr-migs"]');
-      if (grp) { grp.open = true; grp.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-    }, 60);
-  });
   document.querySelectorAll('#dynOverview .glance-card').forEach(c => c.onclick = () => switchTab(c.dataset.gototab));
   document.querySelectorAll('#dynGrid .ov-tile').forEach(t => t.onclick = () => {
     const app = t.dataset.ovapp;
@@ -2918,12 +2876,30 @@ function mrRender(live) {
     const modelRow = (name, blocked, until) => `<div class="acc-model">${blocked
       ? `<span class="st red">🔴 ${name}</span><span class="cat">חוזר בעוד <b class="cd" data-until="${esc(until || '')}"></b></span>`
       : `<span class="st green">🟢 ${name}</span><span class="cat">פעיל</span>`}</div>`;
+    // Site audit 2026-08-21 — two honesty fixes on this card:
+    // (1) The three meters are LOCAL ESTIMATES (usage-watchdog vs a hand-entered calibration), not
+    //     Anthropic's numbers. They have read 15-20% while the account was really weekly-maxed, so
+    //     presenting them as bare facts is a lie by omission. They are labeled as estimates and,
+    //     when usage_status flags the estimate stale (uncalibrated / calibration older than
+    //     policy.estimateStaleDays / over 100%), the card says so out loud.
+    // (2) The Fable row used to print "🟢 Fable פעיל" from the empirical probe alone. For the
+    //     SESSION account probe-accounts returns 'session' (it never spends a token probing the
+    //     account it runs on), so the row said "פעיל" directly under a meter reading 100% "מוצה".
+    //     The estimate now also counts as spent for DISPLAY only — it never gates anything (the
+    //     empirical block is still the sole authority for dispatch) — and the row states the
+    //     economy doctrine: Fable is reached only by an explicit model-pin.
+    const fableSpentEst = (a.fablePctEst ?? 0) >= 99;
+    const estNote = a.estimateStale
+      ? `<div class="cat" style="margin-top:3px;color:var(--yellow)">⚠️ הערכה מקומית לא מכוילת${a.calibratedAt ? ` מאז ${esc(String(a.calibratedAt).slice(0, 10))}` : ''} — המספרים למעלה עשויים לסטות מהמצב האמיתי; לכיול: <code>node scripts/usage-watchdog.mjs calibrate ${esc(id)} --session X --weekly Y --fable Z</code></div>`
+      : '';
     return `<div class="mr-acc acc-card${blockedAll ? ' blocked' : ''}">
       <div class="acc-head"><b>${esc(a.label || id)}</b>${roleTag(id)}${a.renewDay ? `<span class="cat"> · מתחדש ${a.renewDay}/חודש</span>` : ''}</div>
+      <div class="cat" style="margin:2px 0 4px">📊 הערכה מקומית של הניצול (לא נתון רשמי של Anthropic)</div>
       ${meter('סשן', a.sessionPctEst, a.sessionResetsAt)}
       ${meter('שבועי', a.weeklyPctEst, a.weeklyResetsAt)}
       ${meter('Fable', a.fablePctEst, null)}
-      ${modelRow('Fable', fableBlocked, fableUntil)}
+      ${estNote}
+      ${modelRow('Fable (נעיצה ידנית בלבד)', fableBlocked || fableSpentEst, fableUntil || a.weeklyResetsAt)}
       ${modelRow('Opus / Sonnet / Haiku', blockedAll, a.exhaustedUntil)}
       ${blockedAll && a.blockReason ? `<div class="cat" style="margin-top:3px">⛔ ${esc(a.blockReason)}</div>` : ''}
       ${a.probe && a.probe.at ? `<div class="cat" style="margin-top:3px">🔬 נבדק אמפירית ${esc(String(a.probe.at).slice(11, 16))}Z${a.probe.session ? ' · חשבון הסשן' : a.probe.evidence ? ' · ' + esc(a.probe.evidence) : ''}</div>` : ''}
@@ -2991,13 +2967,29 @@ function mrRender(live) {
       ${queueRowsHtml}
       ${recentHtml}
     </div></details>`;
-  const backlogPanel = '';
 
   // approved-migration/approved-build are ACTIVE gates awaiting ERZA execution — they live
   // in the pending section, never the archive (audit r2 SM-01/XC-10/status-blind-archive);
   // awaiting-deploy has its own panel.
   const EXEC_GATES = ['approved-migration', 'approved-build', 'approved-prod-ota'];
-  const isArchived = i => !['pending', 'decision-pending', 'awaiting-deploy', ...EXEC_GATES].includes(i.status);
+  // Site audit 2026-08-21: the approve button writes plain 'approved' for EVERY type, and the
+  // executors (apply-approved-migrations / apply-approved-prod-ota / reconcile-consequences) and
+  // live-status.approvedGates all accept `approved` + a trigger type as an ACTIVE gate. Only this
+  // file did not — so a prod-OTA promotion Erez had just approved vanished straight into 🗄️ ארכיון
+  // while the purple banner above still counted it as "awaiting ERZA execution" (A-HEALTY-PRODOTA).
+  // One predicate now decides everywhere, so banner, desk, "בתהליך" and archive can't disagree.
+  const isTriggerType = i => ['migration', 'prod-ota'].includes(i.type) || /(^|-)build$/.test(String(i.type || ''));
+  const isExecGateOf = i => EXEC_GATES.includes(i.status) || (i.status === 'approved' && isTriggerType(i));
+  // what ERZA will actually DO with this gate — decided by TYPE, not by the status spelling, so a
+  // plain-'approved' prod-OTA is no longer described as "תבנה את הבילד".
+  const gateKind = i => (i.status === 'approved-migration' || i.type === 'migration') ? 'migration'
+    : (i.status === 'approved-prod-ota' || i.type === 'prod-ota') ? 'prod-ota' : 'build';
+  // A 'build' row is a build REQUEST only when it carries buildGate:true; otherwise it is a build
+  // REPORT and approving it just closes it (reconcile-consequences 2026-08-21) — don't promise a build.
+  const gateActionHe = i => gateKind(i) === 'migration' ? 'תריץ את המיגרציה על ה-DB ותדחוף את ה-OTA'
+    : gateKind(i) === 'prod-ota' ? 'תדחוף את ה-OTA לערוץ ה-prod הייעודי (release-prod.sh)'
+    : i.buildGate === true ? 'תבנה את הבילד' : 'תסגור את הפריט (דיווח בילד — אין בנייה חדשה)';
+  const isArchived = i => !['pending', 'decision-pending', 'awaiting-deploy'].includes(i.status) && !isExecGateOf(i);
   const DEC = [['', '— טרם —'], ['yes', '✅ ליישום'], ['later', '🕓 לעתיד'], ['no', '⏭ דלג']];
   const decItemHtml = it => { const closed = !['pending', 'decision-pending'].includes(it.status); // archived decisions are read-only (audit r2)
     return `
@@ -3018,7 +3010,7 @@ function mrRender(live) {
     const otaLive = !!(it.push && ['pushed', 'published'].includes(it.push.status));
     const isBuild = /(^|-)build$/.test(String(it.type || '')); // build, dev-build, prod-build (audit r2)
     const isMig = it.type === 'migration';
-    const isExecGate = EXEC_GATES.includes(it.status); // approved by Erez, awaiting ERZA execution
+    const isExecGate = isExecGateOf(it); // approved by Erez (any approved-* variant), awaiting ERZA execution
     // item 6 — DEV/PROD channel pill (from build/OTA channel); item 7 — iOS/macOS platform pill.
     const chanPill = () => { const ch = it.buildChannel || it.otaChannel || it.channel || (it.app && it.app !== 'multi' && it.app !== 'general' ? 'dev' : null);
       return ch === 'prod' ? '<span class="chan-pill chan-prod" title="שינוי ל-PROD — האפליקציה החיה בסטור">PROD</span>'
@@ -3077,7 +3069,7 @@ function mrRender(live) {
         <div class="pushrow">${isExecGate
           ? (it.execBlocked && it.execNote
             ? `<span class="mdl" style="--bc:var(--yellow)">⏸️ ${it.autoApproved ? 'אושר אוטומטית' : 'אישרת'} — אך חסום כרגע: ${esc(it.execNote)}</span>`
-            : `<span class="mdl" style="--bc:#8e44ad">✅ ${it.autoApproved ? 'אושר אוטומטית (אפליקציה טרם-חנות)' : 'אישרת'} — ERZA הראשית ${it.status === 'approved-migration' ? 'תריץ את המיגרציה על ה-DB ותדחוף את ה-OTA' : it.status === 'approved-prod-ota' ? 'תדחוף את ה-OTA לערוץ ה-prod הייעודי (release-prod.sh)' : 'תבנה את הבילד'} בסבב הקרוב; הפריט ייסגר אוטומטית בסיום</span>`)
+            : `<span class="mdl" style="--bc:#8e44ad">✅ ${it.autoApproved ? 'אושר אוטומטית (אפליקציה טרם-חנות)' : 'אישרת'} — ERZA הראשית ${gateActionHe(it)} בסבב הקרוב; הפריט ייסגר אוטומטית בסיום</span>`)
           : isMig
           ? `<span class="mdl" style="--bc:#8e44ad">🗄️ מיגרציית DB ממתינה לאישורך — אישור ⇒ ERZA מריצה את המיגרציה ודוחפת את ה-OTA אוטומטית</span>`
           : isBuild
@@ -3163,8 +3155,8 @@ function mrRender(live) {
   const isHarm = i => /^A-HARM-/.test(i.id || '') || /^HARM/.test(i.refId || '') || (i.type === 'decision' && i.app === 'multi' && /יישור|harmoniz/i.test((i.title || '') + (i.refId || '')));
   // Gated review rows (pipeline not yet live — can't be checked) sink below actionable
   // ready rows so Erez sees what he CAN check first (Erez 2026-07-17), but stay above HARM.
-  const pendRank = i => isHarm(i) ? 9 : (i.pipelineStage && i.pipelineStage !== 'ready') ? 3 : i.type === 'decision' ? 0 : (i.type === 'migration' || /(^|-)build$/.test(String(i.type || '')) || EXEC_GATES.includes(i.status)) ? 1 : 2;
-  const allPend = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending', ...EXEC_GATES].includes(i.status))
+  const pendRank = i => isHarm(i) ? 9 : (i.pipelineStage && i.pipelineStage !== 'ready') ? 3 : i.type === 'decision' ? 0 : (i.type === 'migration' || /(^|-)build$/.test(String(i.type || '')) || isExecGateOf(i)) ? 1 : 2;
+  const allPend = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending'].includes(i.status) || isExecGateOf(i))
     .sort((a, b) => pendRank(a) - pendRank(b) || (mrAppRanks[a.app] ?? 99) - (mrAppRanks[b.app] ?? 99));
   // Erez 2026-07-18: the "לבדיקתך" field must show ONLY rows he can act on. A review row whose fix
   // isn't live on dev yet (pipelineStage migration/ota) is NOT checkable — it drops out of the desk
@@ -3187,14 +3179,16 @@ function mrRender(live) {
   const prepByApp = {};
   for (const it of prepItems) (prepByApp[it.app] ??= []).push(it);
   const prepReason = it => it.prereqLabel ? esc(it.prereqLabel)
-    : it.status === 'approved-migration' ? 'אישרת — ERZA מריצה את המיגרציה על ה-DB ותדחוף OTA; ייסגר אוטומטית בסיום'
-    : it.status === 'approved-build' ? 'אישרת — ERZA בונה את הבילד; ייסגר אוטומטית בסיום'
-    : it.status === 'approved-prod-ota' ? (it.autoApproved ? 'אושר אוטומטית (אפליקציה טרם-חנות) — ERZA תדחוף את ה-prod-OTA; ייסגר אוטומטית בסיום' : 'אישרת — ERZA תדחוף ל-prod בסבב הקרוב; ייסגר אוטומטית בסיום')
+    : isExecGateOf(it) ? (gateKind(it) === 'migration' ? 'אישרת — ERZA מריצה את המיגרציה על ה-DB ותדחוף OTA; ייסגר אוטומטית בסיום'
+      : gateKind(it) === 'prod-ota' ? (it.autoApproved ? 'אושר אוטומטית (אפליקציה טרם-חנות) — ERZA תדחוף את ה-prod-OTA; ייסגר אוטומטית בסיום' : 'אישרת — ERZA תדחוף ל-prod בסבב הקרוב; ייסגר אוטומטית בסיום')
+      : it.buildGate === true ? 'אישרת — ERZA בונה את הבילד; ייסגר אוטומטית בסיום' : 'אישרת — הפריט ייסגר בטיק הקרוב (דיווח בילד, אין בנייה חדשה)')
     : it.status === 'awaiting-deploy' ? 'ממתין לדחיפת OTA — התיקון מוכן (commit מקומי) אבל הגרסה עוד לא עלתה עליו'
     : 'בהכנה';
-  const prepIcon = it => it.migVerify ? '🔍' : (it.pipelineStage === 'migration' || it.status === 'approved-migration') ? '🗄️' : it.status === 'approved-build' ? '🏗️' : it.status === 'approved-prod-ota' ? '🚀' : '⏳';
+  const prepIcon = it => it.migVerify ? '🔍'
+    : isExecGateOf(it) ? ({ migration: '🗄️', 'prod-ota': '🚀', build: '🏗️' })[gateKind(it)]
+    : it.pipelineStage === 'migration' ? '🗄️' : '⏳';
   const awaitHtml = prepItems.length ? `<details class="prio-panel" data-mrk="await" style="--panel-accent:#6aa84f">
-    <summary>🔧 בתהליך — ${prepItems.length} תיקונים בצנרת שעדיין לא ניתן לבדוק (ממתינים למיגרציה/דחיפת OTA). יעברו ל״לבדיקתך״ אוטומטית ברגע שיידחפו ל-dev</summary>
+    <summary>🔧 בתהליך — ${prepItems.length} פריטים שאין לך מה לעשות איתם כרגע: תיקונים שממתינים למיגרציה/דחיפת OTA, ושערים שכבר אישרת ו-ERZA מבצעת. ייסגרו או יעברו ל״לבדיקתך״ אוטומטית</summary>
     <div style="margin-top:8px">${Object.entries(prepByApp)
       .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
       .map(([app, items]) => `<div class="mr-app"><h3>${icon(app)}${esc(displayApp(app))} · ${items.length}</h3>
@@ -3224,11 +3218,10 @@ function mrRender(live) {
   const pendAppKeys = Object.keys(pendByApp).sort((a, b) =>
     (a === '__general__' ? 1 : 0) - (b === '__general__' ? 1 : 0)
     || (mrAppRanks[a] ?? 99) - (mrAppRanks[b] ?? 99) || a.localeCompare(b));
-  const grpSummary = its => {
-    const ready = its.filter(i => !i.pipelineStage || i.pipelineStage === 'ready').length;
-    const gated = its.length - ready;
-    return `${its.length}` + (gated ? ` · ${ready} לבדיקה · ${gated} בתהליך` : ' לבדיקה');
-  };
+  // Site audit 2026-08-21: this used to also report "· N בתהליך", but the group it labels is built
+  // from pendItems — which is filtered to ACTIONABLE (ready) rows only, so that count was always 0.
+  // Gated rows live in the 🔧 בתהליך panel and are counted there.
+  const grpSummary = its => `${its.length} לבדיקה`;
   // SMART ORDER (Erez 2026-07-17: most-important/easiest first, NO new badges). Within an app:
   //   prod decisions (important) → quick-to-check → longer → gated (can't check) last.
   //   check-step count is the effort proxy; older items nudge up so nothing rots.
@@ -3270,7 +3263,7 @@ function mrRender(live) {
   const relByApp = {};
   for (const r of rels) (relByApp[r.app] ??= []).push(r);
   const relHtml = rels.length ? `<details class="prio-panel" data-mrk="rel" style="--panel-accent:#3f51b5">
-    <summary>📤 היסטוריית דחיפות OTA/Build — ${rels.length} (לפי אפליקציה, מהחדש לישן)</summary>
+    <summary>📤 היסטוריית דחיפות OTA/Build — ${rels.length} האחרונות (לפי אפליקציה, מהחדש לישן)</summary>
     <div style="margin-top:8px">${Object.entries(relByApp)
       .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
       .map(([app, list]) => `<div class="mr-app"><h3>${icon(app)}${esc(displayApp(app))}</h3>
@@ -3315,12 +3308,18 @@ function mrRender(live) {
   const mrOpenSubs = new Set([...document.querySelectorAll('#mrBody details[data-mrsub][open]')].map(d => d.dataset.mrsub));
   const accPanel = `<details class="prio-panel" data-mrk="acc" style="--panel-accent:#607d8b"><summary>👥 חשבונות — ניצול ומצב</summary><div class="mr-accounts" style="margin-top:8px">${accs}</div></details>`;
   // item 8 — Erez's global tasks: he decides WHEN each runs (🚀 sets requested; ERZA executes)
-  const globPanel = `<details class="prio-panel" data-mrk="glob" style="--panel-accent:#2a9d8f"><summary>🌍 משימות גלובליות — ${(mrGlobals.tasks || []).filter(t => t.status === 'available').length} זמינות להפעלה</summary>
+  // Site audit 2026-08-21: this counted status==='available', a value NOTHING in the repo ever
+  // writes (global_tasks statuses are done / requested / running), so the header read "0 זמינות
+  // להפעלה" even when every task had a live 🚀 button. Count what the panel actually offers:
+  // tasks not already requested/running (a done task shows "🔁 הרץ שוב" and IS launchable).
+  const globLaunchable = (mrGlobals.tasks || []).filter(t => !['requested', 'running'].includes(t.status)).length;
+  const globBusy = (mrGlobals.tasks || []).filter(t => ['requested', 'running'].includes(t.status)).length;
+  const globPanel = `<details class="prio-panel" data-mrk="glob" style="--panel-accent:#2a9d8f"><summary>🌍 משימות גלובליות — ${globLaunchable} זמינות להפעלה${globBusy ? ` · ${globBusy} בביצוע` : ''}</summary>
     <div style="margin-top:8px">${(mrGlobals.tasks || []).map(t => `<div class="appr-item" style="padding:10px">
       <div class="appr-title"><b>${esc(t.title)}</b></div>
       <div class="section-sub" style="margin:4px 0">${esc(t.desc || '')}</div>
       ${(t.runs || []).length ? `<div class="cat" style="margin:4px 0">📜 היסטוריית הרצות: ${t.runs.map(r => `${esc(String(r.startedAt).slice(5, 16).replace('T', ' '))}${r.finishedAt ? ' ✓' : ' 🔄'}`).join(' · ')}${t.runs.length > 1 ? ` (${t.runs.length})` : ''}</div>` : ''}
-      ${t.status === 'requested' ? `<span class="mdl" style="--bc:var(--yellow)">⏳ הופעל — ERZA מבצעת בסבב הקרוב</span>`
+      ${t.status === 'requested' ? `<span class="mdl" style="--bc:var(--yellow)">⏳ הופעל — ממתין ל-ERZA. משימה גלובלית מבוצעת מהסשן ולא ע"י הטיק האוטומטי (‏convert-global-ideation מכסה רק feature-ideation, והוא מושבת במצב החסכון) — אין הבטחת "סבב הקרוב"</span>`
         : t.status === 'running' ? `<span class="mdl" style="--bc:var(--blue)">🔄 רץ עכשיו</span>`
         : `${t.status === 'done' ? `<span class="mdl" style="--bc:var(--green)">✓ בוצע לאחרונה${t.doneAt ? ' · ' + esc(String(t.doneAt).slice(0, 10)) : ''}</span> ` : ''}<button class="btn-approve globrun" data-gid="${esc(t.id)}">${t.status === 'done' ? '🔁 הרץ שוב (מהיסוד, מועשר בהרצות הקודמות)' : '🚀 הפעל עכשיו'}</button>`}
     </div>`).join('') || '<div class="mr-setup">אין משימות גלובליות מוגדרות</div>'}</div></details>`;
@@ -3357,12 +3356,12 @@ function mrRender(live) {
   const managedPanel = (live.managedProjects || []).length ? `<details class="prio-panel" data-mrk="managed" style="--panel-accent:#2a9d8f" open><summary>🏠 פרויקטים מנוהלים (לא-נייטיב) — ${live.managedProjects.length}</summary>
     <div style="margin-top:8px">${live.managedProjects.map(m => {
       const b = (live.apps && live.apps[m.dir]) || {};
-      const run = b.running ? 1 : 0, q = (b.queued || []).length, bl = (b.backlog || []).length, rc = (b.recent || []).length;
+      const run = b.running ? 1 : 0, q = (b.queued || []).length, rc = (b.recent || []).length;
       const pend = (mrApprovals.items || []).filter(x => x.app === m.dir && x.status === 'pending').length;
       return `<div class="mr-app" style="padding:10px;border:1px solid var(--grid);border-radius:10px;margin-bottom:8px">
         <h3 style="margin:0;display:flex;align-items:center;gap:8px">${icon(m.dir)}${esc(m.label || m.dir)}${m.version ? ` <span class="cat">· ${esc(String(m.version))}</span>` : ''}${m.stage ? ` <span class="cat">· ${esc(m.stage)}</span>` : ''}</h3>
         ${m.purposeHe ? `<div class="section-sub" style="margin:4px 0">${esc(m.purposeHe)}</div>` : ''}
-        <div class="cat" style="margin-top:4px">🔵 ${run} רץ · 📋 ${q} בתור · 🗂️ ${bl} backlog · 🕓 ${rc} אחרונים · ✅ ${pend} ממתינים לאישורך</div>
+        <div class="cat" style="margin-top:4px">🔵 ${run} רץ · 📋 ${q} בתור · 🕓 ${rc} אחרונים · ✅ ${pend} ממתינים לאישורך</div>
         ${m.gitRemote ? `<div class="cat" style="margin-top:2px">📦 ${esc(String(m.gitRemote).replace(/^https:\/\/github.com\//, '').replace(/\.git$/, ''))}</div>` : ''}
         <div class="cat" style="margin-top:2px">💬 שלח לו עבודה: בחר "${esc(m.label || m.dir)}" בבורר ההתמקדות של הצ׳אט או בהוראה החופשית</div>
       </div>`;
@@ -3419,7 +3418,7 @@ function mrRender(live) {
     <div style="margin-top:8px"><div class="section-sub" style="margin:0 0 8px">כל בילד נייטיב שנשלח ל-App Store — לפי אפליקציה, dev/prod, iOS/macOS, גרסה ומה כלול. בזמן בנייה מופיע כאן פיד חי. xpensy iOS ו-xpensy macOS מנוהלים בנפרד.</div>
     ${bLaneKeys.map(bLaneHtml).join('') || '<div class="mr-setup">אין בילדים עדיין — יופיעו כאן ברגע שיתחיל בילד</div>'}</div></details>`;
 
-  const PANELS = { appr: apprHtml, builds: buildsHtml, glob: globPanel, acc: accPanel, queue: queuePanel, backlog: backlogPanel, ranks: ranksHtml, cond: condPanel, inbox: inboxHtml, rel: relHtml, arch: archHtml, instr: instrHtml, managed: managedPanel };
+  const PANELS = { appr: apprHtml, builds: buildsHtml, glob: globPanel, acc: accPanel, queue: queuePanel, ranks: ranksHtml, cond: condPanel, inbox: inboxHtml, rel: relHtml, arch: archHtml, instr: instrHtml, managed: managedPanel };
   // The former 4-zone wrapper is retired — panels are distributed across the 5 tabs below
   // (Erez 2026-07-19 redesign). The PANELS map above stays the single source per panel.
   // approved gates awaiting ERZA execution — a visible banner so they can't rot silently (audit r2 SM-01)
@@ -3449,12 +3448,6 @@ function mrRender(live) {
   document.querySelectorAll('#mrBody .globrun').forEach(b => { b.onclick = async (e) => {
     e.preventDefault(); b.disabled = true; b.textContent = 'שולח…';
     try { await saveGlobalRequest(b.dataset.gid); b.textContent = '⏳ הופעל'; }
-    catch { b.textContent = 'שגיאה — נסה שוב'; b.disabled = false; }
-  }; });
-  // "בצע עכשיו" — promote a backlog task to the queue as urgent (Erez 2026-07-17).
-  document.querySelectorAll('#mrBody .backlog-run').forEach(b => { b.onclick = async (e) => {
-    e.preventDefault(); e.stopPropagation(); b.disabled = true; b.textContent = 'מסמן…';
-    try { await runBacklogNow(b.dataset.tid); b.textContent = '⚡ סומן — יעלה לתור בטיק הקרוב'; }
     catch { b.textContent = 'שגיאה — נסה שוב'; b.disabled = false; }
   }; });
   bindApprovals();
@@ -3719,23 +3712,22 @@ async function mrTick() {
     // stale one is worse than none: when the fetch below failed (rate limit, token, offline)
     // the catch left a "work is paused" banner on screen for hours after work had resumed —
     // its countdown still ticking locally, which made it look live (Erez, 2026-08-07).
-    for (const id of ['stallBanner', 'sessBanner', 'conductorWorkBanner']) {
+    for (const id of ['stallBanner', 'conductorWorkBanner']) {
       const prev = document.getElementById(id); if (prev) prev.innerHTML = '';
     }
     try { const al = await gh('registry/alerts.json');
       const el = document.getElementById('stallBanner') || (() => { const d = document.createElement('div'); d.id = 'stallBanner'; document.getElementById('mrBody').parentElement.insertBefore(d, document.getElementById('mrBody')); return d; })();
-      if (al && al.sessionAdvisory) {
-        const sa = al.sessionAdvisory;
-        const sb = document.getElementById('sessBanner') || (() => { const d = document.createElement('div'); d.id = 'sessBanner'; document.getElementById('mrBody').parentElement.insertBefore(d, document.getElementById('mrBody')); return d; })();
-        sb.innerHTML = `<div style="border:1px solid var(--blue);background:color-mix(in srgb,var(--blue) 9%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;color:var(--blue)">🧠 ${esc(sa.message)} כדי שהסשן האינטראקטיבי של ERZA יעבוד על Fable — הפעל בטרמינל: <code style="background:color-mix(in srgb,var(--blue) 14%,transparent);padding:1px 6px;border-radius:4px">${esc(sa.command)}</code> <span class="cat">(העבודה האוטומטית — workers + brain — כבר רצה על Fable)</span></div>`;
-      } else { const sb = document.getElementById('sessBanner'); if (sb) sb.innerHTML = ''; }
+      // (The 🧠 sessBanner — "switch the interactive session to a Fable account" — is retired.
+      //  site audit 2026-08-21: the economy doctrine (2026-08-10) made Fable pin-only, and
+      //  scripts/session-advisor.mjs has since done nothing but CLEAR alerts.sessionAdvisory, so
+      //  this banner could never fire again; it only survived as instructions from a dead era.)
       const runningNow = (live && live.totals && live.totals.running) || 0;
       if (al && al.stall) {
         const n = al.stall.nextReturn;
         // NOT "waiting for you" and NOT "no work": these are EXECUTION tasks queued for the worker
         // engine (paused while accounts are usage-locked); show what's actually running now (Erez 2026-07-20).
         const c = runningNow ? 'var(--aqua)' : 'var(--red)';
-        el.innerHTML = `<div style="border:1px solid ${c};background:color-mix(in srgb,${c} 9%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;font-weight:600;color:${c}">${runningNow ? '⚙️' : '⏳'} ${al.stall.queued} משימות בתור לביצוע אוטומטי — מנוע ה-workers מושהה (${esc(al.stall.reason)})${runningNow ? ` · <b>${runningNow} רצות כעת על המנצח</b>` : ''}.${n ? ` חשבון worker קרוב חוזר: <b>${esc(n.id)}</b> בעוד <b class="cd" dir="ltr" data-until="${esc(n.at)}"></b>` : ''} <span class="cat">(משימות ביצוע — לא ממתינות לאישורך; יתחדשו אוטומטית)</span></div>`;
+        el.innerHTML = `<div style="border:1px solid ${c};background:color-mix(in srgb,${c} 9%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;font-weight:600;color:${c}">${runningNow ? '⚙️' : '⏳'} ${al.stall.queued} משימות בתור לביצוע אוטומטי — מנוע ה-workers מושהה (${esc(al.stall.reason)})${runningNow ? ` · <b>${runningNow} רצות כעת על המנצח</b>` : ''}.${n ? ` העבודה מתחדשת בעוד <b class="cd" dir="ltr" data-until="${esc(n.at)}"></b>${n.reason ? ` (${esc(n.reason)})` : ''}` : ''} <span class="cat">(משימות ביצוע — לא ממתינות לאישורך; יתחדשו אוטומטית)</span></div>`;
       } else el.innerHTML = '';
       // ERZA-FLOW ד-11 (כלל 0.15): עבודת-מנצח — כשכל חשבונות ה-workers מוצו, הטיק בונה רשימה
       // קונקרטית של מה שהמנצחת (הסשן) יכולה לקדם בינתיים. סגול; advisory בלבד, לא תור כפוי.
@@ -3746,12 +3738,20 @@ async function mrTick() {
       const cw = al && al.conductorWork;
       // Erez 2026-07-28: conductor-work is ERZA's OWN todo list — it clutters his review screen with
       // items he cannot act on. Keep it out of his view; ERZA tracks it internally.
-      if (cw && (cw.erzaOnly || cw.hideFromDesk)) { cwB.innerHTML = ''; return; }
-      if (cw && cw.items && cw.items.length) {
+      // 🔴 Site audit 2026-08-21 — this line used to be `{ cwB.innerHTML = ''; return; }`. That
+      // `return` is not inside a callback: it returns from mrTick() ITSELF, so the moment
+      // alerts.conductorWork carried erzaOnly/hideFromDesk the function bailed out BEFORE the
+      // account/brain-findings/push-fail banners, the approvals fetch and — critically — mrRender().
+      // The whole dashboard would silently freeze on the last snapshot while the clock kept ticking.
+      // It only ever looked harmless because conductorWork is null most of the time. Skip the
+      // banner, never the render.
+      const cwHidden = !!(cw && (cw.erzaOnly || cw.hideFromDesk));
+      if (cwHidden) cwB.innerHTML = '';
+      else if (cw && cw.items && cw.items.length) {
         const kindHe = { 'migration-verify': '🗄️ אימות מיגרציה', 'approved-gate': '✅ שער מאושר', build: '🏗️ בילד', review: '🔍 סקירה', 'conductor-task': '🎼 משימת מנצחת' };
         const shown = {}; cw.items.forEach(i => { shown[i.kind] = (shown[i.kind] || 0) + 1; });
         const hidden = Object.entries(cw.counts || {}).filter(([k, n]) => k !== 'total' && n > (shown[k] || 0)).map(([k, n]) => `${kindHe[k] || k}: עוד ${n - shown[k]}`);
-        cwB.innerHTML = `<div style="border:1px solid var(--violet);background:color-mix(in srgb,var(--violet) 8%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px"><div style="font-weight:700;color:var(--violet);margin-bottom:4px">🎼 עבודת-מנצח זמינה (${cw.counts && cw.counts.total || cw.items.length}) — ה-workers מושהים, אלו הדברים ש-ERZA עצמה יכולה לקדם עכשיו</div><div class="cat" style="margin-bottom:4px">${esc(cw.reason || '')}${cw.nextReturn ? ` · חשבון worker קרוב חוזר: <b>${esc(cw.nextReturn.id)}</b> בעוד <b class="cd" dir="ltr" data-until="${esc(cw.nextReturn.at)}"></b>` : ''}</div>${cw.items.map(i => `<div style="border-top:1px solid color-mix(in srgb,var(--violet) 18%,transparent);padding:5px 0 2px"><span style="font-weight:600;color:var(--violet)">${esc(kindHe[i.kind] || i.kind)}</span> · <b>${esc(i.refId || i.id)}</b>${i.app ? ` · ${esc(displayApp(i.app))}` : ''}${i.ageMin != null ? ` <span class="cat">· ממתין ${i.ageMin >= 90 ? Math.round(i.ageMin / 60) + ' שע׳' : i.ageMin + ' דק׳'}</span>` : ''}<div style="margin:2px 0">${esc(i.title || '')}</div><div class="cat">→ ${esc(i.he || '')}</div></div>`).join('')}${hidden.length ? `<div class="cat" style="margin-top:4px">בנוסף (לא הוצגו): ${esc(hidden.join(' · '))}</div>` : ''}</div>`;
+        cwB.innerHTML = `<div style="border:1px solid var(--violet);background:color-mix(in srgb,var(--violet) 8%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px"><div style="font-weight:700;color:var(--violet);margin-bottom:4px">🎼 עבודת-מנצח זמינה (${cw.counts && cw.counts.total || cw.items.length}) — ה-workers מושהים, אלו הדברים ש-ERZA עצמה יכולה לקדם עכשיו</div><div class="cat" style="margin-bottom:4px">${esc(cw.reason || '')}${cw.nextReturn ? ` · העבודה האוטומטית מתחדשת בעוד <b class="cd" dir="ltr" data-until="${esc(cw.nextReturn.at)}"></b>` : ''}</div>${cw.items.map(i => `<div style="border-top:1px solid color-mix(in srgb,var(--violet) 18%,transparent);padding:5px 0 2px"><span style="font-weight:600;color:var(--violet)">${esc(kindHe[i.kind] || i.kind)}</span> · <b>${esc(i.refId || i.id)}</b>${i.app ? ` · ${esc(displayApp(i.app))}` : ''}${i.ageMin != null ? ` <span class="cat">· ממתין ${i.ageMin >= 90 ? Math.round(i.ageMin / 60) + ' שע׳' : i.ageMin + ' דק׳'}</span>` : ''}<div style="margin:2px 0">${esc(i.title || '')}</div><div class="cat">→ ${esc(i.he || '')}</div></div>`).join('')}${hidden.length ? `<div class="cat" style="margin-top:4px">בנוסף (לא הוצגו): ${esc(hidden.join(' · '))}</div>` : ''}</div>`;
       } else cwB.innerHTML = '';
       // T464: per-account alerts (auth failure / instant-death circuit breaker) — expired entries hidden even before the scripts clear them
       const ab = document.getElementById('accAlertBanner') || (() => { const d = document.createElement('div'); d.id = 'accAlertBanner'; document.getElementById('mrBody').parentElement.insertBefore(d, document.getElementById('mrBody')); return d; })();
@@ -3770,14 +3770,24 @@ async function mrTick() {
       const bk = document.getElementById('brainKillsBanner') || (() => { const d = document.createElement('div'); d.id = 'brainKillsBanner'; document.getElementById('mrBody').parentElement.insertBefore(d, document.getElementById('mrBody')); return d; })();
       const kills = (al && al.brainKills) ? Object.values(al.brainKills) : [];
       bk.innerHTML = kills.length ? `<div style="border:1px solid var(--red);background:color-mix(in srgb,var(--red) 9%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;font-weight:600;color:var(--red)">${kills.map(k => `🧠🔴 ${esc(k.he || ('מוח ERZA נהרג ' + (k.count || '') + ' פעמים ברצף בתקרת הזמן'))}${k.at ? ` <span class="cat">· ${esc(fmtDate(k.at))}</span>` : ''}`).join('<br>')}</div>` : '';
+      // Site audit 2026-08-21: reconcile-consequences.mjs and detect-holy-violations.mjs have always
+      // WRITTEN these two alerts, and nothing on the dashboard ever read them — a decision of Erez's
+      // that produced no consequence, or a worker that tried an Apple-submit / prod-OTA / git-push
+      // the deny-hook blocked, was invisible here. Both self-clear in their producing scripts.
+      const co = document.getElementById('consequenceBanner') || (() => { const d = document.createElement('div'); d.id = 'consequenceBanner'; document.getElementById('mrBody').parentElement.insertBefore(d, document.getElementById('mrBody')); return d; })();
+      const orph = al && al.consequenceOrphans;
+      co.innerHTML = (orph && orph.count) ? `<div style="border:1px solid var(--yellow);background:color-mix(in srgb,var(--yellow) 9%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;font-weight:600;color:var(--yellow)">⚠️ ${esc(orph.he || (orph.count + ' החלטות שלך נותרו ללא השלכה — נפתחו משימות ניתוח'))}${(orph.ids || []).length ? ` <span class="cat">· ${esc(orph.ids.join(' · '))}</span>` : ''}${orph.at ? ` <span class="cat">· ${esc(fmtDate(orph.at))}</span>` : ''}</div>` : '';
+      const hv = document.getElementById('holyBanner') || (() => { const d = document.createElement('div'); d.id = 'holyBanner'; document.getElementById('mrBody').parentElement.insertBefore(d, document.getElementById('mrBody')); return d; })();
+      const holy = al && al.holyViolations;
+      hv.innerHTML = (holy && holy.count) ? `<div style="border:1px solid var(--red);background:color-mix(in srgb,var(--red) 9%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px"><div style="font-weight:700;color:var(--red)">🛑 ${esc(holy.he || ('נחסמו ' + holy.count + ' ניסיונות של worker לפעולה אסורה (הגשה לאפל / prod-OTA / git push)'))}</div>${(holy.samples || []).map(sm => `<div class="cat" style="margin-top:3px">• ${esc(sm)}</div>`).join('')}${holy.at ? `<div class="cat" style="margin-top:3px">· ${esc(fmtDate(holy.at))}</div>` : ''}</div>` : '';
     } catch { /* אין קובץ התרעות */ }
     try { renderCompat(await gh('registry/compat_matrix.json')); }
     catch { const g = (mrGlobals.tasks || []).find(t => t.id === 'G2');
       const el = document.getElementById('compatBody');
       if (el) el.innerHTML = '<div class="mr-setup">' + (g && g.status === 'running'
-        ? '🔄 ה-Workflow של מטריצת התאימות רץ עכשיו (22 סוכנים) — הטבלה תופיע כאן אוטומטית כשיסיים.'
+        ? '🔄 ה-Workflow של מטריצת התאימות רץ עכשיו — הטבלה תופיע כאן אוטומטית כשיסיים.'
         : g && g.status === 'done' ? 'הנתונים בדרך — רענן בעוד רגע.'
-        : 'טרם הופעל — הפעל את "מטריצת תאימות" בפאנל המשימות הגלובליות בחדר המכונות.') + '</div>'; }
+        : 'טרם הופעל — הפעל את "מטריצת תאימות" בפאנל 🌍 משימות גלובליות בטאב "לטיפולך".') + '</div>'; }
     try { mrGlobals = await gh('registry/global_tasks.json') || { tasks: [] }; } catch { mrGlobals = { tasks: [] }; }
     applyPageOrder(); injectMoveButtons('#main details[data-pgk]');
     try {
