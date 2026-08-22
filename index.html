@@ -1190,7 +1190,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=4db11443"></script>
+<script src="data.enc.js?v=f7a9d5cf"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1379,7 +1379,7 @@ function boot(D, locked) {
       <div><h4>סקילים</h4><div style="direction:ltr;text-align:right">${sk}</div>
         <h4 style="margin-top:10px">פרטים</h4>
         <div class="kv">
-          ${a.version ? `<div><b>גרסה מלאה:</b> <span dir="ltr">${esc(a.version)}</span></div>` : ''}
+          ${a.version ? `<div><b>סטטוס מפורט (מהרישום):</b> <span dir="auto">${esc(a.version)}</span></div>` : ''}
           ${a.bundleId ? `<div><b>Bundle:</b> <span dir="ltr">${esc(a.bundleId)}</span></div>` : ''}
           ${a.gitBranch ? `<div><b>Branch:</b> <span dir="ltr">${esc(a.gitBranch)}</span></div>` : ''}
           ${a.ascSummary ? `<div><b>App Store (ASC ✓ ${esc(a.asc?.fetchedAt || '')}):</b> ${esc(a.ascSummary)}</div>` : ''}
@@ -1471,23 +1471,9 @@ function spName(a) {
     || String(a.displayName || a.name || '').split('(')[0].trim() || a.name || '';
 }
 
-// Compare only the numeric core: "1.4.1-dev02" vs "1.4.0" — the dev suffix is noise here.
-function spCmp(a, b) {
-  const n = v => (String(v || '').match(/\d+/g) || []).map(Number);
-  const x = n(a), y = n(b);
-  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0);
-  return 0;
-}
-
-function spChip(label, tone, version, aria) {
-  return `<span class="sp-chip ${tone}" aria-label="${esc(aria)}">${esc(label)}` +
-    (version ? `<span class="sp-v" dir="ltr">${esc(version)}</span>` : '') + `</span>`;
-}
-
-
 // ── מצב בחנות: מודל משותף ────────────────────────────────────────────────────
-// Every view below renders from spAppRows(). Five presentations that each derived
-// their own state would drift apart the first time a rule changed, and the user
+// Both consumers (main store panel + תצוגות tab) render from spAppRows(); a second
+// derivation would drift apart the first time a rule changed, and the user
 // would have no way to tell which one was lying.
 function spAppRows() {
   const D = window.ERZA_DATA || {};
@@ -1517,16 +1503,7 @@ function spAppRows() {
       else if (p.live) apple = { label: 'חנות', tone: 'good', version: p.live.version };
       else apple = { label: 'טרם', tone: 'idle', version: '' };
 
-      const live = p.live ? p.live.version : null;
-      const prepping = p.latest.state === 'PREPARE_FOR_SUBMISSION' && (!live || live !== p.latest.version);
-      let mine = null;
-      if (devV) {
-        const d = spCmp(devV, live || (a.versions || {}).prod);
-        mine = d < 0 ? { label: 'מפגר',  tone: 'bad',  version: devV }
-             : d > 0 ? { label: 'פיתוח',  tone: 'wait', version: devV }
-                     : { label: 'תקין',   tone: 'idle', version: devV };
-      }
-      plats[os] = { apple, mine, live, ready: prepping ? { label: 'מוכנה', tone: 'good', version: p.latest.version } : null };
+      plats[os] = { apple };
     }
     // TestFlight, per platform AND per channel — Erez asked for it beside the store
     // row (2026-08-08) because "uploaded" and "in the store" are different facts and
@@ -1573,33 +1550,19 @@ function spAppRows() {
     // stays as the label (it names the BINARY); the version line is what the dev app
     // runs right now, refreshed ≤5min by the tick (gather-versions + OTA collectors).
     // An app with a dev version but no TF dev build yet still shows the version.
+    // Version-only synthetic cell: ONLY on platforms the app actually has in ASC —
+    // the old `else if (flight[os])` always fired (flight has an entry for every
+    // SP_OS key), fabricating e.g. a macOS dev cell for iOS-only Coin (audit 2026-08-22).
     if (devV) for (const os of Object.values(SP_OS)) {
       if (flight[os]?.dev) flight[os].dev.version = devV;
-      else if (flight[os]) flight[os].dev = { label: '—', tone: 'dev', version: devV };
+      else if (plats[os]) flight[os].dev = { label: '—', tone: 'dev', version: devV };
     }
     if (Object.keys(plats).length) rows.push({ a, nm, plats, flight, rank: worst });
   }
   rows.sort((x, y) => x.rank - y.rank || x.nm.localeCompare(y.nm));
   return rows;
 }
-const SP_TONE_TEXT = { good: 'תקין', wait: 'בתנועה', bad: 'דורש טיפול', idle: 'ללא שינוי' };
 const spIcon = r => `icons/${esc(r.a.dir)}.png?v=${window.ERZA_ICONV || '1'}`;
-
-
-// ── תצוגות: המטריצה + חמש אינפוגרפיקות ──────────────────────────────────────
-// Drawn as inline SVG rather than laid out as boxes: an arc, a mosaic, a real time
-// axis, slope lines and a portfolio ring. All read spAppRows() — one model, six
-// renderings, so no two views can disagree about the same app.
-const IV_TONE = { good: 'var(--g)', wait: 'var(--y)', bad: 'var(--r)', idle: 'var(--n)' };
-const IV_STATE = { good: 'בחנות', wait: 'אצל אפל', bad: 'דורש טיפול', idle: 'טרם עלתה' };
-
-/** Arc path on a circle — the ring views' only geometry helper. */
-function ivArc(cx, cy, r, from, to) {
-  const p = (a) => [cx + r * Math.cos(a - Math.PI / 2), cy + r * Math.sin(a - Math.PI / 2)];
-  const [x1, y1] = p(from), [x2, y2] = p(to);
-  return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${to - from > Math.PI ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
-}
-
 
 // ── סדר האפליקציות במטריצה ───────────────────────────────────────────────────
 // Persisted to registry/ui_layout.json (the same server-side store the panel order uses),
@@ -1796,7 +1759,7 @@ function storePanelBody() {
         <div class="desc">${esc(a.purposeHe || a.purpose || '')}</div>
         <div class="meta">
           ${extra || ''}${a.ascShort ? `<span>${esc(a.ascShort)}</span>` : ''}
-          <span dir="ltr">${esc(a.versionShort || '')}</span><span>עודכן ${fmtDate(a.gitLastCommitDate)}</span>
+          <span dir="ltr">${esc((a.versions && a.versions.prod) || a.versionShort || '')}</span><span>עודכן ${fmtDate(a.gitLastCommitDate)}</span>
           ${c.total ? `<span>סקילים ${c.pct}%</span>` : ''}<span>נותרו ${(a.remaining || []).length}</span>
         </div>
         ${a.role === 'native' && a.marketingSiteUrl ? `<div class="meta" style="margin-top:6px"><a class="sitelink" href="${esc(a.marketingSiteUrl)}" target="_blank" rel="noopener">🌐 ${esc(a.marketingSiteUrl.replace('https://', ''))}</a></div>` : ''}
