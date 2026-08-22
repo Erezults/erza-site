@@ -1190,7 +1190,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=f7a9d5cf"></script>
+<script src="data.enc.js?v=7301a551"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2019,6 +2019,10 @@ async function saveApprovals() {
       if (!f) { freshItems.push(loc); continue; }
       if (loc.status !== f.status && ['approved', 'rejected', 'decisions-made'].includes(loc.status)) { f.status = loc.status; f.decidedAt = loc.decidedAt || f.decidedAt; }
       if ((loc.feedback || []).length > (f.feedback || []).length) f.feedback = loc.feedback;
+      // Opus-check clicks are a user decision too — without this line the routine 409-rebase
+      // dropped opusCheckRequested before the retry PUT, so the click silently never landed
+      // and no V-task was ever spawned (site audit 2026-08-22).
+      if (loc.opusCheckRequested && !f.opusCheckRequested) f.opusCheckRequested = loc.opusCheckRequested;
       for (const d of (loc.decisions || [])) {
         const cur = (f.decisions || []).find(x => x.key === d.key);
         if (cur && d.chosen && !cur.taskCreated) cur.chosen = d.chosen;
@@ -2147,7 +2151,9 @@ function bindApprovals() {
 // ── Live chat with ERZA (Erez 2026-07-18) ──
 const CHAT_RECENT = 25;   // messages shown in the main log; older ones go to the archive
 function chatBubbleHtml(m) {
-  const mine = m.role === 'user', t = (m.at || '').slice(11, 16);
+  // local-time render (site audit 2026-08-22): m.at is a UTC ISO stamp — the old .slice(11,16)
+  // showed every bubble 3h early for Erez (Asia/Jerusalem) and dated late-night chats a day off.
+  const mine = m.role === 'user', t = m.at ? new Date(m.at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '';
   const appTag = m.app ? ` · ${esc(displayApp(m.app))}` : '';
   return `<div class="chat-msg ${mine ? 'me' : 'erza'}"><div class="chat-bubble">${esc(m.text || '').replace(/\n/g, '<br>')}</div><div class="chat-meta">${mine ? 'אני' : 'ERZA'}${t ? ' · ' + t : ''}${appTag}</div></div>`;
 }
@@ -2194,10 +2200,10 @@ function chatSessionTasks(group, taskIdx) {
 const chatNoun = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 function chatSessionCardHtml(group, taskIdx) {
   const msgs = group.msgs, first = msgs[0], last = msgs[msgs.length - 1];
-  // date/time from the raw ISO slice — SAME basis the bubbles use (chatBubbleHtml: .slice(11,16)),
-  // so the header time always matches the message times inside, on any viewer's timezone.
-  const dmy = a => { const d = String(a || '').slice(0, 10); return /^\d{4}-\d\d-\d\d$/.test(d) ? d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4) : ''; };
-  const hm = a => String(a || '').slice(11, 16);
+  // local time, SAME basis the bubbles use (chatBubbleHtml: toLocaleTimeString), so the header
+  // always matches the message times inside — and both now match the viewer's clock, not UTC.
+  const dmy = a => { const d = a ? new Date(a) : null; return d && !isNaN(d) ? d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''; };
+  const hm = a => { const d = a ? new Date(a) : null; return d && !isNaN(d) ? d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : ''; };
   const dateStr = dmy(first.at) || dmy(last.at);
   const t0 = hm(first.at), t1 = hm(last.at);
   const timeRange = t0 && t1 && t0 !== t1 ? `${t0}–${t1}` : t0;
@@ -2617,14 +2623,28 @@ function updateTabBadges(itemsCount, infoCount) {
   set('tabBadgeInfo', infoCount || 0);
 }
 
+// ── builds: shared status semantics (site audit 2026-08-22) ─────────────────────────────
+// "active" = still working on OUR machine. A build stuck in an active status whose snapshot
+// hasn't updated for >6h is a crashed/killed runner, NOT live work (four Emoryx 'building'
+// rows from 2026-07-28 pulsed "בונה" for 3.5 weeks) — treat it as STALLED: never counted or
+// pulsed as building, and never presented as a completed build to acknowledge.
+const B_ACTIVE_SET = new Set(['queued', 'building', 'exporting', 'uploading', 'blocked']);
+const bStale = b => B_ACTIVE_SET.has(b.status) && (Date.now() - (Date.parse(b.updatedAt || b.completedAt || b.startedAt || 0) || 0)) > 6 * 3600e3;
+const bActive = b => B_ACTIVE_SET.has(b.status) && !bStale(b);
+const bFinished = b => !B_ACTIVE_SET.has(b.status);
+
 // Tab 1 — app grid centerpiece: per-app 🔴 (awaiting Erez's approval) + 🔵 (queued) breathing
 // badges; ⚙️ spinning gear + slow-breathing icon when a task is running on the app.
 function overviewGridHtml(live) {
   const natives = ((window.ERZA_DATA || {}).apps || []).filter(a => a.role === 'native');
   const items = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending'].includes(i.status) && !(i.pipelineStage && i.pipelineStage !== 'ready'));
-  const GENERIC = new Set(['multi', 'general', 'all', '']);
+  // Bucket by "is it one of the 9 native tiles" — anything else (orchestrator, mail, multi,
+  // general …) folds into __general__ and lights the ERZA tile. The old GENERIC-list bucketing
+  // left e.g. 'orchestrator'/'mail' items under keys no tile reads, so 7 of 12 actionable
+  // approvals lit no badge anywhere while the glance card counted them (site audit 2026-08-22).
+  const nativeNames = new Set(natives.map(a => a.name));
   const pendByApp = {};
-  for (const it of items) { const k = GENERIC.has(it.app || '') ? '__general__' : it.app; pendByApp[k] = (pendByApp[k] || 0) + 1; }
+  for (const it of items) { const k = nativeNames.has(it.app) ? it.app : '__general__'; pendByApp[k] = (pendByApp[k] || 0) + 1; }
   const tileFor = (a, plat) => {
     const al = (live.apps || {})[a.name] || {};
     const red = pendByApp[a.name] || 0;
@@ -2643,16 +2663,17 @@ function overviewGridHtml(live) {
   // native app is folded server-side into live.apps.ERZA. Surface it as its OWN tile, exactly like
   // an app tile, so this work is never invisible/misattributed (Erez 2026-07-25). Purely additive:
   // shown only when ERZA actually has work; the click routes to the queue where its task list lives.
-  const ez = (live.apps || {}).ERZA;
+  const ez = (live.apps || {}).ERZA || {};
+  const genRed = pendByApp.__general__ || 0;   // approvals not tied to a native app — shown on the ERZA tile
   let erzaTile = '';
-  if (ez && (ez.running || (ez.queued || []).length || (ez.recent || []).length)) {
+  if (genRed || ez.running || (ez.queued || []).length || (ez.recent || []).length) {
     const blue = (ez.queued || []).length;
     const wip = !!ez.running;
     const wipModel = wip && ez.running.model ? String(ez.running.model) : '';
     const MODEL_C = { Fable: 'var(--aqua)', Opus: 'var(--violet)', Sonnet: 'var(--blue)', Haiku: 'var(--muted)' };
     const mc = MODEL_C[wipModel] || 'var(--aqua)';
-    erzaTile = `<button type="button" class="ov-tile erza-tile${wip ? ' wip' : ''}" data-ovapp="ERZA" data-ovred="0" title="${esc(mrLabel('ERZA'))} — עבודה תשתיתית שאינה משויכת לאפליקציה${wip ? ' — עבודה רצה' + (wipModel ? ' (' + esc(wipModel) + ')' : '') : ''}">
-      ${blue ? `<span class="ov-badge blue" title="${blue} בתור לביצוע">${blue}</span>` : ''}${mrIcon('ERZA')}<span class="nm">${esc(mrLabel('ERZA'))}</span>${wip ? `<span class="ov-wip"><span class="ov-gear" title="עבודה רצה">⚙️</span>${wipModel ? `<span class="ov-model" style="--mc:${mc}">${esc(wipModel)}</span>` : ''}</span>` : ''}</button>`;
+    erzaTile = `<button type="button" class="ov-tile erza-tile${wip ? ' wip' : ''}" data-ovapp="ERZA" data-ovred="${genRed}" title="${esc(mrLabel('ERZA'))} — עבודה תשתיתית שאינה משויכת לאפליקציה${wip ? ' — עבודה רצה' + (wipModel ? ' (' + esc(wipModel) + ')' : '') : ''}">
+      ${genRed ? `<span class="ov-badge red" title="${genRed} ממתינים לאישורך (כללי/תשתית)">${genRed}</span>` : ''}${blue ? `<span class="ov-badge blue" title="${blue} בתור לביצוע">${blue}</span>` : ''}${mrIcon('ERZA')}<span class="nm">${esc(mrLabel('ERZA'))}</span>${wip ? `<span class="ov-wip"><span class="ov-gear" title="עבודה רצה">⚙️</span>${wipModel ? `<span class="ov-model" style="--mc:${mc}">${esc(wipModel)}</span>` : ''}</span>` : ''}</button>`;
   }
   return `<div class="tab-h">📱 האפליקציות שלי <span class="tab-h-sub">🔴 ממתין לאישורך · 🔵 בתור · ⚙️ בעבודה כעת</span></div>
     <div class="ov-grid">${(tiles + erzaTile) || '<div class="exec-empty">אין אפליקציות נייטיב</div>'}</div>`;
@@ -2665,8 +2686,7 @@ function overviewGridHtml(live) {
 function glanceHtml(live) {
   const pend = (mrApprovals.items || []).filter(i => ['pending', 'decision-pending'].includes(i.status) && !(i.pipelineStage && i.pipelineStage !== 'ready')).length;
   const migs = (live.pendingMigrations || []).length;
-  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading', 'blocked']);
-  const buildsRun = (live.builds || []).filter(b => B_ACTIVE.has(b.status)).length;
+  const buildsRun = (live.builds || []).filter(bActive).length;
   const running = Object.values(live.apps || {}).filter(d => d.running).length;
   const queued = (live.totals && live.totals.queued) || 0;
   const cards = [
@@ -2688,10 +2708,9 @@ function markAppSeen(app) { try { const m = infoSeenMap(); m[app] = new Date().t
 function ackedBuildSet() { try { return new Set(JSON.parse(localStorage.getItem('erza-acked-builds') || '[]')); } catch { return new Set(); } }
 function appUnseenCount(app, live, seen) {
   const since = Date.parse(seen[app] || 0) || 0;
-  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading', 'blocked']);
   const acked = ackedBuildSet();
   const pend = (mrApprovals.items || []).filter(i => i.app === app && ['pending', 'decision-pending'].includes(i.status) && (Date.parse(i.at || 0) || 0) > since).length;
-  const builds = (live.builds || []).filter(b => b.app === app && !B_ACTIVE.has(b.status) && b.source !== 'asc-backfill' && !acked.has(b.id) && (Date.parse(b.updatedAt || b.completedAt || 0) || 0) > since).length;
+  const builds = (live.builds || []).filter(b => b.app === app && bFinished(b) && b.source !== 'asc-backfill' && !acked.has(b.id) && (Date.parse(b.updatedAt || b.completedAt || 0) || 0) > since).length;
   return pend + builds;
 }
 function infoGridHtml(live) {
@@ -2719,30 +2738,46 @@ const ASC_STATE_MAP = {
   DEVELOPER_REJECTED: ['נדחה על ידך', 'var(--red)'], METADATA_REJECTED: ['מטא-דאטה נדחתה', 'var(--red)'],
   INVALID_BINARY: ['בינארי לא תקין', 'var(--red)'], DEVELOPER_REMOVED_FROM_SALE: ['הוסר מהמכירה', 'var(--muted)'],
 };
-const B_META_L = { queued: 'בתור', building: 'בונה', exporting: 'מייצא', uploading: 'מעלה ל-ASC', processing: 'בעיבוד אפל', valid: 'זמין ב-ASC', live: 'חי בסטור', failed: 'נכשל', cancelled: 'בוטל' };
+const B_META_L = { queued: 'בתור', building: 'בונה', exporting: 'מייצא', uploading: 'מעלה ל-ASC', uploaded: 'הועלה ל-ASC — מוכן להגשה', processing: 'בעיבוד אפל', valid: 'זמין ב-ASC', live: 'חי בסטור', failed: 'נכשל', cancelled: 'בוטל', blocked: 'ממתין למשאבי מכונה' };
 
 function appInfoBodyHtml(a, live) {
   const v = a.versions || {};
+  // Per-platform lanes (site audit 2026-08-22): only xpensy carries versions.platforms, so the
+  // old fallback rendered a single lane labeled iOS for every other app — Emoryx/Groupy macOS
+  // store state was invisible and their macOS builds were listed under an "iOS" header. When
+  // versions.platforms is absent, derive the lanes from the ASC platform truth instead.
+  const ascPlats = (a.asc && a.asc.platforms) || {};
   const plats = v.platforms ? Object.entries(v.platforms)
+    : Object.keys(ascPlats).length ? Object.entries(ascPlats)
+        .map(([K, p]) => [K === 'MAC_OS' ? 'mac' : 'ios', {
+          store: p.live ? p.live.version : null, onStore: !!p.live,
+          prodDisplay: (p.live && p.live.version) || v.prod,
+          latest: p.latest ? p.latest.version : null, latestState: p.latest ? p.latest.state : null,
+          devDisplay: v.dev, devIsSource: v.devIsSource }])
+        .sort(([x], [y]) => (x === 'mac' ? 1 : 0) - (y === 'mac' ? 1 : 0))
     : [['ios', { store: v.prod, onStore: v.onStore, prodDisplay: v.prod, latest: null, latestState: null, devDisplay: v.dev, devIsSource: v.devIsSource }]];
+  const hasLanes = !!(v.platforms || Object.keys(ascPlats).length);
   const appLive = (live.apps || {})[a.name] || {};
   const tasksQ = appLive.queued || [];
   const running = !!appLive.running;
   const builds = (live.builds || []).filter(b => b.app === a.name);
   const rels = (live.releases || []).filter(r => r.app === a.name);
-  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading', 'blocked']);
   const acked = ackedBuildSet();
   const platName = k => k === 'mac' ? 'macOS' : 'iOS';
   const platCls = k => k === 'mac' ? 'mac' : 'ios';
+  // release channel → lane: legacy rows carry 'native-prod' (a store build) and 'code'
+  // (a source push) — the exact-match filter dropped them, hiding e.g. Coin's only pushes.
+  const relCh = r => r.channel === 'native-prod' ? 'prod' : r.channel === 'code' ? 'dev' : (r.channel || 'dev');
   const laneFor = (pk, pdata, ch) => {
     const isProd = ch === 'prod';
-    const chBuilds = builds.filter(b => (v.platforms ? b.platform === pk : !!b.platform) && (b.channel || 'dev') === ch)
+    const bplat = pk === 'mac' ? 'macos' : 'ios';   // builds.json uses 'macos', versions.platforms uses 'mac'
+    const chBuilds = builds.filter(b => (hasLanes ? b.platform === bplat : !!b.platform) && (b.channel || 'dev') === ch)
       .sort((x, y) => String(y.updatedAt || y.completedAt || '').localeCompare(String(x.updatedAt || x.completedAt || '')));
-    const chRels = rels.filter(r => (r.channel || 'dev') === ch).slice().reverse();
+    const chRels = rels.filter(r => relCh(r) === ch).slice().reverse();
     const ver = isProd ? (pdata.prodDisplay || pdata.store || v.prod || '—') : (pdata.devDisplay || v.dev || '—');
     const stH = isProd ? (pdata.onStore ? ['חי בסטור', 'var(--green)'] : (ASC_STATE_MAP[pdata.latestState] || [pdata.latestState || 'טרם הוגש', 'var(--muted)'])) : ['בפיתוח (dev)', 'var(--blue)'];
-    const unack = chBuilds.filter(b => !B_ACTIVE.has(b.status) && b.source !== 'asc-backfill' && !acked.has(b.id));
-    const active = chBuilds.some(b => B_ACTIVE.has(b.status));
+    const unack = chBuilds.filter(b => bFinished(b) && b.source !== 'asc-backfill' && !acked.has(b.id));
+    const active = chBuilds.some(bActive);
     const cur = `<div class="info-kv"><span class="k">גרסה:</span> <span class="val" dir="ltr">${esc(ver)}</span></div>
       <div class="info-kv"><span class="k">מצב:</span> <span class="info-state" style="--bc:${stH[1]}">${esc(stH[0])}</span></div>
       ${isProd && pdata.latest && pdata.latest !== pdata.store ? `<div class="info-kv"><span class="k">גרסה שהוכנה:</span> <span class="val" dir="ltr">${esc(pdata.latest)}</span></div>` : ''}
@@ -2754,7 +2789,7 @@ function appInfoBodyHtml(a, live) {
       const st = ASC_STATE_MAP[s.state] || [s.state, 'var(--muted)'];
       return `<div class="info-hist-row" dir="ltr">🍎 <b>${esc(s.version)}</b> · <span class="info-state" style="--bc:${st[1]}">${esc(st[0])}</span> · ${esc(String(s.createdDate || '').slice(0, 10))}</div>`;
     }).join('');
-    const histBuilds = chBuilds.slice(0, 12).map(b => `<div class="info-hist-row" dir="ltr">🏗️ <b>${esc(b.version)}${b.buildNumber ? ` (${esc(String(b.buildNumber))})` : ''}</b> · ${esc(B_META_L[b.status] || b.status)} · ${esc(String(b.updatedAt || b.completedAt || '').slice(0, 10))}${(!B_ACTIVE.has(b.status) && b.source !== 'asc-backfill' && !acked.has(b.id)) ? ` <button class="info-seen" data-bid="${esc(b.id)}">✓ ראיתי</button>` : ''}</div>`).join('');
+    const histBuilds = chBuilds.slice(0, 12).map(b => `<div class="info-hist-row" dir="ltr">🏗️ <b>${esc(b.version)}${b.buildNumber ? ` (${esc(String(b.buildNumber))})` : ''}</b> · ${esc(bStale(b) ? '⚠️ תקוע — הבילד מת ללא סיום' : B_META_L[b.status] || b.status)} · ${esc(String(b.updatedAt || b.completedAt || '').slice(0, 10))}${(bFinished(b) && b.source !== 'asc-backfill' && !acked.has(b.id)) ? ` <button class="info-seen" data-bid="${esc(b.id)}">✓ ראיתי</button>` : ''}</div>`).join('');
     const histRels = chRels.slice(0, 8).map(r => `<div class="info-hist-row" dir="ltr">📤 <b>${esc(r.version)}</b>${r.sha ? ` · ${esc(r.sha)}` : ''} · ${esc(String(r.at || '').slice(0, 10))}</div>`).join('');
     const hist = (histSubs + histBuilds + histRels) || '<div class="info-empty">אין היסטוריה עדיין</div>';
     return `<details class="info-lane"${active ? ' open' : ''}>
@@ -2783,7 +2818,9 @@ function openAppInfo(appName) {
     modal.querySelector('#appInfoClose').onclick = close;
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) close(); });
   }
-  document.getElementById('appInfoTitle').innerHTML = `${mrIcon(a.name)}<span>${esc(a.displayName || mrLabel(a.name))}</span>`;
+  // displayApp, not raw displayName: the registry displayName carries internal annotations
+  // ('Ownest: … (ASC listing: …; dev: "Ownest Dev")') that don't belong in a modal title.
+  document.getElementById('appInfoTitle').innerHTML = `${mrIcon(a.name)}<span>${esc(displayApp(a.name))}</span>`;
   document.getElementById('appInfoBody').innerHTML = appInfoBodyHtml(a, mrLastLive || {});
   modal.hidden = false;
   modal.querySelectorAll('.info-seen[data-bid]').forEach(b => b.onclick = () => {
@@ -2899,6 +2936,7 @@ function mrRender(live) {
   const tq = live.taskQueue || [];
   const tqRun = tq.filter(t => t.state === 'running');
   const tqWait = tq.filter(t => t.state === 'queued');
+  const tqHeld = tqWait.filter(t => t.held);   // dispatcher skips these — not "waiting to run"
   const runBlink = [...new Set(tqRun.map(t => t.app))];   // apps with active work → blink on the summary
   // small per-app tag so the flat list still shows which app each task belongs to
   const appTag = app => `<span class="q-app" title="${esc(mrLabel(app))}">${mrIcon(app)}<span class="q-appnm">${esc(mrLabel(app))}</span></span>`;
@@ -2906,7 +2944,7 @@ function mrRender(live) {
       <span class="q-mark run" title="רצה כעת${t.account ? ' · ' + esc((live.accounts[t.account] || {}).label || t.account) : ''}">⚙️ רץ</span>
       ${appTag(t.app)}<span class="refid">${esc(t.refId || t.id)}</span>${modelBadge(t.model)}${modelSel(t)}${t.isVerify ? '<span class="mdl" style="--bc:var(--violet)" title="משימת אימות">✓ אימות</span>' : ''}
       <span class="t-title">${esc(t.title)}</span>
-      <span class="cat q-acct">${esc((live.accounts[t.account] || {}).label || t.account || '')}${t.lastCommit ? ` · checkpoint: "${esc(t.lastCommit.msg)}" לפני ${t.lastCommit.minutesAgo} דק'` : ' · טרם checkpoint'}</span>
+      <span class="cat q-acct">${esc(t.account ? ((live.accounts[t.account] || {}).label || t.account) : 'המנצחת — סשן ERZA')}${t.lastCommit ? ` · checkpoint: "${esc(t.lastCommit.msg)}" לפני ${t.lastCommit.minutesAgo} דק'` : ' · טרם checkpoint'}</span>
       <button class="stopbtn" data-id="${esc(t.id)}">⏹ עצור</button>
     </div>`;
   const qWaitRow = t => { const cur = lvlOf(mrPrios[t.id]);
@@ -2926,7 +2964,7 @@ function mrRender(live) {
   const recentHtml = recentFlat.length ? `<div class="q-recent"><div class="q-recent-h">🕓 תוצאות אחרונות</div>${recentFlat.slice(0, 8).map(r =>
     `<div class="mr-recent">${r.status === 'needs-review' ? '⚠️' : '✅'} ${mrIcon(r.app)} <b>${esc(mrLabel(r.app))}</b> — ${esc(r.title)}${r.note ? ' — ' + esc(r.note) : ''}</div>`).join('')}</div>` : '';
   const queuePanel = `<details class="prio-panel" data-mrk="queue" style="--panel-accent:var(--blue)">
-    <summary>🎯 תור המשימות — ${tqRun.length} ${tqRun.length === 1 ? 'רצה' : 'רצות'} · ${tqWait.length} בתור${runBlink.length ? ` <span class="run-now">${runBlink.map(app => `<span class="run-blink" title="${esc(cardName(app))} — בעבודה">${mrIcon(app)}</span>`).join('')}</span>` : ''}</summary>
+    <summary>🎯 תור המשימות — ${tqRun.length} ${tqRun.length === 1 ? 'רצה' : 'רצות'} · ${tqWait.length - tqHeld.length} בתור${tqHeld.length ? ` · ⏸ ${tqHeld.length} מושהות` : ''}${runBlink.length ? ` <span class="run-now">${runBlink.map(app => `<span class="run-blink" title="${esc(cardName(app))} — בעבודה">${mrIcon(app)}</span>`).join('')}</span>` : ''}</summary>
     <div style="margin-top:8px">
       <div class="section-sub" style="margin:0 0 8px">תור אחד לכל העבודה — ⚙️ הרצות למעלה (עם החשבון), ⏳ הממתינות מתחת, בדיוק בסדר שבו המתזמן יריץ אותן. כאן גם קובעים עדיפות/עצירה לכל משימה.</div>
       ${queueRowsHtml}
@@ -3233,7 +3271,7 @@ function mrRender(live) {
       .sort((a, b) => (mrAppRanks[a[0]] ?? 99) - (mrAppRanks[b[0]] ?? 99))
       .map(([app, list]) => `<div class="mr-app"><h3>${icon(app)}${esc(displayApp(app))}</h3>
         ${[...list].reverse().map(r => `<div class="mr-recent" dir="ltr" style="text-align:right">
-          <span class="mdl" style="--bc:${r.channel === 'prod' ? 'var(--red)' : 'var(--blue)'}">${esc(r.channel)}</span>
+          <span class="mdl" style="--bc:${/prod/.test(String(r.channel)) ? 'var(--red)' : 'var(--blue)'}">${esc(r.channel)}</span>
           <b>${esc(r.version)}</b>${r.sha ? ` · ${esc(r.sha)}` : ''} · ${esc((r.at || '').slice(0, 10))}
           ${(r.refIds || []).length ? ` · <span class="cat">${esc(r.refIds.join(', '))}</span>` : ''}
           ${r.prodRisk ? ` · <span class="cat">סיכון: ${esc(r.prodRisk)}</span>` : ''}</div>`).join('')}
@@ -3336,8 +3374,7 @@ function mrRender(live) {
   // icons), dev/prod badge, version, what's included, a real-time phase feed while building, + history.
   // "active" = still working on OUR machine (Erez can't ack yet). 'processing' = uploaded, Apple-side
   // passive wait → treated as DONE (ackable, green + ✓) so it doesn't sit open forever (Erez 2026-07-19).
-  const B_ACTIVE = new Set(['queued', 'building', 'exporting', 'uploading', 'blocked']);
-  const bMeta = { queued: ['בתור', '#8a949e'], building: ['בונה', '#58a6dc'], exporting: ['מייצא', '#58a6dc'], uploading: ['מעלה ל-ASC', '#3fb6c9'], processing: ['עלה — בעיבוד אפל', '#5aa469'], valid: ['זמין ב-ASC', '#5aa469'], live: ['חי בסטור', '#3fb950'], failed: ['נכשל', '#e05252'], cancelled: ['בוטל', '#8a949e'] };
+  const bMeta = { queued: ['בתור', '#8a949e'], building: ['בונה', '#58a6dc'], exporting: ['מייצא', '#58a6dc'], uploading: ['מעלה ל-ASC', '#3fb6c9'], uploaded: ['הועלה ל-ASC — מוכן להגשה', '#5aa469'], processing: ['עלה — בעיבוד אפל', '#5aa469'], valid: ['זמין ב-ASC', '#5aa469'], live: ['חי בסטור', '#3fb950'], failed: ['נכשל', '#e05252'], cancelled: ['בוטל', '#8a949e'], blocked: ['ממתין למשאבי מכונה', '#e0b000'] };
   const chBadge = ch => `<span class="ch-badge" style="--c:${ch === 'prod' ? '#8e5bd0' : '#3b82c4'}">${ch === 'prod' ? 'PROD' : 'DEV'}</span>`;
   const platIcon = (app, pf) => `<span class="picon ${pf === 'macos' ? 'macos' : 'ios'}">${icon(app)}<span class="pstrip">${pf === 'macos' ? 'macOS' : 'iOS'}</span></span>`;
   const bAgo = t => { if (!t) return ''; const m = Math.max(0, Math.round((Date.now() - Date.parse(t)) / 6e4)); return m < 1 ? 'עכשיו' : m < 60 ? `לפני ${m} דק׳` : m < 1440 ? `לפני ${Math.round(m / 60)} שע׳` : `לפני ${Math.round(m / 1440)} ימים`; };
@@ -3345,16 +3382,19 @@ function mrRender(live) {
   // shows green + prominent with a "✓ ראיתי" button; once Erez marks it seen (localStorage) it
   // collapses into history on the next open. Active (running) builds are always shown expanded.
   const _ackedB = (() => { try { return new Set(JSON.parse(localStorage.getItem('erza-acked-builds') || '[]')); } catch { return new Set(); } })();
-  const bNeedsAck = b => !B_ACTIVE.has(b.status) && b.source !== 'asc-backfill' && !_ackedB.has(b.id);
+  const bNeedsAck = b => bFinished(b) && b.source !== 'asc-backfill' && !_ackedB.has(b.id);
+  const bFailedStatus = b => /^(failed|cancelled)$/.test(String(b.status));
   const buildCard = b => {
-    const [lbl, col] = bMeta[b.status] || [b.status, '#8a949e'];
-    const act = B_ACTIVE.has(b.status);
+    const stale = bStale(b);
+    const [lbl, col] = stale ? ['תקוע — הבילד מת ללא סיום', '#e0b000'] : bMeta[b.status] || [b.status, '#8a949e'];
+    const act = bActive(b);
     const na = bNeedsAck(b);
+    const bad = na && bFailedStatus(b);   // a failed build is never a green "הושלם" (audit 2026-08-22)
     const feed = act && (b.log || []).length ? `<div class="b-feed">${(b.log || []).slice(-4).map(l => `<div class="b-feedline"><span class="b-ft">${esc(String(l.at || '').slice(11, 16))}</span> ${esc(l.phase || '')}${l.msg && l.msg !== l.phase ? ` <span class="b-fm" dir="ltr">${esc(String(l.msg).slice(0, 72))}</span>` : ''}</div>`).join('')}</div>` : '';
     const inc = (b.includes || []).length ? `<details class="b-inc"><summary>מה כלול בבילד (${b.includes.length})</summary><ul>${b.includes.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : '';
-    return `<div class="b-card${act ? ' b-active' : ''}${na ? ' b-done-new' : ''} b-${esc(b.status)}">
+    return `<div class="b-card${act ? ' b-active' : ''}${na && !bad ? ' b-done-new' : ''} b-${esc(b.status)}">
       <div class="b-top">${chBadge(b.channel)}<span class="b-ver" dir="ltr">${esc(b.version)}${b.buildNumber ? ` (${esc(String(b.buildNumber))})` : ''}</span>
-        <span class="b-status" style="--c:${col}">${act ? '<span class="b-pulse"></span>' : na ? '✅ ' : ''}${esc(lbl)}</span>
+        <span class="b-status" style="--c:${col}">${act ? '<span class="b-pulse"></span>' : stale ? '⚠️ ' : bad ? '❌ ' : na ? '✅ ' : ''}${esc(lbl)}</span>
         <span class="b-ago">${esc(bAgo(b.updatedAt || b.completedAt || b.startedAt))}</span>
         ${na ? `<button class="backbtn" data-bid="${esc(b.id)}" title="סמן שראית — יתכווץ בפתיחה הבאה">✓ ראיתי</button>` : ''}</div>
       ${act && b.phase ? `<div class="b-phase">⏳ ${esc(b.phase)}${b.pct != null ? ` · <b>${b.pct}%</b>` : ''}</div>${b.pct != null ? `<div class="b-bar"><span style="width:${Math.max(3, Math.min(100, b.pct))}%"></span></div>` : ''}` : ''}${feed}
@@ -3365,21 +3405,27 @@ function mrRender(live) {
   const bLaneKeys = Object.keys(bLanes).sort((a, z) => { const [aa, ap] = a.split('||'), [za, zp] = z.split('||'); return ((mrAppRanks[aa] ?? 99) - (mrAppRanks[za] ?? 99)) || aa.localeCompare(za) || (ap === 'ios' ? 0 : 1) - (zp === 'ios' ? 0 : 1); });
   const bLaneHtml = k => {
     const [app, pf] = k.split('||');
-    const list = bLanes[k].slice().sort((a, z) => (B_ACTIVE.has(z.status) - B_ACTIVE.has(a.status)) || String(z.updatedAt || z.completedAt || '').localeCompare(String(a.updatedAt || a.completedAt || '')));
-    const act = list.filter(b => B_ACTIVE.has(b.status));
+    const list = bLanes[k].slice().sort((a, z) => ((B_ACTIVE_SET.has(z.status) ? 1 : 0) - (B_ACTIVE_SET.has(a.status) ? 1 : 0)) || String(z.updatedAt || z.completedAt || '').localeCompare(String(a.updatedAt || a.completedAt || '')));
+    const act = list.filter(bActive);
+    const stalled = list.filter(bStale);                                               // crashed runners — not "building", not "done"
     const doneNew = list.filter(bNeedsAck);                                            // finished, awaiting Erez's ✓
-    const hist = list.filter(b => !B_ACTIVE.has(b.status) && !bNeedsAck(b)).slice(0, 8); // acked + ASC history
+    const doneOk = doneNew.filter(b => !bFailedStatus(b)), doneBad = doneNew.filter(bFailedStatus);
+    const hist = list.filter(b => bFinished(b) && !bNeedsAck(b)).slice(0, 8);          // acked + ASC history
     const liveB = list.find(b => b.status === 'live');
     return `<details class="b-lane" data-mrsub="bl-${esc(k)}"${(act.length || doneNew.length) ? ' open' : ''}>
       <summary>${platIcon(app, pf)}<span class="b-lane-nm">${esc(appLabel(app))} · ${pf === 'macos' ? 'macOS' : 'iOS'}</span>
-        <span class="b-lane-cnt">${act.length ? `<span class="b-pulse"></span>${act.length} רץ · ` : ''}${doneNew.length ? `<span style="color:#3fb950;font-weight:700">✅ ${doneNew.length} הושלם · </span>` : ''}${liveB ? `חי ${esc(liveB.version)} · ` : ''}${list.length} סה״כ</span></summary>
-      <div class="b-lane-body">${act.map(buildCard).join('')}${doneNew.map(buildCard).join('')}${hist.length ? `<div class="b-hist-h">היסטוריה</div>${hist.map(buildCard).join('')}` : ''}</div></details>`;
+        <span class="b-lane-cnt">${act.length ? `<span class="b-pulse"></span>${act.length} רץ · ` : ''}${stalled.length ? `<span style="color:#e0b000;font-weight:700">⚠️ ${stalled.length} תקוע · </span>` : ''}${doneOk.length ? `<span style="color:#3fb950;font-weight:700">✅ ${doneOk.length} הושלם · </span>` : ''}${doneBad.length ? `<span style="color:#e05252;font-weight:700">❌ ${doneBad.length} נכשל · </span>` : ''}${liveB ? `חי ${esc(liveB.version)} · ` : ''}${list.length} סה״כ</span></summary>
+      <div class="b-lane-body">${act.map(buildCard).join('')}${stalled.map(buildCard).join('')}${doneNew.map(buildCard).join('')}${hist.length ? `<div class="b-hist-h">היסטוריה</div>${hist.map(buildCard).join('')}` : ''}</div></details>`;
   };
-  const bActiveCount = (live.builds || []).filter(b => B_ACTIVE.has(b.status)).length;
-  const bAckCount = (live.builds || []).filter(bNeedsAck).length;
+  const bActiveCount = (live.builds || []).filter(bActive).length;
+  const bStaleCount = (live.builds || []).filter(bStale).length;
+  const bAckAll = (live.builds || []).filter(bNeedsAck);
+  const bAckCount = bAckAll.length;
+  const bAckFail = bAckAll.filter(bFailedStatus).length;
+  const bAckOk = bAckCount - bAckFail;
   const bAttention = bActiveCount + bAckCount;
   const buildsHtml = `<details class="prio-panel" data-mrk="builds" style="--panel-accent:#d6893f"${bAttention ? ' open' : ''}>
-    <summary>🏗️ בילדים${bActiveCount ? ` — <span class="b-pulse"></span> ${bActiveCount} בבנייה` : ''}${bAckCount ? ` — <span style="color:#3fb950;font-weight:700">✅ ${bAckCount} הושלמו — סמן שראית</span>` : bActiveCount ? '' : ` — ${bLaneKeys.length} מסלולים`}</summary>
+    <summary>🏗️ בילדים${bActiveCount ? ` — <span class="b-pulse"></span> ${bActiveCount} בבנייה` : ''}${bStaleCount ? ` — <span style="color:#e0b000;font-weight:700">⚠️ ${bStaleCount} תקועים</span>` : ''}${bAckOk ? ` — <span style="color:#3fb950;font-weight:700">✅ ${bAckOk} הושלמו — סמן שראית</span>` : ''}${bAckFail ? ` — <span style="color:#e05252;font-weight:700">❌ ${bAckFail} נכשלו — סמן שראית</span>` : ''}${(bActiveCount || bStaleCount || bAckCount) ? '' : ` — ${bLaneKeys.length} מסלולים`}</summary>
     <div style="margin-top:8px"><div class="section-sub" style="margin:0 0 8px">כל בילד נייטיב שנשלח ל-App Store — לפי אפליקציה, dev/prod, iOS/macOS, גרסה ומה כלול. בזמן בנייה מופיע כאן פיד חי. xpensy iOS ו-xpensy macOS מנוהלים בנפרד.</div>
     ${bLaneKeys.map(bLaneHtml).join('') || '<div class="mr-setup">אין בילדים עדיין — יופיעו כאן ברגע שיתחיל בילד</div>'}</div></details>`;
 
@@ -3749,6 +3795,9 @@ async function mrTick() {
       const holy = al && al.holyViolations;
       hv.innerHTML = (holy && holy.count) ? `<div style="border:1px solid var(--red);background:color-mix(in srgb,var(--red) 9%,transparent);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px"><div style="font-weight:700;color:var(--red)">🛑 ${esc(holy.he || ('נחסמו ' + holy.count + ' ניסיונות של worker לפעולה אסורה (הגשה לאפל / prod-OTA / git push)'))}</div>${(holy.samples || []).map(sm => `<div class="cat" style="margin-top:3px">• ${esc(sm)}</div>`).join('')}${holy.at ? `<div class="cat" style="margin-top:3px">· ${esc(fmtDate(holy.at))}</div>` : ''}</div>` : '';
     } catch { /* אין קובץ התרעות */ }
+    // globals BEFORE the compat fallback that reads them — the old order left the fallback
+    // one refresh stale ("טרם הופעל" while G2 was already running) on every first tick.
+    try { mrGlobals = await gh('registry/global_tasks.json') || { tasks: [] }; } catch { mrGlobals = { tasks: [] }; }
     try { renderCompat(await gh('registry/compat_matrix.json')); }
     catch { const g = (mrGlobals.tasks || []).find(t => t.id === 'G2');
       const el = document.getElementById('compatBody');
@@ -3756,7 +3805,6 @@ async function mrTick() {
         ? '🔄 ה-Workflow של מטריצת התאימות רץ עכשיו — הטבלה תופיע כאן אוטומטית כשיסיים.'
         : g && g.status === 'done' ? 'הנתונים בדרך — רענן בעוד רגע.'
         : 'טרם הופעל — הפעל את "מטריצת תאימות" בפאנל 🌍 משימות גלובליות בטאב "לטיפולך".') + '</div>'; }
-    try { mrGlobals = await gh('registry/global_tasks.json') || { tasks: [] }; } catch { mrGlobals = { tasks: [] }; }
     applyPageOrder(); injectMoveButtons('#main details[data-pgk]');
     try {
       const meta = await gh('registry/approvals.json', undefined, { headers: { Accept: 'application/vnd.github+json' } });
