@@ -1560,6 +1560,9 @@ function spAppRows() {
       //   version exists + THIS build attached → מוכנה להגשה
       //   version exists, build not attached  → בהכנה (the tick's prep attaches it)
       //   no ASC version yet                  → בהכנה
+      // Review status belongs to the APPLE row ONLY (Erez 2026-08-24: a TF cell
+      // saying "בסקירה" beside an Apple row saying the same about another
+      // version read as a contradiction). TF subs speak only about readiness.
       let sub = null;
       if (ch === 'prod' && ok) {
         const plat = (a.asc.platforms || {})[key];
@@ -1568,7 +1571,6 @@ function spAppRows() {
           sub = (pend.buildAttached === b.build && pend.whatsNewSet !== false)
             ? '✓ מוכנה להגשה' : '⚙ בהכנה להגשה';
         } else if (pend) sub = '⚙ בהכנה להגשה';
-        else if (plat && plat.latest && /REVIEW|PENDING/.test(plat.latest.state) && plat.latest.version === b.version) sub = 'בסקירה';
       }
       // Colour rules (Erez 2026-08-10):
       //   dev  → always ORANGE (never submits, never goes live)
@@ -1576,16 +1578,25 @@ function spAppRows() {
       //          YELLOW when newer than live ("this is the candidate — test me")
       const liveV = ((a.asc.platforms || {})[key] || {}).live?.version || null;
       const prodTone = (b.version && liveV && b.version === liveV) ? 'good' : 'wait';
+      // Dev cells share the store cells' fixed two-line body (Erez 2026-08-24):
+      //   <os> <dev BINARY version> / OTA <dev OTA actually running>
+      const devOta = (a.versions || {}).dev || null;
+      const devLines = ch === 'dev'
+        ? [`${SP_OS[key] || key} ${b.version || '—'}`, `OTA ${devOta || '—'}`]
+        : null;
       return {
         label: b.expired ? 'פג' : ok ? (b.build || '') : 'מעבד',
         tone: b.expired ? 'idle' : ch === 'dev' ? 'dev' : !ok ? 'wait' : prodTone,
         version: b.version || b.build,
         build: b.build,
         sub,
+        ...(devLines ? { lines: devLines, version: null } : {}),
         info: {
           app: nm, os: SP_OS[key] || key, kind: ch === 'dev' ? 'TestFlight dev' : 'TestFlight prod',
           status: b.expired ? 'פג תוקף' : ok ? 'זמין להתקנה' : 'בעיבוד',
-          store: liveV, ota: null, pendingV: b.version, pendingState: null,
+          store: ch === 'dev' ? b.version || null : liveV,
+          ota: ch === 'dev' ? devOta : null,
+          pendingV: ch === 'dev' ? null : b.version, pendingState: null,
           build: b.build || null, whatsNew: null,
           date: (b.uploaded || '').slice(0, 10), note: sub || null,
         },
@@ -1602,10 +1613,11 @@ function spAppRows() {
     // the old `else if (flight[os])` always fired (flight has an entry for every
     // SP_OS key), fabricating e.g. a macOS dev cell for iOS-only Coin (audit 2026-08-22).
     if (devV) for (const os of Object.values(SP_OS)) {
-      if (flight[os]?.dev) flight[os].dev.version = devV;
-      else if (plats[os]) flight[os].dev = { label: '—', tone: 'dev', version: devV,
+      if (flight[os]?.dev) continue; // real TF dev cell already carries the two lines
+      if (plats[os]) flight[os].dev = { label: '—', tone: 'dev',
+        lines: [`${os} —`, `OTA ${vv.dev || '—'}`],
         info: { app: nm, os, kind: 'TestFlight dev', status: 'OTA בלבד (אין בילד TF פעיל)',
-          store: null, ota: null, pendingV: vv.dev || null, pendingState: null,
+          store: null, ota: vv.dev || null, pendingV: null, pendingState: null,
           build: null, whatsNew: null, date: '', note: vv.devSource && vv.devSource !== vv.dev ? `קוד: ${vv.devSource}` : null } };
     }
     if (Object.keys(plats).length) rows.push({ a, nm, plats, flight, rank: worst });
@@ -1693,10 +1705,14 @@ function svMatrixHtml(rows, opts = {}) {
     if (x.info) { const idx = window.__spd.push({ ...x.info, tone: x.tone }) - 1; click = ` data-spd="${idx}"`; }
     // Store cells carry the fixed two-line body (os+store / OTA) — uniform even
     // when both lines agree. Other cells keep the version line.
+    // With two-line bodies the HEADER carries the state + ITS version (e.g.
+    // "סקירה 1.12.0") — without it the state word visually attached itself to
+    // the store line below and read as "1.11 בסקירה" (Erez 2026-08-24).
+    const head = `<b>${esc(x.label)}${x.lines && x.version ? ` <span dir="ltr">${esc(x.version)}</span>` : ''}</b>`;
     const body = x.lines
       ? x.lines.map(l => `<span class="sv-v sv-l" dir="ltr">${esc(l)}</span>`).join('')
       : `<span class="sv-v" dir="ltr">${esc(x.version || '—')}</span>${x.sub ? `<span class="sv-sub">${esc(x.sub)}</span>` : ''}`;
-    return `<span class="sv-cell tone-${x.tone}${x.info ? ' sv-click' : ''}"${click}><b>${esc(x.label)}</b>${body}</span>`;
+    return `<span class="sv-cell tone-${x.tone}${x.info ? ' sv-click' : ''}"${click}>${head}${body}${x.lines && x.sub ? `<span class="sv-sub">${esc(x.sub)}</span>` : ''}</span>`;
   };
   const ordered = svApplyOrder(rows);
   return `
