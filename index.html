@@ -1190,7 +1190,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=a5dcf2ae"></script>
+<script src="data.enc.js?v=3b33f68a"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1481,7 +1481,13 @@ function spAppRows() {
   for (const a of (D.apps || [])) {
     if (a.category !== 'native-app' || !a.asc || !a.asc.platforms) continue;
     const nm = spName(a);
-    const devV = (a.versions || {}).dev || null;
+    // Dev cell: the DEPLOYED version is the headline; when the CODE version has
+    // moved past it (deploy lag / stale registry) show both so neither truth
+    // hides the other (Erez 2026-08-24: "the site says 1.11 but my device runs 1.12").
+    const vv = a.versions || {};
+    const devV = vv.dev
+      ? (vv.devSource && vv.devSource !== vv.dev ? `${vv.dev} · קוד ${vv.devSource}` : vv.dev)
+      : null;
     const plats = {};
     let worst = 9;
     for (const [key, p] of Object.entries(a.asc.platforms)) {
@@ -1496,11 +1502,16 @@ function spAppRows() {
       // IN the review pipeline only. A version still being prepared (PREPARE_FOR_
       // SUBMISSION) has not reached the store's world yet — its readiness story
       // belongs to row 2 (prod TestFlight), not here.
-      const liveSub = p.live ? `חנות ${p.live.version}` : null;
+      // "מה המשתמש רואה" (Erez 2026-08-24): the store binary version PLUS the
+      // prod-OTA that binary has received — a store install shows the OTA
+      // version in its footer, not the binary's. Shown whenever they differ.
+      const userSees = ((a.versions || {}).prodOta || {})[key] || null;
+      const otaSuffix = userSees ? ` · OTA ${userSees}` : '';
+      const liveSub = p.live ? `חנות ${p.live.version}${otaSuffix}` : null;
       let apple;
       if (pending) { const [label, tone, rank] = pending;
         apple = { label, tone, version: p.latest.version, sub: liveSub }; if (rank < worst) worst = rank; }
-      else if (p.live) apple = { label: 'חנות', tone: 'good', version: p.live.version };
+      else if (p.live) apple = { label: 'חנות', tone: 'good', version: p.live.version, sub: userSees ? `👤 רואה ${userSees}` : null };
       else apple = { label: 'טרם', tone: 'idle', version: '' };
 
       plats[os] = { apple };
