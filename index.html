@@ -917,6 +917,22 @@ footer a { color: var(--muted); }
 .tone-wait{--c:#f5c518}
 .tone-bad{--c:#dc2626}
 .tone-idle{--c:#6b7280}
+/* clickable matrix cells + the uniform details popover (Erez 2026-08-24) */
+.sv-click{cursor:pointer}
+.sv-click:hover{filter:brightness(1.12)}
+.sp-pop{position:absolute;z-index:200;width:260px;border-radius:14px;overflow:hidden;
+  background:var(--card,#171a21);border:1.5px solid var(--c,#6b7280);
+  box-shadow:0 10px 34px rgba(0,0,0,.45);font-size:12.5px}
+.sp-pop-h{display:flex;align-items:center;gap:8px;padding:9px 12px;
+  background:color-mix(in srgb, var(--c,#6b7280) 22%, transparent);border-bottom:1px solid color-mix(in srgb, var(--c) 40%, transparent)}
+.sp-pop-h b{flex:1;font-size:13px}
+.sp-pop-k{font-size:11px;opacity:.75}
+.sp-pop-x{border:0;background:transparent;color:inherit;font-size:13px;cursor:pointer;opacity:.7;padding:2px 4px}
+.sp-pop-x:hover{opacity:1}
+.sp-pop-b{padding:8px 12px 10px;display:flex;flex-direction:column;gap:5px}
+.sp-pop-row{display:flex;justify-content:space-between;gap:10px}
+.sp-pop-row .k{opacity:.7}
+.sp-pop-row .v{font-weight:600;text-align:left}
 .sv-sub{display:block;font-size:9px;color:inherit;opacity:.85;font-weight:700;margin-top:1px}
 
 /* מטריצה — קבוצות מוצללות, אייקון מעל שם, ומצב סידור */
@@ -1190,7 +1206,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=8f93ec4a"></script>
+<script src="data.enc.js?v=6b2874bc"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1502,17 +1518,28 @@ function spAppRows() {
       // IN the review pipeline only. A version still being prepared (PREPARE_FOR_
       // SUBMISSION) has not reached the store's world yet — its readiness story
       // belongs to row 2 (prod TestFlight), not here.
-      // "מה המשתמש רואה" (Erez 2026-08-24): the store binary version PLUS the
-      // prod-OTA that binary has received — a store install shows the OTA
-      // version in its footer, not the binary's. Shown whenever they differ.
-      const userSees = ((a.versions || {}).prodOta || {})[key] || null;
-      const otaSuffix = userSees ? ` · OTA ${userSees}` : '';
-      const liveSub = p.live ? `חנות ${p.live.version}${otaSuffix}` : null;
+      // Store cell = TWO fixed lines, always, identical or not (Erez 2026-08-24):
+      //   <os> <store binary version>
+      //   OTA  <prod-OTA version that binary receives>
+      // Uniformity beats brevity here — he compares cells down a column.
+      const otaV = ((a.versions || {}).prodOta || {})[key] || null;
+      const liveV = p.live ? p.live.version : null;
+      const twoLines = [`${os} ${liveV || '—'}`, `OTA ${otaV || liveV || '—'}`];
+      const cellInfo = {
+        app: nm, os, kind: 'חנות',
+        status: pending ? pending[0] : (p.live ? 'בחנות' : 'טרם הוגשה'),
+        store: liveV, ota: otaV || liveV,
+        pendingV: pending ? p.latest.version : null,
+        pendingState: pending ? p.latest.state : null,
+        build: p.latest?.buildAttached || null,
+        whatsNew: p.latest?.whatsNewSet === true ? '✓' : p.latest?.whatsNewSet === false ? '✗' : null,
+        date: (p.latest?.createdDate || p.live?.createdDate || '').slice(0, 10),
+      };
       let apple;
       if (pending) { const [label, tone, rank] = pending;
-        apple = { label, tone, version: p.latest.version, sub: liveSub }; if (rank < worst) worst = rank; }
-      else if (p.live) apple = { label: 'חנות', tone: 'good', version: p.live.version, sub: userSees ? `👤 רואה ${userSees}` : null };
-      else apple = { label: 'טרם', tone: 'idle', version: '' };
+        apple = { label, tone, version: p.latest.version, lines: twoLines, info: cellInfo }; if (rank < worst) worst = rank; }
+      else if (p.live) apple = { label: 'חנות', tone: 'good', lines: twoLines, info: cellInfo };
+      else apple = { label: 'טרם', tone: 'idle', lines: twoLines, info: cellInfo };
 
       plats[os] = { apple };
     }
@@ -1552,6 +1579,13 @@ function spAppRows() {
         version: b.version || b.build,
         build: b.build,
         sub,
+        info: {
+          app: nm, os: SP_OS[key] || key, kind: ch === 'dev' ? 'TestFlight dev' : 'TestFlight prod',
+          status: b.expired ? 'פג תוקף' : ok ? 'זמין להתקנה' : 'בעיבוד',
+          store: liveV, ota: null, pendingV: b.version, pendingState: null,
+          build: b.build || null, whatsNew: null,
+          date: (b.uploaded || '').slice(0, 10), note: sub || null,
+        },
       };
     };
     const flight = {};
@@ -1566,7 +1600,10 @@ function spAppRows() {
     // SP_OS key), fabricating e.g. a macOS dev cell for iOS-only Coin (audit 2026-08-22).
     if (devV) for (const os of Object.values(SP_OS)) {
       if (flight[os]?.dev) flight[os].dev.version = devV;
-      else if (plats[os]) flight[os].dev = { label: '—', tone: 'dev', version: devV };
+      else if (plats[os]) flight[os].dev = { label: '—', tone: 'dev', version: devV,
+        info: { app: nm, os, kind: 'TestFlight dev', status: 'OTA בלבד (אין בילד TF פעיל)',
+          store: null, ota: null, pendingV: vv.dev || null, pendingState: null,
+          build: null, whatsNew: null, date: '', note: vv.devSource && vv.devSource !== vv.dev ? `קוד: ${vv.devSource}` : null } };
     }
     if (Object.keys(plats).length) rows.push({ a, nm, plats, flight, rank: worst });
   }
@@ -1643,7 +1680,21 @@ function svMatrixHtml(rows, opts = {}) {
   //   · the app cell is icon-over-name, which buys the grid a column's worth of width
   //   · drag to reorder, persisted to registry/ui_layout.json — the same server-side
   //     store the panel order already uses, so the order follows him to any device
-  const cell = x => x ? `<span class="sv-cell tone-${x.tone}"><b>${esc(x.label)}</b><span class="sv-v" dir="ltr">${esc(x.version || '—')}</span>${x.sub ? `<span class="sv-sub">${esc(x.sub)}</span>` : ''}</span>` : '<span class="sv-note">—</span>';
+  // Every cell is CLICKABLE (Erez 2026-08-24): clicking opens a uniform floating
+  // details popover, tinted like the cell. Cell payloads live in window.__spd
+  // (index into it via data-spd) so no data is squeezed through HTML attributes.
+  window.__spd = window.__spd || [];
+  const cell = x => {
+    if (!x) return '<span class="sv-note">—</span>';
+    let click = '';
+    if (x.info) { const idx = window.__spd.push({ ...x.info, tone: x.tone }) - 1; click = ` data-spd="${idx}"`; }
+    // Store cells carry the fixed two-line body (os+store / OTA) — uniform even
+    // when both lines agree. Other cells keep the version line.
+    const body = x.lines
+      ? x.lines.map(l => `<span class="sv-v" dir="ltr">${esc(l)}</span>`).join('')
+      : `<span class="sv-v" dir="ltr">${esc(x.version || '—')}</span>${x.sub ? `<span class="sv-sub">${esc(x.sub)}</span>` : ''}`;
+    return `<span class="sv-cell tone-${x.tone}${x.info ? ' sv-click' : ''}"${click}><b>${esc(x.label)}</b>${body}</span>`;
+  };
   const ordered = svApplyOrder(rows);
   return `
     <div class="mx-bar">
@@ -1661,7 +1712,10 @@ function svMatrixHtml(rows, opts = {}) {
     // Splitting each platform into dev|prod columns halved every cell on a phone; the
     // same four facts now stack vertically, where there is room, and each platform
     // keeps one full-width column.
-    const appCell = `<td rowspan="3"><div class="mx-app">${svReorder ? '<span class="mx-grip">⋮⋮</span>' : ''}
+    // Apps with NO dev variant (Coin — Lovable-managed, no dev app/channel) skip
+    // the dev row entirely (Erez 2026-08-24: "אין לנו coin dev").
+    const hasDev = !(r.a.versions && r.a.versions.noDevVariant);
+    const appCell = `<td rowspan="${hasDev ? 3 : 2}"><div class="mx-app">${svReorder ? '<span class="mx-grip">⋮⋮</span>' : ''}
         <img class="mx-ico" src="${spIcon(r)}" onerror="this.hidden=true" alt="">
         <span class="mx-nm">${esc(r.nm)}</span></div></td>`;
     // The letter lives INSIDE the rotor (Erez, 2026-08-10) — beside it, it read as a
@@ -1672,12 +1726,14 @@ function svMatrixHtml(rows, opts = {}) {
     // three and destroy the grouping it exists to create.
     const alt = i % 2 ? ' mx-alt' : '';
     const k = esc(r.a.dir);
-    return `<tr class="mx-r mx-dev${alt}" data-appk="${k}"${svReorder ? ' draggable="true"' : ''}>
+    const devRow = hasDev ? `<tr class="mx-r mx-dev${alt}" data-appk="${k}"${svReorder ? ' draggable="true"' : ''}>
       ${appCell}
       ${mark(SP_SVG.rotor('D', '#8b5cf6'), 'TestFlight · dev')}
       ${OS.map(os => `<td class="mx-apple">${cell((r.flight[os] || {}).dev)}</td>`).join('')}
-    </tr>
-    <tr class="mx-r mx-prod${alt}" data-appk="${k}">
+    </tr>` : '';
+    return `${devRow}
+    <tr class="mx-r mx-prod${alt}" data-appk="${k}"${!hasDev && svReorder ? ' draggable="true"' : ''}>
+      ${hasDev ? '' : appCell}
       ${mark(SP_SVG.rotor('P', '#16b364'), 'TestFlight · prod')}
       ${OS.map(os => `<td class="mx-apple">${cell((r.flight[os] || {}).prod)}</td>`).join('')}
     </tr>
@@ -1688,8 +1744,57 @@ function svMatrixHtml(rows, opts = {}) {
   }).join('') + `</tbody></table></div>`
 }
 
+// ── תא-מטריצה לחיץ → חלונית פרטים אחידה (Erez 2026-08-24) ────────────────────
+// ONE popover, ONE field list, SAME order for every cell kind — store, TF prod,
+// TF dev. Missing values render as — so the eye always lands on the same rows.
+function spShowCellPopover(idx, anchorEl) {
+  const d = (window.__spd || [])[idx];
+  if (!d) return;
+  spCloseCellPopover();
+  const F = [
+    ['סטטוס', d.status],
+    ['גרסה בחנות', d.store],
+    ['גרסת OTA', d.ota],
+    ['גרסה בתהליך', d.pendingV ? `${d.pendingV}${d.pendingState ? ` (${(SP_APPLE[d.pendingState] || [d.pendingState])[0]})` : ''}` : null],
+    ['מס׳ בילד', d.build],
+    ['What’s New', d.whatsNew],
+    ['תאריך', d.date],
+    ['הערה', d.note],
+  ];
+  const pop = document.createElement('div');
+  pop.id = 'spCellPop';
+  pop.className = `sp-pop tone-${d.tone || 'idle'}`;
+  pop.innerHTML = `
+    <div class="sp-pop-h"><b>${esc(d.app)} · ${esc(d.os)}</b><span class="sp-pop-k">${esc(d.kind)}</span>
+      <button class="sp-pop-x" onclick="spCloseCellPopover()" aria-label="סגור">✕</button></div>
+    <div class="sp-pop-b">${F.map(([k, v]) => `<div class="sp-pop-row"><span class="k">${k}</span><span class="v" dir="ltr">${v == null || v === '' ? '—' : esc(String(v))}</span></div>`).join('')}</div>`;
+  document.body.appendChild(pop);
+  const r = anchorEl.getBoundingClientRect();
+  const w = 260;
+  let left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+  let top = r.bottom + 8;
+  if (top + 240 > window.innerHeight) top = Math.max(8, r.top - 8 - pop.offsetHeight - 220);
+  pop.style.left = left + 'px';
+  pop.style.top = (top + window.scrollY) + 'px';
+  setTimeout(() => document.addEventListener('click', spPopOutside, true), 0);
+}
+function spPopOutside(e) {
+  const pop = document.getElementById('spCellPop');
+  if (pop && !pop.contains(e.target)) spCloseCellPopover();
+}
+function spCloseCellPopover() {
+  document.removeEventListener('click', spPopOutside, true);
+  const pop = document.getElementById('spCellPop');
+  if (pop) pop.remove();
+}
+// Delegated listener — the matrix re-renders freely; the handler survives.
+document.addEventListener('click', (e) => {
+  const c = e.target.closest && e.target.closest('.sv-click[data-spd]');
+  if (c) { e.stopPropagation(); spShowCellPopover(Number(c.dataset.spd), c); }
+});
+
 function renderStorePanel() {
-  try { return storePanelBody(); } catch (e) { console.error('store panel:', e); }
+  try { window.__spd = []; return storePanelBody(); } catch (e) { console.error('store panel:', e); }
 }
 
 function storePanelBody() {
