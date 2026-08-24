@@ -889,6 +889,8 @@ footer a { color: var(--muted); }
 .sv-ico{width:20px;height:20px;border-radius:6px;object-fit:cover;flex:none}
 .sv-name{font-size:12.5px;font-weight:600;color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sv-v{font-variant-numeric:tabular-nums}
+/* the store cell's fixed two lines (os+store / OTA) — each on its OWN line (Erez 2026-08-24) */
+.sv-l{display:block;line-height:1.35;white-space:nowrap}
 
 /* מטריצה (נשמרה) */
 .sv-mx{width:100%;border-collapse:collapse;font-size:12px}
@@ -920,14 +922,15 @@ footer a { color: var(--muted); }
 /* clickable matrix cells + the uniform details popover (Erez 2026-08-24) */
 .sv-click{cursor:pointer}
 .sv-click:hover{filter:brightness(1.12)}
-.sp-pop{position:absolute;z-index:200;width:260px;border-radius:14px;overflow:hidden;
+.sp-pop{position:fixed;z-index:200;width:260px;border-radius:14px;overflow:hidden;
   background:var(--card,#171a21);border:1.5px solid var(--c,#6b7280);
   box-shadow:0 10px 34px rgba(0,0,0,.45);font-size:12.5px}
 .sp-pop-h{display:flex;align-items:center;gap:8px;padding:9px 12px;
   background:color-mix(in srgb, var(--c,#6b7280) 22%, transparent);border-bottom:1px solid color-mix(in srgb, var(--c) 40%, transparent)}
 .sp-pop-h b{flex:1;font-size:13px}
 .sp-pop-k{font-size:11px;opacity:.75}
-.sp-pop-x{border:0;background:transparent;color:inherit;font-size:13px;cursor:pointer;opacity:.7;padding:2px 4px}
+.sp-pop-x{border:0;background:transparent;color:inherit;font-size:15px;cursor:pointer;opacity:.75;
+  padding:4px 8px;margin:-4px -6px -4px 0;line-height:1;min-width:28px;min-height:28px}
 .sp-pop-x:hover{opacity:1}
 .sp-pop-b{padding:8px 12px 10px;display:flex;flex-direction:column;gap:5px}
 .sp-pop-row{display:flex;justify-content:space-between;gap:10px}
@@ -1206,7 +1209,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=6b2874bc"></script>
+<script src="data.enc.js?v=da10e1a6"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1691,7 +1694,7 @@ function svMatrixHtml(rows, opts = {}) {
     // Store cells carry the fixed two-line body (os+store / OTA) — uniform even
     // when both lines agree. Other cells keep the version line.
     const body = x.lines
-      ? x.lines.map(l => `<span class="sv-v" dir="ltr">${esc(l)}</span>`).join('')
+      ? x.lines.map(l => `<span class="sv-v sv-l" dir="ltr">${esc(l)}</span>`).join('')
       : `<span class="sv-v" dir="ltr">${esc(x.version || '—')}</span>${x.sub ? `<span class="sv-sub">${esc(x.sub)}</span>` : ''}`;
     return `<span class="sv-cell tone-${x.tone}${x.info ? ' sv-click' : ''}"${click}><b>${esc(x.label)}</b>${body}</span>`;
   };
@@ -1766,24 +1769,29 @@ function spShowCellPopover(idx, anchorEl) {
   pop.className = `sp-pop tone-${d.tone || 'idle'}`;
   pop.innerHTML = `
     <div class="sp-pop-h"><b>${esc(d.app)} · ${esc(d.os)}</b><span class="sp-pop-k">${esc(d.kind)}</span>
-      <button class="sp-pop-x" onclick="spCloseCellPopover()" aria-label="סגור">✕</button></div>
+      <button class="sp-pop-x" type="button" aria-label="סגור">✕</button></div>
     <div class="sp-pop-b">${F.map(([k, v]) => `<div class="sp-pop-row"><span class="k">${k}</span><span class="v" dir="ltr">${v == null || v === '' ? '—' : esc(String(v))}</span></div>`).join('')}</div>`;
+  // position:fixed + measure AFTER append — the popover hugs the clicked cell:
+  // directly under it (or above when there is no room), horizontally clamped.
+  pop.style.visibility = 'hidden';
   document.body.appendChild(pop);
+  pop.querySelector('.sp-pop-x').addEventListener('click', (ev) => { ev.stopPropagation(); spCloseCellPopover(); });
+  pop.addEventListener('click', (ev) => ev.stopPropagation());
   const r = anchorEl.getBoundingClientRect();
-  const w = 260;
-  let left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
-  let top = r.bottom + 8;
-  if (top + 240 > window.innerHeight) top = Math.max(8, r.top - 8 - pop.offsetHeight - 220);
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = Math.min(Math.max(8, r.left + r.width / 2 - pw / 2), window.innerWidth - pw - 8);
+  let top = (r.bottom + 6 + ph <= window.innerHeight - 8) ? r.bottom + 6 : Math.max(8, r.top - 6 - ph);
   pop.style.left = left + 'px';
-  pop.style.top = (top + window.scrollY) + 'px';
-  setTimeout(() => document.addEventListener('click', spPopOutside, true), 0);
+  pop.style.top = top + 'px';
+  pop.style.visibility = '';
+  setTimeout(() => document.addEventListener('mousedown', spPopOutside, true), 0);
 }
 function spPopOutside(e) {
   const pop = document.getElementById('spCellPop');
   if (pop && !pop.contains(e.target)) spCloseCellPopover();
 }
 function spCloseCellPopover() {
-  document.removeEventListener('click', spPopOutside, true);
+  document.removeEventListener('mousedown', spPopOutside, true);
   const pop = document.getElementById('spCellPop');
   if (pop) pop.remove();
 }
