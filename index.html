@@ -1209,7 +1209,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=6e2f02e0"></script>
+<script src="data.enc.js?v=43932834"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2907,7 +2907,7 @@ function appInfoBodyHtml(a, live) {
   const platCls = k => k === 'mac' ? 'mac' : 'ios';
   // release channel → lane: legacy rows carry 'native-prod' (a store build) and 'code'
   // (a source push) — the exact-match filter dropped them, hiding e.g. Coin's only pushes.
-  const relCh = r => r.channel === 'native-prod' ? 'prod' : r.channel === 'code' ? 'dev' : (r.channel || 'dev');
+  const relCh = r => r.channel === 'native-prod' ? 'prod' : r.channel === 'code' ? (v.noDevVariant ? 'prod' : 'dev') : (r.channel || 'dev');
   const laneFor = (pk, pdata, ch) => {
     const isProd = ch === 'prod';
     const bplat = pk === 'mac' ? 'macos' : 'ios';   // builds.json uses 'macos', versions.platforms uses 'mac'
@@ -2939,7 +2939,8 @@ function appInfoBodyHtml(a, live) {
         <details class="info-lvl"><summary>היסטוריה</summary><div class="info-lvl-body">${hist}</div></details>
       </div></details>`;
   };
-  const lanes = plats.map(([pk, pdata]) => laneFor(pk, pdata, 'prod') + laneFor(pk, pdata, 'dev')).join('');
+  // No-dev-variant apps (Coin) get NO dev lane at all — prod only (Erez 2026-08-25).
+  const lanes = plats.map(([pk, pdata]) => laneFor(pk, pdata, 'prod') + (v.noDevVariant ? '' : laneFor(pk, pdata, 'dev'))).join('');
   const head = `${(a.purposeHe || a.purpose) ? `<div class="section-sub" style="margin:0 0 10px">${esc(a.purposeHe || a.purpose)}</div>` : ''}
     ${a.ascSummary ? `<div class="info-kv"><span class="k">App Store:</span> <span class="val">${esc(a.ascSummary)}</span></div>` : ''}`;
   return head + lanes;
