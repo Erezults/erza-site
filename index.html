@@ -727,7 +727,6 @@ tbody:not(.stats-collapsed) .stats-chevron-btn { transform: rotate(90deg); backg
 tbody.stats-collapsed tr.stats-subrow { display: none; }
 tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11px; }
 .stats-sub-label { display: flex; align-items: center; gap: 5px; padding-inline-start: 22px; justify-content: flex-start; text-align: start; }
-.stats-subrow-plat .stats-sub-label { font-weight: 600; }
 .stats-usd-cell { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
 .stats-rev-cell { font-size: 10.5px; white-space: nowrap; }
 .stats-empty { padding: 26px; text-align: center; color: var(--ink-2); font-size: 14px; border: 1px dashed var(--baseline); border-radius: 14px; margin-top: 12px; }
@@ -1231,9 +1230,10 @@ tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
+<script>window.ERZA_UI_VER='9515b409006b'</script>
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=b67006a7"></script>
+<script src="data.enc.js?v=1b815254"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2686,7 +2686,6 @@ function renderStats() {
     el.innerHTML = '<div class="stats-empty">אין עדיין נתוני מכירות.</div>';
     return;
   }
-  if (upd) upd.textContent = 'עודכן: ' + (an.updatedAt || '').slice(0, 16).replace('T', ' ') + ' · 30 יום אחרונים';
   const days = Object.keys(an.days).sort();
   // המרה לדולר — daily ECB reference rates (registry/fx_rates.json via asc-fx-rates.mjs).
   // Every USD figure here is a same-day approximation, never the real transaction-time rate.
@@ -2748,6 +2747,10 @@ function renderStats() {
   // 💳 active paid subscribers (Apple daily SUBSCRIPTION snapshot), resolved onto the same
   // portfolio apps via ASC Apple ID — see computeSubsByApp for the acquisition-type split.
   const {byApp: subByApp, snapshotDate: subsSnapDate} = computeSubsByApp(lookup);
+  // Erez 2026-08-31 (round 4 addendum): the snapshot-date note used to sit inside the
+  // מנויים בתשלום column HEADER (ate width); moved to the one table-level line above the table.
+  if (upd) upd.textContent = 'עודכן: ' + (an.updatedAt || '').slice(0, 16).replace('T', ' ') + ' · 30 יום אחרונים'
+    + (subsSnapDate ? ` · מנויים נכון ל-${subsSnapDate} (בפיגור יום-יומיים)` : '');
   const per = {};  // app.dir → {app, ios: mk, mac: mk}
   const ensure = (app) => per[app.dir || app.name] ??= {app, ios: mk(), mac: mk()};
   const fold = (tgt, src) => {
@@ -2787,7 +2790,6 @@ function renderStats() {
     const plats = Object.keys((app.asc && app.asc.platforms) || {});
     if (plats.length) ensure(app);
   }
-  const last7 = new Set(days.slice(-7));
   const revLabel = (sku) => {
     const k = String(sku).toLowerCase();
     if (k.includes('lifetime')) return 'Lifetime';
@@ -2826,17 +2828,23 @@ function renderStats() {
   }
   blocks.sort((x, y) => (y.total - x.total) || String(x.app.name).localeCompare(y.app.name));
   window.__statsBlocks = blocks; window.__statsDays = days;
-  const tot = {d30: 0, d7: 0, upd: 0, subPaid: 0, subCode: 0, ot: 0, rev: {}, usd: 0};
+  const tot = {subPaid: 0, subCode: 0, rev: {}, usd: 0};
   const dash = '<span class="stats-sub-cell">–</span>';
 
-  // build this app's revenue sub-rows: real paying subscribers by country (from the Apple
-  // SUBSCRIPTION snapshot, indicative per-subscriber price) + one-time IAP by country (from
-  // the cached sales history's real collected proceeds, when country data is available).
+  // Build this app's revenue sub-rows: real paying subscribers by country (from the Apple
+  // SUBSCRIPTION snapshot — `unitPrice` is the per-subscriber listed price, `count` how many
+  // subscribers in that market, `amount` = unitPrice×count, the row's real total) + one-time
+  // IAP by country (from the cached sales history's real collected proceeds — `amount` is
+  // already an aggregated total there). `amount` is what main-row/grand totals sum, by
+  // construction, so the table can never show a total that its own expanded rows disagree
+  // with (Erez 2026-08-31 round 4: "totals row must equal the sum of visible rows").
   const revenueRowsOf = (b) => {
     const rows = [];
     if (b.sub) for (const m of b.sub.markets) {
-      rows.push({type: 'sub', country: m.country, currency: m.currency, amount: parseFloat(m.price), units: 1,
-        label: revLabel(m.sub), count: m.paid});
+      const unitPrice = parseFloat(m.price) || 0;
+      const count = m.paid || 1;
+      rows.push({type: 'sub', country: m.country, currency: m.currency, unitPrice, count,
+        amount: r2(unitPrice * count), label: revLabel(m.sub)});
     }
     for (const [sk, it] of Object.entries(b.combinedRevItems)) {
       if (isRecurring(sk)) continue;  // auto-renewable revenue already represented via `sub` above
@@ -2846,12 +2854,12 @@ function renderStats() {
         for (const cc of countries) {
           const bc = it.byCountry[cc];
           for (const [cur, amt] of Object.entries(bc.proceeds)) {
-            rows.push({type: 'iap', country: cc, currency: cur, amount: amt, units: bc.units, label});
+            rows.push({type: 'iap', country: cc, currency: cur, unitPrice: amt, count: bc.units, amount: amt, label});
           }
         }
       } else {
         for (const [cur, amt] of Object.entries(it.proceeds)) {
-          rows.push({type: 'iap', country: '', currency: cur, amount: amt, units: it.units, label});
+          rows.push({type: 'iap', country: '', currency: cur, unitPrice: amt, count: it.units, amount: amt, label});
         }
       }
     }
@@ -2860,66 +2868,43 @@ function renderStats() {
 
   const bodies = blocks.map((b, bi) => {
     const nm = statsShortName(b.app);
-    const d30 = (b.subs[0] ? b.subs[0].d.u.downloads || 0 : 0) + (b.subs[1] ? b.subs[1].d.u.downloads || 0 : 0);
-    const d7 = b.subs.reduce((s, r) => s + days.filter(d => last7.has(d)).reduce((s2, d) => s2 + (r.d.series[d] || 0), 0), 0);
-    const upd30 = b.subs.reduce((s, r) => s + (r.d.u.updates || 0), 0);
-    // real collected revenue only (subscription-market prices are indicative, not a 30-day sum)
-    const combRev = {};
-    for (const r of b.subs) for (const [c, n] of Object.entries(r.d.rev)) combRev[c] = r2((combRev[c] || 0) + n);
     const revenueRows = revenueRowsOf(b);
-    const hasSub = b.subs.length + revenueRows.length > 0;
+    const hasSub = revenueRows.length > 0;
+    const combRev = {};
+    for (const rr of revenueRows) combRev[rr.currency] = r2((combRev[rr.currency] || 0) + rr.amount);
+    const revUsd = revenueRows.reduce((s, rr) => { const u = usd(rr.amount, rr.currency); return u == null ? s : s + u; }, 0);
 
     if (b.sub) { tot.subPaid += b.sub.paid; tot.subCode += b.sub.code + b.sub.trial; }
-    tot.d30 += d30; tot.d7 += d7; tot.upd += upd30; tot.ot += b.ot.units || 0;
     for (const [c, n] of Object.entries(combRev)) { tot.rev[c] = r2((tot.rev[c] || 0) + n); const u = usd(n, c); if (u != null) tot.usd += u; }
 
-    const revUsd = Object.entries(combRev).reduce((s, [c, n]) => { const u = usd(n, c); return u == null ? s : s + u; }, 0);
     const mainRow = `<tr class="stats-mainrow">
         <td><div class="stats-appcell-inner">
           <button class="stats-chevron-btn"${hasSub ? ` onclick="toggleStatsApp(${bi})"` : ' style="visibility:hidden"'} aria-label="הצג פירוט" title="הצג פירוט">▸</button>
           <button class="stats-app" onclick="openStatsModal(${bi})"><img src="icons/${b.app.dir || b.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'"><span>${nm}</span></button>
         </div></td>
-        <td><b>${d30.toLocaleString()}</b></td>
-        <td>${d7.toLocaleString()}</td>
-        <td>${upd30.toLocaleString()}</td>
         <td>${b.sub && b.sub.paid ? `<b class="stats-sub-paid">${b.sub.paid}</b>` : dash}</td>
         <td>${b.sub && (b.sub.code || b.sub.trial) ? `<span class="stats-sub-code">${(b.sub.code || 0) + (b.sub.trial || 0)}</span>` : dash}</td>
-        <td>${b.ot.units ? `<b>${b.ot.units}</b>` : dash}</td>
         <td class="stats-rev-cell">${Object.entries(combRev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—'}</td>
         <td class="stats-usd-cell">${fmtUsd(revUsd || null)}</td>
       </tr>`;
-    const platRows = b.subs.map((r) => {
-      const m = r.d;
-      const rd7 = days.filter(d => last7.has(d)).reduce((s2, d) => s2 + (m.series[d] || 0), 0);
-      return `<tr class="stats-subrow stats-subrow-plat">
-          <td class="stats-sub-label">${r.plat === 'mac' ? '💻 macOS' : '📱 iOS'}</td>
-          <td>${(m.u.downloads || 0).toLocaleString()}</td>
-          <td>${rd7.toLocaleString()}</td>
-          <td>${(m.u.updates || 0).toLocaleString()}</td>
-          <td>${dash}</td><td>${dash}</td><td>${dash}</td>
-          <td class="stats-rev-cell">—</td><td class="stats-usd-cell">—</td>
-        </tr>`;
-    }).join('');
     const revRows = revenueRows.map((rr) => {
       const u = usd(rr.amount, rr.currency);
-      const amountTxt = `${subsCurFmt(rr.amount, rr.currency)}${rr.units > 1 ? ` (×${rr.units})` : ''}`;
+      const amountTxt = `${subsCurFmt(rr.unitPrice, rr.currency)}${rr.count > 1 ? ` (×${rr.count})` : ''}`;
       return `<tr class="stats-subrow stats-subrow-rev">
           <td class="stats-sub-label">${rr.country ? subsFlag(rr.country) + ' ' + rr.country : '🌐'}</td>
-          <td>${dash}</td><td>${dash}</td><td>${dash}</td>
           <td>${rr.type === 'sub' ? rr.count : dash}</td>
-          <td>${dash}</td><td>${dash}</td>
+          <td>${dash}</td>
           <td class="stats-rev-cell">${rr.label} ${amountTxt}</td>
           <td class="stats-usd-cell">${fmtUsd(u)}</td>
         </tr>`;
     }).join('');
-    return `<tbody id="stApp${bi}" class="stats-collapsed">${mainRow}${platRows}${revRows}</tbody>`;
+    return `<tbody id="stApp${bi}" class="stats-collapsed">${mainRow}${revRows}</tbody>`;
   }).join('');
 
-  const snapTh = subsSnapDate ? ` <span class="stats-note">(נכון ל-${esc(subsSnapDate)}, בפיגור יום-יומיים)</span>` : '';
   el.innerHTML = `<div class="stats-wrap"><table class="stats-table">
-    <thead><tr><th>אפליקציה</th><th>הורדות · 30י</th><th>הורדות · 7י</th><th>עדכונים</th><th>מנויים בתשלום${snapTh}</th><th>קודים/ניסיון</th><th>חד-פעמי</th><th>הכנסות</th><th>המרה לדולר</th></tr></thead>
+    <thead><tr><th>אפליקציה</th><th>מנויים בתשלום</th><th>קודים/ניסיון</th><th>הכנסות</th><th>המרה לדולר</th></tr></thead>
     ${bodies}
-    <tbody><tr class="stats-total"><td>סה"כ</td><td>${tot.d30.toLocaleString()}</td><td>${tot.d7.toLocaleString()}</td><td>${tot.upd.toLocaleString()}</td><td>${tot.subPaid.toLocaleString()}</td><td>${tot.subCode.toLocaleString()}</td><td>${tot.ot.toLocaleString()}</td><td class="stats-rev-cell">${Object.entries(tot.rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—'}</td><td class="stats-usd-cell">${fmtUsd(tot.usd || null)}</td></tr></tbody>
+    <tbody><tr class="stats-total"><td>סה"כ</td><td>${tot.subPaid.toLocaleString()}</td><td>${tot.subCode.toLocaleString()}</td><td class="stats-rev-cell">${Object.entries(tot.rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—'}</td><td class="stats-usd-cell">${fmtUsd(tot.usd || null)}</td></tr></tbody>
     </table></div>
     <div class="stats-modal" id="statsModal" hidden onclick="if(event.target===this)this.hidden=true">
       <div class="stats-modal-card"><button class="stats-modal-x" onclick="document.getElementById('statsModal').hidden=true">✕</button><div id="statsModalBody"></div></div>
@@ -4207,6 +4192,28 @@ function mrInit() {
   mrTick();
   setInterval(tickCountdown, 1000);   // 1s countdown; refreshes only every REFRESH_SECS and never while typing
   setInterval(chatPoll, 8000);        // live chat: poll ERZA's replies every 8s (light — one small file)
+  checkUiFresh();
+  setInterval(checkUiFresh, 120000);  // stale-tab guard for UI-only deploys — see checkUiFresh()
+}
+
+// Erez 2026-08-31 (round 4): "he asked for the updates graph AGAIN — meaning he does not see
+// it live", even though the deploy pipeline already shipped it. Root cause: a dashboard tab
+// left open across a UI-only deploy never re-fetches index.html on its own — the existing
+// stale-UI guard (mrTick, above) only reloads on an ORCHESTRATOR BEHAVIOR version bump
+// (registry/orchestrator_version.json), which a pure UI change never touches, and it also
+// requires a GitHub token (pat()) to even run. checkUiFresh is independent of both: it polls
+// a tiny same-origin file deploy-site.sh stamps with a hash of index.html's own source, and
+// hard-reloads (once per version, cache-busted) the moment a newer UI is live — no PAT needed.
+async function checkUiFresh() {
+  try {
+    const r = await fetch('ui_version.txt?_=' + Date.now(), {cache: 'no-store'});
+    if (!r.ok) return;
+    const v = (await r.text()).trim();
+    if (v && window.ERZA_UI_VER && v !== window.ERZA_UI_VER && sessionStorage.getItem('erzaUiReloadedFor') !== v) {
+      sessionStorage.setItem('erzaUiReloadedFor', v);
+      location.replace(location.pathname + '?v=' + encodeURIComponent(v));
+    }
+  } catch { /* offline or first deploy without the file yet — never block the page on this */ }
 }
 
 init();
