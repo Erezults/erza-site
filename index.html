@@ -702,15 +702,24 @@ footer a { color: var(--muted); }
 .stats-table { width: 100%; border-collapse: collapse; font-size: 12.5px; color: var(--ink-1); }
 .stats-table th { font-size: 10.5px; font-weight: 600; color: var(--ink-2); padding: 6px 4px; border-bottom: 1px solid var(--baseline); white-space: nowrap; text-align: center; }
 .stats-table td { text-align: center; padding: 6px 4px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
-.stats-appcell { vertical-align: middle; border-bottom: 2px solid var(--baseline) !important; }
-.stats-platcell { font-size: 13px; width: 26px; }
-.stats-blockend td { border-bottom: 2px solid var(--baseline); }
+.stats-table tbody + tbody tr:first-child td { border-top: 2px solid var(--baseline); }
 .stats-table tr:last-child td { border-bottom: none; }
-.stats-app { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; border: none; background: none; padding: 2px 4px; color: var(--ink-1); }
-.stats-app img { width: 38px; height: 38px; border-radius: 9px; box-shadow: 0 1px 3px var(--ring); }
-.stats-app .stats-plat { font-size: 8.5px; color: var(--muted); }
-.stats-app span { font-size: 9.5px; color: var(--ink-2); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stats-app { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; border: none; background: none; padding: 2px 4px; color: var(--ink-1); }
+.stats-app img { width: 26px; height: 26px; border-radius: 7px; box-shadow: 0 1px 3px var(--ring); flex-shrink: 0; }
+.stats-app span { font-size: 11.5px; font-weight: 600; color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stats-total td { font-weight: 700; background: var(--tint); border-top: 2px solid var(--baseline); }
+/* ▸ accordion (Erez 2026-08-31): one <tbody> per app — first row summarizes, the rest are
+   detail sub-rows (platform downloads/updates split, and country×product revenue breakdown).
+   Collapsed by default; the chevron rotates via the tbody's collapsed state, no extra JS. */
+.stats-mainrow { text-align: right; }
+.stats-mainrow td:first-child { text-align: start; }
+.stats-chevron { display: inline-block; width: 16px; text-align: center; cursor: pointer; color: var(--muted); font-size: 10px; transition: transform .15s; user-select: none; }
+tbody:not(.stats-collapsed) .stats-chevron { transform: rotate(90deg); }
+tbody.stats-collapsed tr.stats-subrow { display: none; }
+tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11px; }
+.stats-sub-label { display: flex; align-items: center; gap: 5px; padding-inline-start: 22px; justify-content: flex-start; text-align: start; }
+.stats-subrow-plat .stats-sub-label { font-weight: 600; }
+.stats-usd-cell { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
 .stats-rev-cell { font-size: 10.5px; white-space: nowrap; }
 .stats-rev-line { display: block; line-height: 1.5; }
 .stats-empty { padding: 26px; text-align: center; color: var(--ink-2); font-size: 14px; border: 1px dashed var(--baseline); border-radius: 14px; margin-top: 12px; }
@@ -1216,7 +1225,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=237b3916"></script>
+<script src="data.enc.js?v=d89d7769"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2631,11 +2640,13 @@ function computeSubsByApp(lookup) {
     const app = lookup['id:' + v.appleId]; if (!app) continue;
     const key = app.dir || app.name;
     const a = byApp[key] ??= {paid: 0, code: 0, trial: 0, markets: []};
-    for (const sv of Object.values(v.subs || {})) {
+    for (const [subName, sv] of Object.entries(v.subs || {})) {
       a.paid += (sv.standard || 0) + (sv.introPaid || 0) + (sv.winbackPaid || 0);
       a.code += (sv.codePaid || 0) + (sv.codeTrial || 0) + (sv.promoPaid || 0) + (sv.promoTrial || 0);
       a.trial += sv.introTrial || 0;
-      for (const m of sv.markets || []) if (m.paid > 0) a.markets.push(m);
+      // carry the product name (subName) alongside each market row so a per-country sub-row
+      // can label its cycle (מנוי חודשי/שנתי/שבועי) — see revLabel() in renderStats.
+      for (const m of sv.markets || []) if (m.paid > 0) a.markets.push({...m, sub: subName});
     }
   }
   return {byApp, snapshotDate: subs.snapshotDate || null};
