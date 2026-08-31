@@ -721,7 +721,6 @@ tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11
 .stats-subrow-plat .stats-sub-label { font-weight: 600; }
 .stats-usd-cell { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
 .stats-rev-cell { font-size: 10.5px; white-space: nowrap; }
-.stats-rev-line { display: block; line-height: 1.5; }
 .stats-empty { padding: 26px; text-align: center; color: var(--ink-2); font-size: 14px; border: 1px dashed var(--baseline); border-radius: 14px; margin-top: 12px; }
 /* 💳 מנויים ורכישות — folded directly into the stats table (Erez 2026-08-31: one table,
    not a separate card strip). Real-money counts vs. code/promo/trial stay visually distinct. */
@@ -1225,7 +1224,7 @@ tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=d89d7769"></script>
+<script src="data.enc.js?v=75644266"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2652,6 +2651,11 @@ function computeSubsByApp(lookup) {
   return {byApp, snapshotDate: subs.snapshotDate || null};
 }
 
+function toggleStatsApp(bi) {
+  const tb = document.getElementById('stApp' + bi);
+  if (tb) tb.classList.toggle('stats-collapsed');
+}
+
 function renderStats() {
   const el = document.getElementById('statsPanel');
   const an = (window.ERZA_DATA || {}).analytics;
@@ -2662,6 +2666,16 @@ function renderStats() {
   }
   if (upd) upd.textContent = 'עודכן: ' + (an.updatedAt || '').slice(0, 16).replace('T', ' ') + ' · 30 יום אחרונים';
   const days = Object.keys(an.days).sort();
+  // המרה לדולר — daily ECB reference rates (registry/fx_rates.json via asc-fx-rates.mjs).
+  // Every USD figure here is a same-day approximation, never the real transaction-time rate.
+  const fxRates = ((window.ERZA_DATA || {}).fxRates || {}).rates || {USD: 1};
+  const usd = (amt, cur) => {
+    if (amt == null) return null;
+    if (cur === 'USD') return amt;
+    const r = fxRates[cur];
+    return r ? amt / r : null;
+  };
+  const fmtUsd = (n) => n == null ? '—' : `~$${n.toLocaleString(undefined, {maximumFractionDigits: 2})}`;
   // one-time (non-renewing) IAP vs. auto-renewable — SKU/title pattern tells them apart
   // (Apple's own "iap" units bucket mixes both); titles are captured as records are seen.
   const otTitles = {};
@@ -2679,9 +2693,14 @@ function renderStats() {
         for (const [c, n] of Object.entries(pv.proceeds || {})) t.rev[c] = r2(((t.rev[c] || 0) + n));
         let riUnits = 0;
         for (const [sk, it] of Object.entries(pv.revItems || {})) {
-          const ti = t.revItems[sk] ??= {units: 0, proceeds: {}};
+          const ti = t.revItems[sk] ??= {units: 0, proceeds: {}, byCountry: {}};
           ti.units += it.units || 0;
           for (const [c, n] of Object.entries(it.proceeds || {})) ti.proceeds[c] = r2((ti.proceeds[c] || 0) + n);
+          for (const [cc, bc] of Object.entries(it.byCountry || {})) {
+            const tbc = ti.byCountry[cc] ??= {units: 0, proceeds: {}};
+            tbc.units += bc.units || 0;
+            for (const [c, n] of Object.entries(bc.proceeds || {})) tbc.proceeds[c] = r2((tbc.proceeds[c] || 0) + n);
+          }
           riUnits += it.units || 0;
           if (!isRecurring(sk)) {
             t.ot.units += it.units || 0;
@@ -2713,9 +2732,14 @@ function renderStats() {
     for (const [b, n] of Object.entries(src.u)) tgt.u[b] = (tgt.u[b] || 0) + n;
     for (const [c, n] of Object.entries(src.rev)) tgt.rev[c] = r2((tgt.rev[c] || 0) + n);
     for (const [sk, it] of Object.entries(src.revItems || {})) {
-      const ti = tgt.revItems[sk] ??= {units: 0, proceeds: {}};
+      const ti = tgt.revItems[sk] ??= {units: 0, proceeds: {}, byCountry: {}};
       ti.units += it.units || 0;
       for (const [c, n] of Object.entries(it.proceeds || {})) ti.proceeds[c] = r2((ti.proceeds[c] || 0) + n);
+      for (const [cc, bc] of Object.entries(it.byCountry || {})) {
+        const tbc = ti.byCountry[cc] ??= {units: 0, proceeds: {}};
+        tbc.units += bc.units || 0;
+        for (const [c, n] of Object.entries(bc.proceeds || {})) tbc.proceeds[c] = r2((tbc.proceeds[c] || 0) + n);
+      }
     }
     tgt.ot.units += (src.ot || {}).units || 0;
     for (const [c, n] of Object.entries((src.ot || {}).proceeds || {})) tgt.ot.proceeds[c] = r2((tgt.ot.proceeds[c] || 0) + n);
@@ -2748,76 +2772,129 @@ function renderStats() {
     if (k.includes('week')) return 'מנוי שבועי';
     return sku;
   };
-  const revTxt = (m) => {
-    const items = Object.entries(m.revItems || {});
-    if (items.length) return items.map(([sk, it]) =>
-      Object.entries(it.proceeds).map(([c, n]) => `<span class="stats-rev-line">${revLabel(sk)}: ${n.toLocaleString()} ${c}${it.units > 1 ? ` (×${it.units})` : ''}</span>`).join('')
-    ).join('');
-    return Object.entries(m.rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—';
-  };
-  // one app block = app cell (rowspan) + a sub-row per platform
+  // one app block = one <tbody>: a summary main-row + collapsed detail sub-rows
+  // (platform downloads/updates split, and country×product revenue breakdown).
   const blocks = [];
   for (const slot of Object.values(per)) {
     const plats = Object.keys((slot.app.asc && slot.app.asc.platforms) || {});
     const subs = [];
     if (plats.includes('IOS') || (slot.ios.u.downloads || 0) > 0) subs.push({plat: 'ios', d: slot.ios});
     if (plats.includes('MAC_OS') || (slot.mac.u.downloads || 0) > 0) subs.push({plat: 'mac', d: slot.mac});
-    if (subs.length) {
-      const ot = {units: (slot.ios.ot.units || 0) + (slot.mac.ot.units || 0), proceeds: {}};
-      for (const [c, n] of Object.entries(slot.ios.ot.proceeds)) ot.proceeds[c] = r2((ot.proceeds[c] || 0) + n);
-      for (const [c, n] of Object.entries(slot.mac.ot.proceeds)) ot.proceeds[c] = r2((ot.proceeds[c] || 0) + n);
-      blocks.push({app: slot.app, subs, ot, sub: subByApp[slot.app.dir || slot.app.name] || null, total: subs.reduce((n, r) => n + (r.d.u.downloads || 0), 0)});
+    if (!subs.length) continue;
+    const ot = {units: (slot.ios.ot.units || 0) + (slot.mac.ot.units || 0)};
+    // combined revItems across both platforms — source for the one-time/IAP country rows
+    const combinedRevItems = {};
+    for (const plt of [slot.ios, slot.mac]) for (const [sk, it] of Object.entries(plt.revItems || {})) {
+      const ci = combinedRevItems[sk] ??= {units: 0, proceeds: {}, byCountry: {}};
+      ci.units += it.units || 0;
+      for (const [c, n] of Object.entries(it.proceeds)) ci.proceeds[c] = r2((ci.proceeds[c] || 0) + n);
+      for (const [cc, bc] of Object.entries(it.byCountry || {})) {
+        const tbc = ci.byCountry[cc] ??= {units: 0, proceeds: {}};
+        tbc.units += bc.units || 0;
+        for (const [c, n] of Object.entries(bc.proceeds)) tbc.proceeds[c] = r2((tbc.proceeds[c] || 0) + n);
+      }
     }
+    blocks.push({
+      app: slot.app, subs, ot, combinedRevItems,
+      sub: subByApp[slot.app.dir || slot.app.name] || null,
+      total: subs.reduce((n, r) => n + (r.d.u.downloads || 0), 0),
+    });
   }
   blocks.sort((x, y) => (y.total - x.total) || String(x.app.name).localeCompare(y.app.name));
   window.__statsBlocks = blocks; window.__statsDays = days;
-  const tot = {d30: 0, d7: 0, upd: 0, iap: 0, rev: {}, subPaid: 0, subCode: 0, subTrial: 0, ot: 0};
-  const subPaidCell = (b) => {
-    const s = b.sub, n = s ? s.paid : 0;
-    if (!n) return '<span class="stats-sub-cell">–</span>';
-    let html = `<span class="stats-sub-cell"><span class="stats-sub-paid">${n}</span>`;
-    if (n < 10 && s.markets.length) html += s.markets.slice(0, 3).map(m => `<div class="stats-sub-market">${subsFlag(m.country)} ${subsCurFmt(m.price, m.currency)}</div>`).join('');
-    return html + '</span>';
-  };
-  const subCodeCell = (b) => {
-    const s = b.sub; const parts = [];
-    if (s && s.code) parts.push(`${s.code} בקוד/מבצע`);
-    if (s && s.trial) parts.push(`${s.trial} בניסיון`);
-    return parts.length ? `<span class="stats-sub-cell">${parts.map(p => `<div class="stats-sub-code">${p}</div>`).join('')}</span>` : '<span class="stats-sub-cell">–</span>';
-  };
-  const rowsHtml = blocks.map((b, bi) => {
-    const nm = displayApp(b.app.dir || b.app.name);
-    return b.subs.map((r, si) => {
-      const m = r.d;
-      const d7 = days.filter(d => last7.has(d)).reduce((s2, d) => s2 + (m.series[d] || 0), 0);
-      tot.d30 += m.u.downloads || 0; tot.d7 += d7; tot.upd += m.u.updates || 0; tot.iap += m.u.iap || 0;
-      for (const [c, n] of Object.entries(m.rev)) tot.rev[c] = r2((tot.rev[c] || 0) + n);
-      const appCell = si === 0
-        ? `<td rowspan="${b.subs.length}" class="stats-appcell"><button class="stats-app" onclick="openStatsModal(${bi})"><img src="icons/${b.app.dir || b.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'"><span>${nm}</span></button></td>`
-        : '';
-      let subCells = '';
-      if (si === 0) {
-        if (b.sub) { tot.subPaid += b.sub.paid; tot.subCode += b.sub.code; tot.subTrial += b.sub.trial; }
-        tot.ot += b.ot.units || 0;
-        subCells = `<td rowspan="${b.subs.length}">${subPaidCell(b)}</td><td rowspan="${b.subs.length}">${subCodeCell(b)}</td><td rowspan="${b.subs.length}">${(b.ot.units || 0) ? `<b>${b.ot.units}</b>` : '–'}</td>`;
+  const tot = {d30: 0, d7: 0, upd: 0, subPaid: 0, subCode: 0, ot: 0, rev: {}, usd: 0};
+  const dash = '<span class="stats-sub-cell">–</span>';
+
+  // build this app's revenue sub-rows: real paying subscribers by country (from the Apple
+  // SUBSCRIPTION snapshot, indicative per-subscriber price) + one-time IAP by country (from
+  // the cached sales history's real collected proceeds, when country data is available).
+  const revenueRowsOf = (b) => {
+    const rows = [];
+    if (b.sub) for (const m of b.sub.markets) {
+      rows.push({type: 'sub', country: m.country, currency: m.currency, amount: parseFloat(m.price), units: 1,
+        label: revLabel(m.sub), count: m.paid});
+    }
+    for (const [sk, it] of Object.entries(b.combinedRevItems)) {
+      if (isRecurring(sk)) continue;  // auto-renewable revenue already represented via `sub` above
+      const label = revLabel(otTitles[sk] || sk) + ' (חד-פעמי)';
+      const countries = Object.keys(it.byCountry || {});
+      if (countries.length) {
+        for (const cc of countries) {
+          const bc = it.byCountry[cc];
+          for (const [cur, amt] of Object.entries(bc.proceeds)) {
+            rows.push({type: 'iap', country: cc, currency: cur, amount: amt, units: bc.units, label});
+          }
+        }
+      } else {
+        for (const [cur, amt] of Object.entries(it.proceeds)) {
+          rows.push({type: 'iap', country: '', currency: cur, amount: amt, units: it.units, label});
+        }
       }
-      return `<tr${si === b.subs.length - 1 ? ' class="stats-blockend"' : ''}>${appCell}
-        <td class="stats-platcell">${r.plat === 'mac' ? '💻' : '📱'}</td>
-        <td><b>${(m.u.downloads || 0).toLocaleString()}</b></td>
+    }
+    return rows;
+  };
+
+  const bodies = blocks.map((b, bi) => {
+    const nm = displayApp(b.app.dir || b.app.name);
+    const d30 = (b.subs[0] ? b.subs[0].d.u.downloads || 0 : 0) + (b.subs[1] ? b.subs[1].d.u.downloads || 0 : 0);
+    const d7 = b.subs.reduce((s, r) => s + days.filter(d => last7.has(d)).reduce((s2, d) => s2 + (r.d.series[d] || 0), 0), 0);
+    const upd30 = b.subs.reduce((s, r) => s + (r.d.u.updates || 0), 0);
+    // real collected revenue only (subscription-market prices are indicative, not a 30-day sum)
+    const combRev = {};
+    for (const r of b.subs) for (const [c, n] of Object.entries(r.d.rev)) combRev[c] = r2((combRev[c] || 0) + n);
+    const revenueRows = revenueRowsOf(b);
+    const hasSub = b.subs.length + revenueRows.length > 0;
+
+    if (b.sub) { tot.subPaid += b.sub.paid; tot.subCode += b.sub.code + b.sub.trial; }
+    tot.d30 += d30; tot.d7 += d7; tot.upd += upd30; tot.ot += b.ot.units || 0;
+    for (const [c, n] of Object.entries(combRev)) { tot.rev[c] = r2((tot.rev[c] || 0) + n); const u = usd(n, c); if (u != null) tot.usd += u; }
+
+    const revUsd = Object.entries(combRev).reduce((s, [c, n]) => { const u = usd(n, c); return u == null ? s : s + u; }, 0);
+    const mainRow = `<tr class="stats-mainrow">
+        <td><span class="stats-chevron"${hasSub ? ` onclick="toggleStatsApp(${bi})"` : ' style="visibility:hidden"'}>▸</span>
+          <button class="stats-app" onclick="openStatsModal(${bi})"><img src="icons/${b.app.dir || b.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'"><span>${nm}</span></button></td>
+        <td><b>${d30.toLocaleString()}</b></td>
         <td>${d7.toLocaleString()}</td>
-        <td>${(m.u.updates || 0).toLocaleString()}</td>
-        <td>${(m.u.iap || 0).toLocaleString()}</td>
-        ${subCells}
-        <td class="stats-rev-cell">${revTxt(m)}</td>
+        <td>${upd30.toLocaleString()}</td>
+        <td>${b.sub && b.sub.paid ? `<b class="stats-sub-paid">${b.sub.paid}</b>` : dash}</td>
+        <td>${b.sub && (b.sub.code || b.sub.trial) ? `<span class="stats-sub-code">${(b.sub.code || 0) + (b.sub.trial || 0)}</span>` : dash}</td>
+        <td>${b.ot.units ? `<b>${b.ot.units}</b>` : dash}</td>
+        <td class="stats-rev-cell">${Object.entries(combRev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—'}</td>
+        <td class="stats-usd-cell">${fmtUsd(revUsd || null)}</td>
       </tr>`;
+    const platRows = b.subs.map((r) => {
+      const m = r.d;
+      const rd7 = days.filter(d => last7.has(d)).reduce((s2, d) => s2 + (m.series[d] || 0), 0);
+      return `<tr class="stats-subrow stats-subrow-plat">
+          <td class="stats-sub-label">${r.plat === 'mac' ? '💻 macOS' : '📱 iOS'}</td>
+          <td>${(m.u.downloads || 0).toLocaleString()}</td>
+          <td>${rd7.toLocaleString()}</td>
+          <td>${(m.u.updates || 0).toLocaleString()}</td>
+          <td>${dash}</td><td>${dash}</td><td>${dash}</td>
+          <td class="stats-rev-cell">—</td><td class="stats-usd-cell">—</td>
+        </tr>`;
     }).join('');
+    const revRows = revenueRows.map((rr) => {
+      const u = usd(rr.amount, rr.currency);
+      const amountTxt = `${subsCurFmt(rr.amount, rr.currency)}${rr.units > 1 ? ` (×${rr.units})` : ''}`;
+      return `<tr class="stats-subrow stats-subrow-rev">
+          <td class="stats-sub-label">${rr.country ? subsFlag(rr.country) + ' ' + rr.country : '🌐'}</td>
+          <td>${dash}</td><td>${dash}</td><td>${dash}</td>
+          <td>${rr.type === 'sub' ? rr.count : dash}</td>
+          <td>${dash}</td><td>${dash}</td>
+          <td class="stats-rev-cell">${rr.label} ${amountTxt}</td>
+          <td class="stats-usd-cell">${fmtUsd(u)}</td>
+        </tr>`;
+    }).join('');
+    return `<tbody id="stApp${bi}" class="stats-collapsed">${mainRow}${platRows}${revRows}</tbody>`;
   }).join('');
+
   const snapTh = subsSnapDate ? ` <span class="stats-note">(נכון ל-${esc(subsSnapDate)}, בפיגור יום-יומיים)</span>` : '';
   el.innerHTML = `<div class="stats-wrap"><table class="stats-table">
-    <thead><tr><th colspan="2">אפליקציה</th><th>הורדות · 30י</th><th>הורדות · 7י</th><th>עדכונים</th><th>רכישות</th><th>מנויים בתשלום${snapTh}</th><th>קודים/ניסיון</th><th>חד-פעמי</th><th>הכנסות</th></tr></thead>
-    <tbody>${rowsHtml}
-    <tr class="stats-total"><td colspan="2">סה"כ</td><td>${tot.d30.toLocaleString()}</td><td>${tot.d7.toLocaleString()}</td><td>${tot.upd.toLocaleString()}</td><td>${tot.iap.toLocaleString()}</td><td>${tot.subPaid.toLocaleString()}</td><td>${(tot.subCode + tot.subTrial).toLocaleString()}</td><td>${tot.ot.toLocaleString()}</td><td class="stats-rev-cell">${Object.entries(tot.rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—'}</td></tr>
-    </tbody></table></div>
+    <thead><tr><th>אפליקציה</th><th>הורדות · 30י</th><th>הורדות · 7י</th><th>עדכונים</th><th>מנויים בתשלום${snapTh}</th><th>קודים/ניסיון</th><th>חד-פעמי</th><th>הכנסות</th><th>המרה לדולר</th></tr></thead>
+    ${bodies}
+    <tbody><tr class="stats-total"><td>סה"כ</td><td>${tot.d30.toLocaleString()}</td><td>${tot.d7.toLocaleString()}</td><td>${tot.upd.toLocaleString()}</td><td>${tot.subPaid.toLocaleString()}</td><td>${tot.subCode.toLocaleString()}</td><td>${tot.ot.toLocaleString()}</td><td class="stats-rev-cell">${Object.entries(tot.rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—'}</td><td class="stats-usd-cell">${fmtUsd(tot.usd || null)}</td></tr></tbody>
+    </table></div>
     <div class="stats-modal" id="statsModal" hidden onclick="if(event.target===this)this.hidden=true">
       <div class="stats-modal-card"><button class="stats-modal-x" onclick="document.getElementById('statsModal').hidden=true">✕</button><div id="statsModalBody"></div></div>
     </div>`;
