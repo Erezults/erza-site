@@ -1230,10 +1230,10 @@ tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_UI_VER='9515b409006b'</script>
+<script>window.ERZA_UI_VER='a8fb7cbd85e6'</script>
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=5d64fc40"></script>
+<script src="data.enc.js?v=96cecd0c"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2660,14 +2660,21 @@ function computeSubsByApp(lookup) {
   for (const [, v] of Object.entries(subs.apps || {})) {
     const app = lookup['id:' + v.appleId]; if (!app) continue;
     const key = app.dir || app.name;
-    const a = byApp[key] ??= {paid: 0, code: 0, trial: 0, markets: []};
+    const a = byApp[key] ??= {paid: 0, paidMonthly: 0, paidYearly: 0, code: 0, trial: 0, markets: []};
     for (const [subName, sv] of Object.entries(v.subs || {})) {
-      a.paid += (sv.standard || 0) + (sv.introPaid || 0) + (sv.winbackPaid || 0);
+      const paid = (sv.standard || 0) + (sv.introPaid || 0) + (sv.winbackPaid || 0);
+      a.paid += paid;
+      // Erez 2026-08-31 (round 5): two subscriber columns, monthly vs yearly — cycle comes
+      // from asc-subscriptions.mjs (Apple's own "Standard Subscription Duration" column, not
+      // a name guess). Weekly/other are rare edge cases with no dedicated column yet — folded
+      // into "monthly" (the closer cadence) rather than silently dropped.
+      if (sv.cycle === 'yearly') a.paidYearly += paid; else a.paidMonthly += paid;
       a.code += (sv.codePaid || 0) + (sv.codeTrial || 0) + (sv.promoPaid || 0) + (sv.promoTrial || 0);
       a.trial += sv.introTrial || 0;
-      // carry the product name (subName) alongside each market row so a per-country sub-row
-      // can label its cycle (מנוי חודשי/שנתי/שבועי) — see revLabel() in renderStats.
-      for (const m of sv.markets || []) if (m.paid > 0) a.markets.push({...m, sub: subName});
+      // carry the product name (subName) + cycle alongside each market row: the sub-row must
+      // show the EXACT product name (apps can have several monthly/yearly products) and the
+      // cycle decides which of the two revenue columns (monthly/yearly) it belongs in.
+      for (const m of sv.markets || []) if (m.paid > 0) a.markets.push({...m, sub: subName, cycle: sv.cycle || 'monthly'});
     }
   }
   return {byApp, snapshotDate: subs.snapshotDate || null};
