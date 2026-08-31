@@ -1233,7 +1233,7 @@ tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=0af1018c"></script>
+<script src="data.enc.js?v=aef1df9c"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2930,20 +2930,25 @@ function openStatsModal(bi) {
   const b = (window.__statsBlocks || [])[bi]; if (!b) return;
   const days = window.__statsDays || [];
   const nm = displayApp(b.app.dir || b.app.name);
-  const chart = (m, label) => {
-    const maxV = Math.max(1, ...days.map(d => m.series[d] || 0));
+  // Erez 2026-08-31 (round 2): show the updates graph alongside downloads, same period.
+  const chart = (seriesMap, label, color) => {
+    const maxV = Math.max(1, ...days.map(d => seriesMap[d] || 0));
     const W = 480, H = 100, bw = Math.max(4, Math.floor(W / days.length) - 2);
     const bars = days.map((d, j) => {
-      const v = m.series[d] || 0, h = Math.max(2, Math.round(v / maxV * (H - 26)));
-      return `<rect x="${j * (bw + 2)}" y="${H - 18 - h}" width="${bw}" height="${h}" rx="2" fill="var(--blue)" opacity="${v ? .9 : .18}"><title>${d}: ${v}</title></rect>`
+      const v = seriesMap[d] || 0, h = Math.max(2, Math.round(v / maxV * (H - 26)));
+      return `<rect x="${j * (bw + 2)}" y="${H - 18 - h}" width="${bw}" height="${h}" rx="2" fill="${color}" opacity="${v ? .9 : .18}"><title>${d}: ${v}</title></rect>`
         + (v ? `<text x="${j * (bw + 2) + bw / 2}" y="${H - 21 - h}" text-anchor="middle" font-size="8" fill="var(--ink-2)">${v}</text>` : '');
     }).join('');
     const lbl = (idx) => `<text x="${idx * (bw + 2) + bw / 2}" y="${H - 5}" text-anchor="middle" font-size="7.5" fill="var(--muted)">${days[idx].slice(5)}</text>`;
-    return `<div class="stats-modal-sub" style="margin-top:8px">${label} · הורדות יומיות</div>
+    return `<div class="stats-modal-sub" style="margin-top:8px">${label}</div>
       <div style="overflow-x:auto"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${bars}${lbl(0)}${lbl(Math.floor(days.length / 2))}${lbl(days.length - 1)}</svg></div>`;
   };
   let body = `<h4><img src="icons/${b.app.dir || b.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'">${nm}</h4>`;
-  for (const r of b.subs) body += chart(r.d, r.plat === 'mac' ? '💻 macOS' : '📱 iOS');
+  for (const r of b.subs) {
+    const platLabel = r.plat === 'mac' ? '💻 macOS' : '📱 iOS';
+    body += chart(r.d.series, `${platLabel} · הורדות יומיות`, 'var(--blue)');
+    body += chart(r.d.updSeries, `${platLabel} · עדכונים יומיים`, 'var(--aqua)');
+  }
   document.getElementById('statsModalBody').innerHTML = body;
   document.getElementById('statsModal').hidden = false;
 }
