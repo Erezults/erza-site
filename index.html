@@ -704,17 +704,26 @@ footer a { color: var(--muted); }
 .stats-table td { text-align: center; padding: 6px 4px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
 .stats-table tbody + tbody tr:first-child td { border-top: 2px solid var(--baseline); }
 .stats-table tr:last-child td { border-bottom: none; }
-.stats-app { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; border: none; background: none; padding: 2px 4px; color: var(--ink-1); }
-.stats-app img { width: 26px; height: 26px; border-radius: 7px; box-shadow: 0 1px 3px var(--ring); flex-shrink: 0; }
-.stats-app span { font-size: 11.5px; font-weight: 600; color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stats-app { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; border: none; background: none; padding: 2px 4px; color: var(--ink-1); }
+.stats-app img { width: 30px; height: 30px; border-radius: 8px; box-shadow: 0 1px 3px var(--ring); flex-shrink: 0; }
+.stats-app span { display: block; max-width: 66px; font-size: 10.5px; font-weight: 600; color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
 .stats-total td { font-weight: 700; background: var(--tint); border-top: 2px solid var(--baseline); }
 /* ▸ accordion (Erez 2026-08-31): one <tbody> per app — first row summarizes, the rest are
    detail sub-rows (platform downloads/updates split, and country×product revenue breakdown).
-   Collapsed by default; the chevron rotates via the tbody's collapsed state, no extra JS. */
+   Collapsed by default; the chevron rotates via the tbody's collapsed state, no extra JS.
+   Erez 2026-08-31 (round 2): the chevron was "barely visible" — a real tinted circular
+   button with a proper hit area, not a bare 10px glyph. */
 .stats-mainrow { text-align: right; }
 .stats-mainrow td:first-child { text-align: start; }
-.stats-chevron { display: inline-block; width: 16px; text-align: center; cursor: pointer; color: var(--muted); font-size: 10px; transition: transform .15s; user-select: none; }
-tbody:not(.stats-collapsed) .stats-chevron { transform: rotate(90deg); }
+.stats-appcell-inner { display: flex; align-items: center; gap: 6px; justify-content: flex-start; }
+.stats-chevron-btn {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--grid);
+  background: var(--tint); color: var(--ink-2); font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: transform .15s ease, background .15s ease, color .15s ease;
+}
+.stats-chevron-btn:hover { background: var(--baseline); color: var(--ink-1); }
+tbody:not(.stats-collapsed) .stats-chevron-btn { transform: rotate(90deg); background: var(--baseline); color: var(--ink-1); }
 tbody.stats-collapsed tr.stats-subrow { display: none; }
 tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11px; }
 .stats-sub-label { display: flex; align-items: center; gap: 5px; padding-inline-start: 22px; justify-content: flex-start; text-align: start; }
@@ -1224,7 +1233,7 @@ tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=ff2684c5"></script>
+<script src="data.enc.js?v=0af1018c"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2622,6 +2631,19 @@ const TABS = ['overview', 'instructions', 'items', 'info', 'common', 'stats'];
 // Actual revenue (the table's existing "הכנסות" column) is untouched — it already sums Apple's
 // real Developer Proceeds, which are $0 for code/promo redemptions, so it was always
 // code-exclusive; these new columns just make the split visible instead of implicit.
+// Erez 2026-08-31 (round 2): the stats table's app cell must show the SHORT product name
+// (Ownest, Healthy, Groupy, …) under the icon, never the long official App Store title
+// (displayApp() gives "Ownest: Property Manager" / "Healthy Circle" / "Groupy Calendar" —
+// correct for the store panel, too long for a narrow table column). Keyed by app.dir/name.
+const STATS_SHORT_NAME = {
+  Coin: 'Coin', Emoryx: 'Emoryx', FundivaNative: 'Fundiva', GroupyNative_New: 'Groupy',
+  HealtyNative: 'Healthy', HomeNetIP: 'HomeNetIP', OwnestNative: 'Ownest',
+  SalarixNative: 'Salarix', xpensy: 'Xpensy',
+};
+function statsShortName(app) {
+  const key = (app && (app.dir || app.name)) || '';
+  return STATS_SHORT_NAME[key] || String(key).replace(/native/gi, '').replace(/_new/gi, '').trim() || key;
+}
 const SUBS_RECUR_RE = /month|year|annual|week|renew|subscription/i;
 const SUBS_CUR_SYM = {USD: '$', GBP: '£', EUR: '€', ILS: '₪'};
 function subsCurFmt(n, c) { return SUBS_CUR_SYM[c] ? `${SUBS_CUR_SYM[c]}${n}` : `${n} ${c}`; }
@@ -2689,6 +2711,7 @@ function renderStats() {
       for (const [pl, pv] of Object.entries(v.plat || {ios: {units: v.units, proceeds: v.proceeds}})) {
         const t = a.plat[pl] ??= mk();
         t.series[d] = (t.series[d] || 0) + ((pv.units || {}).downloads || 0);
+        t.updSeries[d] = (t.updSeries[d] || 0) + ((pv.units || {}).updates || 0);
         for (const [b, n] of Object.entries(pv.units || {})) t.u[b] = (t.u[b] || 0) + n;
         for (const [c, n] of Object.entries(pv.proceeds || {})) t.rev[c] = r2(((t.rev[c] || 0) + n));
         let riUnits = 0;
@@ -2712,7 +2735,7 @@ function renderStats() {
       }
     }
   }
-  function mk() { return {series: {}, u: {}, rev: {}, revItems: {}, ot: {units: 0, proceeds: {}}}; }
+  function mk() { return {series: {}, updSeries: {}, u: {}, rev: {}, revItems: {}, ot: {units: 0, proceeds: {}}}; }
   function r2(n) { return Math.round(n * 100) / 100; }
   // fold every report row into its LIVE portfolio app (dev never appears in sales)
   const lookup = {};
@@ -2729,6 +2752,7 @@ function renderStats() {
   const ensure = (app) => per[app.dir || app.name] ??= {app, ios: mk(), mac: mk()};
   const fold = (tgt, src) => {
     for (const [d, v] of Object.entries(src.series)) tgt.series[d] = (tgt.series[d] || 0) + v;
+    for (const [d, v] of Object.entries(src.updSeries || {})) tgt.updSeries[d] = (tgt.updSeries[d] || 0) + v;
     for (const [b, n] of Object.entries(src.u)) tgt.u[b] = (tgt.u[b] || 0) + n;
     for (const [c, n] of Object.entries(src.rev)) tgt.rev[c] = r2((tgt.rev[c] || 0) + n);
     for (const [sk, it] of Object.entries(src.revItems || {})) {
@@ -2835,7 +2859,7 @@ function renderStats() {
   };
 
   const bodies = blocks.map((b, bi) => {
-    const nm = displayApp(b.app.dir || b.app.name);
+    const nm = statsShortName(b.app);
     const d30 = (b.subs[0] ? b.subs[0].d.u.downloads || 0 : 0) + (b.subs[1] ? b.subs[1].d.u.downloads || 0 : 0);
     const d7 = b.subs.reduce((s, r) => s + days.filter(d => last7.has(d)).reduce((s2, d) => s2 + (r.d.series[d] || 0), 0), 0);
     const upd30 = b.subs.reduce((s, r) => s + (r.d.u.updates || 0), 0);
@@ -2851,8 +2875,10 @@ function renderStats() {
 
     const revUsd = Object.entries(combRev).reduce((s, [c, n]) => { const u = usd(n, c); return u == null ? s : s + u; }, 0);
     const mainRow = `<tr class="stats-mainrow">
-        <td><span class="stats-chevron"${hasSub ? ` onclick="toggleStatsApp(${bi})"` : ' style="visibility:hidden"'}>▸</span>
-          <button class="stats-app" onclick="openStatsModal(${bi})"><img src="icons/${b.app.dir || b.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'"><span>${nm}</span></button></td>
+        <td><div class="stats-appcell-inner">
+          <button class="stats-chevron-btn"${hasSub ? ` onclick="toggleStatsApp(${bi})"` : ' style="visibility:hidden"'} aria-label="הצג פירוט" title="הצג פירוט">▸</button>
+          <button class="stats-app" onclick="openStatsModal(${bi})"><img src="icons/${b.app.dir || b.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'"><span>${nm}</span></button>
+        </div></td>
         <td><b>${d30.toLocaleString()}</b></td>
         <td>${d7.toLocaleString()}</td>
         <td>${upd30.toLocaleString()}</td>
