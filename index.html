@@ -714,23 +714,13 @@ footer a { color: var(--muted); }
 .stats-rev-cell { font-size: 10.5px; white-space: nowrap; }
 .stats-rev-line { display: block; line-height: 1.5; }
 .stats-empty { padding: 26px; text-align: center; color: var(--ink-2); font-size: 14px; border: 1px dashed var(--baseline); border-radius: 14px; margin-top: 12px; }
-/* 💳 מנויים ורכישות — paid-subs snapshot + one-time IAP strip on the 📈 tab */
-.subs-section { margin-top: 22px; }
-.subs-h { font-size: 14px; font-weight: 700; color: var(--ink-1); }
-.subs-group { margin-top: 10px; }
-.subs-gh { font-size: 12.5px; font-weight: 600; color: var(--ink-1); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.subs-note { font-size: 10.5px; font-weight: 400; color: var(--muted); }
-.subs-cards { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
-.subs-card { position: relative; display: flex; align-items: center; gap: 10px; border: 1px solid var(--grid); background: var(--surface-1); border-radius: 14px; padding: 10px 12px; min-width: 215px; }
-.subs-card .appicon { width: 34px; height: 34px; border-radius: 8px; margin: 0; flex-shrink: 0; vertical-align: middle; }
-.subs-card-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.subs-name { font-size: 12px; font-weight: 600; color: var(--ink-1); }
-.subs-prod { font-size: 10.5px; color: var(--ink-2); }
-.subs-extra { font-size: 10px; color: var(--muted); }
-.subs-paid { font-size: 21px; font-weight: 800; color: var(--ink-1); margin-inline-start: auto; padding-inline-start: 14px; font-variant-numeric: tabular-nums; }
-.subs-chip { position: absolute; top: -7px; inset-inline-start: 10px; font-size: 8.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--baseline); background: var(--surface-1); color: var(--ink-2); }
-.subs-chip-one { border-style: dashed; }
-.subs-zero { margin-top: 8px; font-size: 10.5px; color: var(--muted); }
+/* 💳 מנויים ורכישות — folded directly into the stats table (Erez 2026-08-31: one table,
+   not a separate card strip). Real-money counts vs. code/promo/trial stay visually distinct. */
+.stats-sub-cell { font-size: 11px; line-height: 1.5; }
+.stats-sub-paid { font-size: 13px; font-weight: 800; }
+.stats-sub-market { font-size: 9.5px; color: var(--muted); white-space: nowrap; }
+.stats-sub-code { font-size: 10px; color: var(--ink-2); white-space: nowrap; }
+.stats-note { font-size: 9px; font-weight: 400; color: var(--muted); white-space: normal; }
 .stats-modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 90; padding: 18px; }
 .stats-modal[hidden] { display: none; }
 .stats-modal-card { background: var(--surface-1); color: var(--ink-1); border: 1px solid var(--grid); border-radius: 16px; padding: 16px; width: min(560px, 100%); }
@@ -1226,7 +1216,7 @@ footer a { color: var(--muted); }
 
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=f45620bb"></script>
+<script src="data.enc.js?v=050ea98e"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2609,87 +2599,46 @@ const mrLabel = app => displayApp(app);
 // the panel is not enough, which is exactly how the תצוגות tab shipped dead (2026-08-07).
 const TABS = ['overview', 'instructions', 'items', 'info', 'common', 'stats'];
 
-// 💳 מנויים ורכישות — two honest sources, rendered as one strip on the 📈 tab:
-//  · recurring paid subs = registry/subscriptions_status.json (Apple's daily SUBSCRIPTION
-//    snapshot — active counts, lags ~1-2 days, so the header names its snapshot date);
-//  · one-time IAP purchases = summed from the cached sales history (analytics revItems +
-//    the iap units bucket). Apple's iap bucket MIXES auto-renewables with one-time products,
-//    so SKU/title name-pattern tells them apart; zero-proceed one-timers never reach revItems
+// 💳 מנויים ורכישות — folded directly into the 📈 stats table (Erez 2026-08-31: "why cards
+// below the table? fill the data INTO the table, with a revenue summary; separate code usage
+// from actual revenue"). Two honest sources, three columns added to the SAME <table>:
+//  · active paid subscribers = registry/subscriptions_status.json (Apple's daily SUBSCRIPTION
+//    snapshot, resolved to a portfolio app via ASC Apple ID) — split into real-money "בתשלום"
+//    (standard price + Apple's own intro offer + win-back — all actual paying customers) vs.
+//    developer/Apple-issued "קודים/ניסיון" (offer codes, promotional offers, free trial) which
+//    is NEVER counted as revenue, shown in its own column;
+//  · one-time IAP purchases = summed from the cached sales history (analytics revItems + the
+//    iap units bucket). Apple's iap bucket MIXES auto-renewables with one-time products, so
+//    SKU/title name-pattern tells them apart; zero-proceed one-timers never reach revItems
 //    (proceeds>0 guard in asc-analytics) and are recovered from the day-record's own sku.
+// Actual revenue (the table's existing "הכנסות" column) is untouched — it already sums Apple's
+// real Developer Proceeds, which are $0 for code/promo redemptions, so it was always
+// code-exclusive; these new columns just make the split visible instead of implicit.
 const SUBS_RECUR_RE = /month|year|annual|week|renew|subscription/i;
-function renderSubsSection() {
-  const D = window.ERZA_DATA || {};
-  const curTxt = (m) => Object.entries(m || {}).map(([c, n]) => `${(Math.round(n * 100) / 100).toLocaleString()} ${c}`).join(' · ');
-  // --- recurring subs (daily snapshot) ---
-  const subs = D.subscriptions || {};
-  const sApps = Object.entries(subs.apps || {});
-  const tSum = (v) => ['paid', 'trial', 'grace', 'billingRetry'].reduce((s, f) => s + ((v.totals || {})[f] || 0), 0);
-  const active = sApps.filter(([, v]) => tSum(v) > 0).sort((a, b) => ((b[1].totals || {}).paid || 0) - ((a[1].totals || {}).paid || 0));
-  const zero = sApps.filter(([, v]) => tSum(v) === 0).map(([n]) => displayApp(n));
-  const totPaid = active.reduce((s, [, v]) => s + ((v.totals || {}).paid || 0), 0);
-  const subIcon = (name) => mrIcon(Object.keys(ASC_NAME).find(k => ASC_NAME[k] === name && k !== 'ERZA') || name);
-  const subLabel = (sk) => { const k = String(sk).toLowerCase();
-    if (k.includes('month')) return 'מנוי חודשי';
-    if (k.includes('year') || k.includes('annual')) return 'מנוי שנתי';
-    if (k.includes('week')) return 'מנוי שבועי';
-    return sk; };
-  const subCards = active.map(([name, v]) => {
-    const t = v.totals || {};
-    const prods = Object.entries(v.subs || {}).map(([sk, sv]) => `<div class="subs-prod">${esc(subLabel(sk))} · ${sv.paid || 0}</div>`).join('');
-    const extras = [['ניסיון', t.trial], ['Grace', t.grace], ['כשל חיוב', t.billingRetry]].filter(([, n]) => n > 0).map(([l, n]) => `${l}: ${n}`).join(' · ');
-    return `<div class="subs-card"><span class="subs-chip">מתחדש</span>${subIcon(name)}<div class="subs-card-body"><div class="subs-name">${esc(displayApp(name))}</div>${prods}${extras ? `<div class="subs-extra">${extras}</div>` : ''}</div><div class="subs-paid" title="מנויים בתשלום פעילים">${t.paid || 0}</div></div>`;
-  }).join('');
-  // --- one-time IAP purchases (cached sales history) ---
-  const anDays = (D.analytics || {}).days || {};
-  const days = Object.keys(anDays).sort();
-  const titles = {}, oneTime = {};
-  const isRec = (sk) => SUBS_RECUR_RE.test(sk + ' ' + (titles[sk] || ''));
-  for (const d of days) for (const [gk, rec] of Object.entries((anDays[d] || {}).apps || {})) {
-    if (rec.sku && rec.title && !titles[rec.sku]) titles[rec.sku] = rec.title;
-    for (const pv of Object.values(rec.plat || {})) {
-      let riUnits = 0;
-      for (const [sk, it] of Object.entries(pv.revItems || {})) {
-        riUnits += it.units || 0;
-        if (isRec(sk)) continue;
-        const t = oneTime[sk] ??= {units: 0, proceeds: {}, gk};
-        t.units += it.units || 0;
-        for (const [c, n] of Object.entries(it.proceeds || {})) t.proceeds[c] = Math.round(((t.proceeds[c] || 0) + n) * 100) / 100;
-      }
-      const iapU = (pv.units || {}).iap || 0;
-      if (iapU > riUnits && rec.sku && !isRec(rec.sku)) {  // zero-proceed one-timers
-        const t = oneTime[rec.sku] ??= {units: 0, proceeds: {}, gk};
-        t.units += iapU - riUnits;
-      }
+const SUBS_CUR_SYM = {USD: '$', GBP: '£', EUR: '€', ILS: '₪'};
+function subsCurFmt(n, c) { return SUBS_CUR_SYM[c] ? `${SUBS_CUR_SYM[c]}${n}` : `${n} ${c}`; }
+function subsFlag(cc) {
+  if (!cc || cc.length !== 2) return '';
+  return String.fromCodePoint(...[...cc.toUpperCase()].map(ch => 127397 + ch.charCodeAt(0)));
+}
+// Resolves each subscriptions_status.json app entry to its portfolio app via ASC Apple ID and
+// aggregates the acquisition-type breakdown per app. `lookup` is the same 'id:'/'sku:' map
+// renderStats already builds to fold sales rows onto portfolio apps.
+function computeSubsByApp(lookup) {
+  const subs = (window.ERZA_DATA || {}).subscriptions || {};
+  const byApp = {};
+  for (const [, v] of Object.entries(subs.apps || {})) {
+    const app = lookup['id:' + v.appleId]; if (!app) continue;
+    const key = app.dir || app.name;
+    const a = byApp[key] ??= {paid: 0, code: 0, trial: 0, markets: []};
+    for (const sv of Object.values(v.subs || {})) {
+      a.paid += (sv.standard || 0) + (sv.introPaid || 0) + (sv.winbackPaid || 0);
+      a.code += (sv.codePaid || 0) + (sv.codeTrial || 0) + (sv.promoPaid || 0) + (sv.promoTrial || 0);
+      a.trial += sv.introTrial || 0;
+      for (const m of sv.markets || []) if (m.paid > 0) a.markets.push(m);
     }
   }
-  const natives = (D.apps || []).filter(a => a.role === 'native');
-  const look = {};
-  for (const app of natives) {
-    for (const id of (app.asc && app.asc.appleIds) || []) look['id:' + id] = app;
-    for (const sk of (app.asc && app.asc.skus) || []) look['sku:' + String(sk).toLowerCase()] = app;
-    if (app.bundleId) look['sku:' + app.bundleId.toLowerCase()] = app;
-  }
-  const appOf = (gk) => look[gk.startsWith('sku:') ? 'sku:' + gk.slice(4).toLowerCase() : gk] || null;
-  const otLabel = (sk) => titles[sk] || (/lifetime/i.test(sk) ? 'Lifetime' : /founder/i.test(sk) ? 'Founders' : sk);
-  const otEntries = Object.entries(oneTime).sort((a, b) => b[1].units - a[1].units);
-  const otUnits = otEntries.reduce((s, [, t]) => s + t.units, 0);
-  const otCards = otEntries.map(([sk, t]) => {
-    const app = appOf(t.gk);
-    const nm = app ? displayApp(app.dir || app.name) : t.gk.replace(/^(sku|id):/, '');
-    const rev = curTxt(t.proceeds);
-    return `<div class="subs-card"><span class="subs-chip subs-chip-one">חד-פעמי</span>${app ? mrIcon(app.dir || app.name) : ''}<div class="subs-card-body"><div class="subs-name">${esc(nm)}</div><div class="subs-prod">${esc(otLabel(sk))}</div>${rev ? `<div class="subs-extra">${rev}</div>` : ''}</div><div class="subs-paid" title="יחידות שנרכשו">${t.units}</div></div>`;
-  }).join('');
-  if (!subCards && !zero.length && !otCards) return '';
-  const snapNote = subs.snapshotDate ? `נכון ל-${esc(subs.snapshotDate)} · נתוני אפל מתעדכנים בפיגור של יום-יומיים` : '';
-  const spanNote = days.length ? `מצטבר מ-${esc(days[0])} עד ${esc(days[days.length - 1])} (דוחות המכירות)` : '';
-  return `<div class="subs-section">
-    <div class="subs-h">💳 מנויים ורכישות</div>
-    <div class="subs-group"><div class="subs-gh">🔄 מנויים בתשלום — ${totPaid}${snapNote ? ` <span class="subs-note">${snapNote}</span>` : ''}</div>
-      ${subCards ? `<div class="subs-cards">${subCards}</div>` : '<div class="subs-zero">אין עדיין מנויים בתשלום.</div>'}
-      ${zero.length ? `<div class="subs-zero">ללא מנויים: ${zero.map(esc).join(' · ')}</div>` : ''}</div>
-    <div class="subs-group"><div class="subs-gh">🛒 רכישות חד-פעמיות — ${otUnits}${spanNote ? ` <span class="subs-note">${spanNote}</span>` : ''}</div>
-      ${otCards ? `<div class="subs-cards">${otCards}</div>` : '<div class="subs-zero">לא נרשמו רכישות חד-פעמיות בתקופה.</div>'}</div>
-  </div>`;
+  return {byApp, snapshotDate: subs.snapshotDate || null};
 }
 
 function renderStats() {
@@ -2697,30 +2646,43 @@ function renderStats() {
   const an = (window.ERZA_DATA || {}).analytics;
   const upd = document.getElementById('statsUpdated');
   if (!an || !an.days || !Object.keys(an.days).length) {
-    el.innerHTML = '<div class="stats-empty">אין עדיין נתוני מכירות.</div>' + renderSubsSection();
+    el.innerHTML = '<div class="stats-empty">אין עדיין נתוני מכירות.</div>';
     return;
   }
   if (upd) upd.textContent = 'עודכן: ' + (an.updatedAt || '').slice(0, 16).replace('T', ' ') + ' · 30 יום אחרונים';
   const days = Object.keys(an.days).sort();
+  // one-time (non-renewing) IAP vs. auto-renewable — SKU/title pattern tells them apart
+  // (Apple's own "iap" units bucket mixes both); titles are captured as records are seen.
+  const otTitles = {};
+  const isRecurring = (sk) => SUBS_RECUR_RE.test(sk + ' ' + (otTitles[sk] || ''));
   // aggregate raw rows: per report-app, per platform, with per-day download series
   const raw = {};
   for (const d of days) {
     for (const [k, v] of Object.entries(an.days[d].apps || {})) {
+      if (v.sku && v.title && !otTitles[v.sku]) otTitles[v.sku] = v.title;
       const a = raw[k] ??= {sku: v.sku, appleId: v.appleId, plat: {ios: mk(), mac: mk()}};
       for (const [pl, pv] of Object.entries(v.plat || {ios: {units: v.units, proceeds: v.proceeds}})) {
         const t = a.plat[pl] ??= mk();
         t.series[d] = (t.series[d] || 0) + ((pv.units || {}).downloads || 0);
         for (const [b, n] of Object.entries(pv.units || {})) t.u[b] = (t.u[b] || 0) + n;
         for (const [c, n] of Object.entries(pv.proceeds || {})) t.rev[c] = r2(((t.rev[c] || 0) + n));
+        let riUnits = 0;
         for (const [sk, it] of Object.entries(pv.revItems || {})) {
           const ti = t.revItems[sk] ??= {units: 0, proceeds: {}};
           ti.units += it.units || 0;
           for (const [c, n] of Object.entries(it.proceeds || {})) ti.proceeds[c] = r2((ti.proceeds[c] || 0) + n);
+          riUnits += it.units || 0;
+          if (!isRecurring(sk)) {
+            t.ot.units += it.units || 0;
+            for (const [c, n] of Object.entries(it.proceeds || {})) t.ot.proceeds[c] = r2((t.ot.proceeds[c] || 0) + n);
+          }
         }
+        const iapU = (pv.units || {}).iap || 0;
+        if (iapU > riUnits && v.sku && !isRecurring(v.sku)) t.ot.units += iapU - riUnits;  // zero-proceed one-timers
       }
     }
   }
-  function mk() { return {series: {}, u: {}, rev: {}, revItems: {}}; }
+  function mk() { return {series: {}, u: {}, rev: {}, revItems: {}, ot: {units: 0, proceeds: {}}}; }
   function r2(n) { return Math.round(n * 100) / 100; }
   // fold every report row into its LIVE portfolio app (dev never appears in sales)
   const lookup = {};
@@ -2730,6 +2692,9 @@ function renderStats() {
     for (const sk of (app.asc && app.asc.skus) || []) lookup['sku:' + String(sk).toLowerCase()] = app;
     if (app.bundleId) lookup['sku:' + app.bundleId.toLowerCase()] = app;
   }
+  // 💳 active paid subscribers (Apple daily SUBSCRIPTION snapshot), resolved onto the same
+  // portfolio apps via ASC Apple ID — see computeSubsByApp for the acquisition-type split.
+  const {byApp: subByApp, snapshotDate: subsSnapDate} = computeSubsByApp(lookup);
   const per = {};  // app.dir → {app, ios: mk, mac: mk}
   const ensure = (app) => per[app.dir || app.name] ??= {app, ios: mk(), mac: mk()};
   const fold = (tgt, src) => {
@@ -2741,6 +2706,8 @@ function renderStats() {
       ti.units += it.units || 0;
       for (const [c, n] of Object.entries(it.proceeds || {})) ti.proceeds[c] = r2((ti.proceeds[c] || 0) + n);
     }
+    tgt.ot.units += (src.ot || {}).units || 0;
+    for (const [c, n] of Object.entries((src.ot || {}).proceeds || {})) tgt.ot.proceeds[c] = r2((tgt.ot.proceeds[c] || 0) + n);
   };
   const orphans = [];
   for (const a of Object.values(raw)) {
@@ -2784,11 +2751,29 @@ function renderStats() {
     const subs = [];
     if (plats.includes('IOS') || (slot.ios.u.downloads || 0) > 0) subs.push({plat: 'ios', d: slot.ios});
     if (plats.includes('MAC_OS') || (slot.mac.u.downloads || 0) > 0) subs.push({plat: 'mac', d: slot.mac});
-    if (subs.length) blocks.push({app: slot.app, subs, total: subs.reduce((n, r) => n + (r.d.u.downloads || 0), 0)});
+    if (subs.length) {
+      const ot = {units: (slot.ios.ot.units || 0) + (slot.mac.ot.units || 0), proceeds: {}};
+      for (const [c, n] of Object.entries(slot.ios.ot.proceeds)) ot.proceeds[c] = r2((ot.proceeds[c] || 0) + n);
+      for (const [c, n] of Object.entries(slot.mac.ot.proceeds)) ot.proceeds[c] = r2((ot.proceeds[c] || 0) + n);
+      blocks.push({app: slot.app, subs, ot, sub: subByApp[slot.app.dir || slot.app.name] || null, total: subs.reduce((n, r) => n + (r.d.u.downloads || 0), 0)});
+    }
   }
   blocks.sort((x, y) => (y.total - x.total) || String(x.app.name).localeCompare(y.app.name));
   window.__statsBlocks = blocks; window.__statsDays = days;
-  const tot = {d30: 0, d7: 0, upd: 0, iap: 0, rev: {}};
+  const tot = {d30: 0, d7: 0, upd: 0, iap: 0, rev: {}, subPaid: 0, subCode: 0, subTrial: 0, ot: 0};
+  const subPaidCell = (b) => {
+    const s = b.sub, n = s ? s.paid : 0;
+    if (!n) return '<span class="stats-sub-cell">–</span>';
+    let html = `<span class="stats-sub-cell"><span class="stats-sub-paid">${n}</span>`;
+    if (n < 10 && s.markets.length) html += s.markets.slice(0, 3).map(m => `<div class="stats-sub-market">${subsFlag(m.country)} ${subsCurFmt(m.price, m.currency)}</div>`).join('');
+    return html + '</span>';
+  };
+  const subCodeCell = (b) => {
+    const s = b.sub; const parts = [];
+    if (s && s.code) parts.push(`${s.code} בקוד/מבצע`);
+    if (s && s.trial) parts.push(`${s.trial} בניסיון`);
+    return parts.length ? `<span class="stats-sub-cell">${parts.map(p => `<div class="stats-sub-code">${p}</div>`).join('')}</span>` : '<span class="stats-sub-cell">–</span>';
+  };
   const rowsHtml = blocks.map((b, bi) => {
     const nm = displayApp(b.app.dir || b.app.name);
     return b.subs.map((r, si) => {
@@ -2799,22 +2784,29 @@ function renderStats() {
       const appCell = si === 0
         ? `<td rowspan="${b.subs.length}" class="stats-appcell"><button class="stats-app" onclick="openStatsModal(${bi})"><img src="icons/${b.app.dir || b.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'"><span>${nm}</span></button></td>`
         : '';
+      let subCells = '';
+      if (si === 0) {
+        if (b.sub) { tot.subPaid += b.sub.paid; tot.subCode += b.sub.code; tot.subTrial += b.sub.trial; }
+        tot.ot += b.ot.units || 0;
+        subCells = `<td rowspan="${b.subs.length}">${subPaidCell(b)}</td><td rowspan="${b.subs.length}">${subCodeCell(b)}</td><td rowspan="${b.subs.length}">${(b.ot.units || 0) ? `<b>${b.ot.units}</b>` : '–'}</td>`;
+      }
       return `<tr${si === b.subs.length - 1 ? ' class="stats-blockend"' : ''}>${appCell}
         <td class="stats-platcell">${r.plat === 'mac' ? '💻' : '📱'}</td>
         <td><b>${(m.u.downloads || 0).toLocaleString()}</b></td>
         <td>${d7.toLocaleString()}</td>
         <td>${(m.u.updates || 0).toLocaleString()}</td>
         <td>${(m.u.iap || 0).toLocaleString()}</td>
+        ${subCells}
         <td class="stats-rev-cell">${revTxt(m)}</td>
       </tr>`;
     }).join('');
   }).join('');
+  const snapTh = subsSnapDate ? ` <span class="stats-note">(נכון ל-${esc(subsSnapDate)}, בפיגור יום-יומיים)</span>` : '';
   el.innerHTML = `<div class="stats-wrap"><table class="stats-table">
-    <thead><tr><th colspan="2">אפליקציה</th><th>הורדות · 30י</th><th>הורדות · 7י</th><th>עדכונים</th><th>רכישות</th><th>הכנסות</th></tr></thead>
+    <thead><tr><th colspan="2">אפליקציה</th><th>הורדות · 30י</th><th>הורדות · 7י</th><th>עדכונים</th><th>רכישות</th><th>מנויים בתשלום${snapTh}</th><th>קודים/ניסיון</th><th>חד-פעמי</th><th>הכנסות</th></tr></thead>
     <tbody>${rowsHtml}
-    <tr class="stats-total"><td colspan="2">סה"כ</td><td>${tot.d30.toLocaleString()}</td><td>${tot.d7.toLocaleString()}</td><td>${tot.upd.toLocaleString()}</td><td>${tot.iap.toLocaleString()}</td><td class="stats-rev-cell">${Object.entries(tot.rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—'}</td></tr>
+    <tr class="stats-total"><td colspan="2">סה"כ</td><td>${tot.d30.toLocaleString()}</td><td>${tot.d7.toLocaleString()}</td><td>${tot.upd.toLocaleString()}</td><td>${tot.iap.toLocaleString()}</td><td>${tot.subPaid.toLocaleString()}</td><td>${(tot.subCode + tot.subTrial).toLocaleString()}</td><td>${tot.ot.toLocaleString()}</td><td class="stats-rev-cell">${Object.entries(tot.rev).map(([c, n]) => `${n.toLocaleString()} ${c}`).join('<br>') || '—'}</td></tr>
     </tbody></table></div>
-    ${renderSubsSection()}
     <div class="stats-modal" id="statsModal" hidden onclick="if(event.target===this)this.hidden=true">
       <div class="stats-modal-card"><button class="stats-modal-x" onclick="document.getElementById('statsModal').hidden=true">✕</button><div id="statsModalBody"></div></div>
     </div>`;
