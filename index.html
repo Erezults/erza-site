@@ -1149,7 +1149,7 @@ tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11
       <table>
         <thead><tr>
           <th>אפליקציה</th><th>שלב</th><th>Prod</th><th>Dev</th><th>עדכון אחרון</th>
-          <th>אתר שיווק</th><th>כיסוי סקילים</th><th>נותרו</th>
+          <th title="משתמשים רשומים ב-Supabase של האפליקציה (auth.users)">משתמשים</th><th>אתר שיווק</th><th>כיסוי סקילים</th><th>נותרו</th>
         </tr></thead>
         <tbody id="nativeBody"></tbody>
       </table>
@@ -1230,10 +1230,10 @@ tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_UI_VER='e59e9ea0aea5'</script>
+<script>window.ERZA_UI_VER='c1cbfb51291b'</script>
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=6b91c41f"></script>
+<script src="data.enc.js?v=0a223e62"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1396,6 +1396,15 @@ function boot(D, locked) {
   const match = a =>
     (fStage === 'all' || a.stage === fStage) &&
     (!fText || [a.name, a.displayName, a.product, a.purpose, a.purposeHe, a.marketingSite].join(' ').toLowerCase().includes(fText));
+
+  /* registered Supabase users (supabase-users.mjs overlay) — total, with the
+     7-day newcomers as a small green delta; "—" for apps without Supabase */
+  const usersCell = a => {
+    const u = a.supabaseUsers;
+    if (!u || typeof u.total !== 'number') return '<span class="cat">—</span>';
+    const tip = `רשומים: ${u.total} · מאומתים: ${u.confirmed} · חדשים 7 ימים: ${u.new7d} · חדשים 30 יום: ${u.new30d} · פעילים 30 יום: ${u.active30d}` + (u.fetchedAt ? ` · עודכן ${fmtDate(u.fetchedAt)}` : '');
+    return `<span title="${esc(tip)}"><b>${u.total}</b>${u.new7d ? ` <span style="color:var(--green);font-size:.85em">+${u.new7d}</span>` : ''}</span>`;
+  };
 
   /* site cell for a native app */
   const siteCell = a => {
@@ -1883,11 +1892,12 @@ function storePanelBody() {
         <td class="num" dir="ltr" style="text-align:right">${prodCell(a)}</td>
         <td class="num" dir="ltr" style="text-align:right">${devCell(a)}</td>
         <td class="num">${fmtDate(a.gitLastCommitDate)}</td>
+        <td class="num">${usersCell(a)}</td>
         <td>${siteCell(a)}</td>
         <td><div class="cover"><div class="track"><div class="fill" style="width:${c.pct}%"></div></div><span class="t">${c.pct}%</span></div></td>
         <td class="num">${(a.remaining || []).length}</td>
       </tr>
-      <tr class="detail" hidden><td colspan="7">${detailHTML(a)}</td></tr>`;
+      <tr class="detail" hidden><td colspan="8">${detailHTML(a)}</td></tr>`;
     }).join('');
 
     document.getElementById('webBody').innerHTML = vw.map(a => `<tr class="approw">
