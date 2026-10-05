@@ -1067,6 +1067,137 @@ tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11
 .iv-avatars{display:flex;gap:4px;flex-wrap:wrap;margin-inline-start:auto}
 .iv-avatars img{width:19px;height:19px;border-radius:5px}
 @media(max-width:560px){.iv-hero{grid-template-columns:1fr}.iv-tlrow{grid-template-columns:92px 1fr}}
+/* ============================================================
+   📧 MAILS desk (Erez 2026-10-05 — docs/plans/2026-10-05-mails-desk.md)
+   Short one-line rows grouped per mail account; details live in the
+   floating panel (#mlDlg — a bottom sheet on phones).
+   ============================================================ */
+.ml-head-stats { font-size: 12px; color: var(--muted); margin: -2px 2px 10px; }
+.ml-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.ml-seg { display: inline-flex; background: var(--tint); border: 1px solid var(--grid); border-radius: 12px; padding: 3px; gap: 2px; flex: none; }
+.ml-seg button { border: none; background: transparent; color: var(--ink-2); font: inherit; font-size: 13.5px; font-weight: 600;
+  border-radius: 9px; padding: 0 14px; min-height: 38px; cursor: pointer; white-space: nowrap; }
+.ml-seg button[aria-pressed="true"] { background: var(--surface-1); color: var(--ink-1); box-shadow: 0 1px 3px var(--ring); }
+.ml-seg .ml-segn { font-size: 11px; font-weight: 700; color: var(--muted); margin-inline-start: 4px; }
+.ml-search { flex: 1 1 180px; min-width: 0; min-height: 44px; border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-1);
+  border-radius: 10px; padding: 0 12px; font: inherit; font-size: 16px; }
+.ml-search::placeholder { color: var(--muted); }
+.ml-sort { flex: none; min-height: 44px; border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-1);
+  border-radius: 10px; padding: 0 10px; font: inherit; font-size: 14px; max-width: 100%; }
+.ml-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.ml-chips .chip { min-height: 36px; display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 13px; max-width: 100%; }
+.ml-chips .chip .ml-cn { font-size: 11px; opacity: .75; }
+.ml-chips .chip .ml-chipname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ml-more { display: block; width: 100%; text-align: center; border: 1px dashed var(--baseline); background: transparent; color: var(--blue);
+  border-radius: 10px; min-height: 44px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; margin: 4px 0 12px; }
+.ml-empty { padding: 28px 18px; text-align: center; color: var(--ink-2); font-size: 14px; border: 1px dashed var(--baseline); border-radius: 14px; margin-top: 6px; line-height: 1.7; }
+.ml-empty .ml-empty-ico { font-size: 30px; display: block; margin-bottom: 4px; }
+.ml-empty button { margin-top: 10px; border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-1); border-radius: 10px; min-height: 44px; padding: 0 16px; font: inherit; cursor: pointer; }
+
+.ml-group { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 14px; margin-bottom: 14px; overflow: hidden; }
+.ml-gh { display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 6px; border-bottom: 1px solid var(--grid); background: var(--tint); }
+.ml-gtxt { flex: 1; min-width: 0; }
+.ml-gname { font-size: 14px; font-weight: 800; color: var(--ink-1); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; overflow-wrap: anywhere; }
+.ml-gaddr { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; text-align: right; }
+.ml-gcount { flex: none; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 999px; background: var(--ink-1); color: var(--page);
+  font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
+.ml-gcount.zero { background: var(--grid); color: var(--ink-2); }
+.ml-tag { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 8px; white-space: nowrap;
+  background: color-mix(in srgb, var(--bc) 13%, transparent); color: var(--bc); border: 1px solid color-mix(in srgb, var(--bc) 30%, transparent); }
+button.ml-tag { font: inherit; font-size: 11px; font-weight: 700; cursor: help; min-height: 0; }
+.ml-mv { flex: none; width: 44px; height: 44px; border: none; background: transparent; color: var(--ink-2); border-radius: 10px; font-size: 16px; cursor: pointer; }
+.ml-mv:hover:not(:disabled) { background: var(--surface-1); color: var(--ink-1); }
+.ml-mv:disabled { opacity: .25; cursor: default; }
+
+.ml-row { padding: 4px 12px 8px; border-bottom: 1px solid var(--grid); cursor: pointer; transition: background .12s; }
+.ml-row:last-child { border-bottom: none; }
+.ml-row:hover { background: var(--tint); }
+.ml-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ml-main { flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 8px; border: none; background: transparent;
+  color: var(--ink-1); font: inherit; text-align: right; padding: 0; cursor: pointer; }
+.ml-main:focus-visible, .ml-row summary:focus-visible, .ml-link:focus-visible, .ml-mv:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 8px; }
+.ml-from { flex: 0 1 auto; max-width: 34%; font-size: 13px; font-weight: 700; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ml-title { flex: 1 1 auto; min-width: 0; font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ml-age { flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.ml-flag { flex: none; font-size: 13px; }
+.ml-links { flex: none; display: inline-flex; gap: 4px; }
+.ml-link { min-height: 44px; display: inline-flex; align-items: center; text-decoration: none; }
+.ml-link > span { display: inline-block; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600;
+  color: var(--blue); background: color-mix(in srgb, var(--blue) 10%, transparent); border: 1px solid color-mix(in srgb, var(--blue) 25%, transparent);
+  border-radius: 999px; padding: 2px 9px; }
+.ml-link:hover > span { background: color-mix(in srgb, var(--blue) 18%, transparent); }
+.ml-last { font-size: 13px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: -4px; }
+.ml-last b { color: var(--ink-1); font-weight: 600; }
+.ml-hist { margin-top: 2px; }
+.ml-hist summary { list-style: none; display: inline-flex; align-items: center; gap: 4px; min-height: 36px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; user-select: none; }
+.ml-hist summary::-webkit-details-marker { display: none; }
+.ml-hist summary::before { content: '‹'; display: inline-block; font-size: 15px; transition: transform .15s; }
+.ml-hist[open] summary::before { transform: rotate(-90deg); }
+.ml-hist-body { padding: 2px 0 4px; }
+
+.ml-te { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 5px 0; border-top: 1px dashed var(--grid); }
+.ml-te:first-child { border-top: none; }
+.ml-te.reply { margin-inline-start: 22px; padding-inline-start: 10px; border-inline-start: 2px solid color-mix(in srgb, var(--violet) 45%, transparent); border-top: none; }
+.ml-te-ico { flex: none; width: 20px; text-align: center; }
+.ml-te-body { flex: 1; min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; color: var(--ink-1); }
+.ml-te-meta { display: block; font-size: 11px; color: var(--muted); margin-top: 1px; white-space: normal; }
+.ml-st { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.ml-st.pending { color: var(--yellow); } .ml-st.done { color: var(--green); } .ml-st.failed { color: var(--red); }
+
+/* floating panel — centered card on desktop, bottom sheet on phones */
+.ml-dlg { position: fixed; inset: 0; z-index: 210; display: flex; align-items: center; justify-content: center; }
+.ml-dlg[hidden] { display: none; }
+.ml-dlg-bd { position: absolute; inset: 0; background: rgba(0,0,0,.55); }
+.ml-dlg-card { position: relative; width: min(640px, 94vw); max-height: 88vh; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--surface-1); color: var(--ink-1); border: 1px solid var(--grid); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  padding: 0 16px 16px; animation: mlin .18s ease; }
+.ml-dlg-card:focus { outline: none; }
+@keyframes mlin { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.ml-dlg-top { position: sticky; top: 0; z-index: 1; display: flex; align-items: flex-start; gap: 8px; background: var(--surface-1); padding: 14px 0 10px; border-bottom: 1px solid var(--grid); margin-bottom: 12px; }
+.ml-dlg-top h3 { flex: 1; min-width: 0; font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }
+.ml-x { flex: none; width: 44px; height: 44px; margin: -8px -8px 0 0; border: none; background: transparent; color: var(--muted); font-size: 20px; border-radius: 10px; cursor: pointer; }
+.ml-x:hover { background: var(--tint); color: var(--ink-1); }
+.ml-meta { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; margin-bottom: 12px; }
+.ml-meta dt { color: var(--muted); }
+.ml-meta dd { min-width: 0; overflow-wrap: anywhere; }
+.ml-snip { font-size: 13.5px; color: var(--ink-2); background: var(--tint); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ml-rec { font-size: 13.5px; border: 1px solid color-mix(in srgb, var(--blue) 30%, transparent); background: color-mix(in srgb, var(--blue) 8%, transparent);
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; overflow-wrap: anywhere; }
+.ml-sec { font-size: 12px; font-weight: 800; color: var(--muted); margin: 14px 0 4px; }
+.ml-dlg .ml-links { flex-wrap: wrap; display: flex; }
+.ml-dlg .ml-link > span { max-width: 260px; }
+.ml-compose { margin-top: 14px; border-top: 1px solid var(--grid); padding-top: 12px; }
+.ml-compose label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.ml-compose textarea { width: 100%; min-height: 84px; resize: vertical; border: 1px solid var(--grid); background: var(--page); color: var(--ink-1);
+  border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 16px; }
+.ml-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ml-btn { min-height: 44px; padding: 0 18px; border-radius: 10px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-1); }
+.ml-btn.primary { background: var(--ink-1); color: var(--page); border-color: var(--ink-1); }
+.ml-btn.done { color: var(--green); border-color: color-mix(in srgb, var(--green) 45%, transparent); margin-inline-start: auto; }
+.ml-btn:disabled { opacity: .45; cursor: default; }
+.ml-note { font-size: 12.5px; color: var(--ink-2); background: var(--tint); border-radius: 10px; padding: 8px 12px; margin-top: 10px; }
+.ml-toast { position: fixed; bottom: calc(18px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 260;
+  max-width: calc(100vw - 32px); background: var(--ink-1); color: var(--page); border-radius: 12px; padding: 10px 16px; font-size: 14px; font-weight: 600;
+  box-shadow: 0 8px 30px rgba(0,0,0,.3); }
+.ml-toast[hidden] { display: none; }
+.ml-toast.err { background: var(--red); color: #fff; }
+@media (max-width: 640px) {
+  .ml-chips .chip { min-height: 44px; }
+  .ml-seg button { min-height: 44px; }
+  .ml-sort { flex: 1 1 100%; }
+  .ml-row { padding: 2px 10px 8px; }
+  .ml-from { font-size: 12.5px; }
+  .ml-row .ml-lt { display: none; }             /* phones: icon-only link chips so the title keeps the room */
+  .ml-row .ml-link > span { padding: 2px 8px; }
+  .ml-from { max-width: 26%; }
+  .ml-dlg { align-items: flex-end; }
+  .ml-dlg-card { width: 100%; max-height: 90vh; border-radius: 18px 18px 0 0; padding-bottom: calc(16px + env(safe-area-inset-bottom)); animation-name: mlsheet; }
+  @keyframes mlsheet { from { transform: translateY(40px); opacity: .6; } to { transform: none; opacity: 1; } }
+  .ml-btn.done { margin-inline-start: 0; }
+  .ml-actions .ml-btn { flex: 1 1 auto; }
+}
+@media (pointer: coarse) { .ml-chips .chip, .ml-seg button { min-height: 44px; } .ml-hist summary { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .ml-dlg-card { animation: none; } .ml-hist summary::before, .ml-row { transition: none; } }
 </style>
 </head>
 <body>
@@ -1099,6 +1230,7 @@ tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11
     <button class="tab-btn on" data-tab="overview"><span class="tab-ico">🏠</span>ראשי</button>
     <button class="tab-btn" data-tab="stats"><span class="tab-ico">📈</span>סטטיסטיקות</button>
     <button class="tab-btn" data-tab="items"><span class="tab-ico">🔔</span>לטיפולך<span class="tab-badge" id="tabBadgeItems" hidden></span></button>
+    <button class="tab-btn" data-tab="mails"><span class="tab-ico">📧</span>Mails<span class="tab-badge" id="tabBadgeMails" hidden></span></button>
     <button class="tab-btn" data-tab="instructions"><span class="tab-ico">💬</span>הוראות</button>
     <button class="tab-btn" data-tab="info"><span class="tab-ico">📊</span>אינפו<span class="tab-badge" id="tabBadgeInfo" hidden></span></button>
     <button class="tab-btn" data-tab="common"><span class="tab-ico">🧩</span>קומונליות</button>
@@ -1134,6 +1266,22 @@ tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11
 
     <section class="tab-panel" data-tab="items" hidden>
       <div id="dynItems"></div>
+    </section>
+
+    <!-- 📧 Mails desk (Erez 2026-10-05) — mails ERZA flagged for Erez, per account; rendered by mailsRender() -->
+    <section class="tab-panel" data-tab="mails" hidden>
+      <div class="tab-h">📧 מיילים שדורשים אותך</div>
+      <div class="ml-head-stats" id="mlStats" hidden></div>
+      <div class="ml-toolbar">
+        <div class="ml-seg" id="mlSeg" role="group" aria-label="תצוגה">
+          <button type="button" data-view="active" aria-pressed="true">פעילים<span class="ml-segn"></span></button>
+          <button type="button" data-view="archive" aria-pressed="false">ארכיון<span class="ml-segn"></span></button>
+        </div>
+        <input id="mlSearch" class="ml-search" type="search" placeholder="חיפוש בנושא, שולח, המלצה או היסטוריה…" aria-label="חיפוש במיילים (פעילים וארכיון)">
+        <select id="mlSort" class="ml-sort" aria-label="מיון"></select>
+      </div>
+      <div class="ml-chips" id="mlChips" role="group" aria-label="סינון לפי חשבון"></div>
+      <div id="mlList"></div>
     </section>
 
     <section class="tab-panel" data-tab="info" hidden>
@@ -1230,10 +1378,10 @@ tr.stats-subrow td { color: var(--ink-2); background: var(--tint); font-size: 11
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_UI_VER='6ed827e2673d'</script>
+<script>window.ERZA_UI_VER='e2805a2040ef'</script>
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=8e3fa1f0"></script>
+<script src="data.enc.js?v=66e608b3"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -2624,7 +2772,7 @@ const mrIcon = app => app === 'ERZA'
 const mrLabel = app => displayApp(app);
 // A tab missing from this list silently falls back to 'overview' — adding the button and
 // the panel is not enough, which is exactly how the תצוגות tab shipped dead (2026-08-07).
-const TABS = ['overview', 'instructions', 'items', 'info', 'common', 'stats'];
+const TABS = ['overview', 'instructions', 'items', 'mails', 'info', 'common', 'stats'];
 
 // 💳 מנויים ורכישות — folded directly into the 📈 stats table (Erez 2026-08-31: "why cards
 // below the table? fill the data INTO the table, with a revenue summary; separate code usage
@@ -4197,6 +4345,7 @@ async function mrTick() {
     } catch { mrApprovalsErr = true; /* keep last-known mrApprovals */ }
     try { mrInstr = await gh('registry/instructions_log.json'); } catch { mrInstr = { items: [] }; }
     try { const c = await gh('registry/chat.json'); if (c && Array.isArray(c.messages)) mrChat = c; } catch { /* no chat yet */ }
+    await mailsLoadLive();               // 📧 live registry/mails.json (fallback: the copy embedded in data.js)
     mrLastLive = live;
     // capture chat scroll so the full rebuild below doesn't yank the user (restored in bindChat)
     { const l = document.getElementById('chatLog'); chatScrollSave = l ? { top: l.scrollTop, atBottom: l.scrollHeight - l.scrollTop - l.clientHeight < 60 } : null; }
@@ -4232,6 +4381,7 @@ function mrInit() {
       setTimeout(() => { b.textContent = o; b.style.background = 'transparent'; b.style.color = 'var(--blue)'; }, 1600);
     }).catch(() => alert('העתקה נכשלה — השתמש בכפתור ההורדה'));
   });
+  try { mailsInit(); } catch (e) { console.warn('mails init', e); }   // 📧 before initTabs so a restored #tab=mails opens rendered
   initTabs();                          // 5-tab bar: wire buttons, restore active tab (localStorage / #tab=)
   mrTick();
   setInterval(tickCountdown, 1000);   // 1s countdown; refreshes only every REFRESH_SECS and never while typing
@@ -4258,6 +4408,495 @@ async function checkUiFresh() {
       location.replace(location.pathname + '?v=' + encodeURIComponent(v));
     }
   } catch { /* offline or first deploy without the file yet — never block the page on this */ }
+}
+
+/* ============================================================
+   📧 MAILS desk (Erez 2026-10-05 — contract: docs/plans/2026-10-05-mails-desk.md)
+   Source of truth: registry/mails.json, written by scripts/mail-triage.mjs.
+   · Read: the copy embedded in data.js (build-registry.mjs) at boot, then the live file over
+     the GitHub API on every machine-room refresh when a token is set.
+   · Write (token only) — exactly the three things the contract lets the dashboard write:
+     a new thread entry {by:'erez', kind:'instruction', state:'pending'}, status:'closing',
+     and prefs.accountOrder. Every write re-reads the CURRENT file + sha, applies the change
+     to that fresh copy and PUTs it; on a sha conflict (409) it re-reads and re-applies, so a
+     concurrent ERZA write (new items, answers) is never clobbered.
+   ============================================================ */
+const ML = {
+  data: { accounts: {}, prefs: {}, items: [] }, live: false, writing: 0,
+  ui: { view: 'active', sort: 'newest', accts: [], q: '' },
+  openHist: new Set(), dlgId: null, lastFocus: null, inited: false,
+};
+const ML_UI_KEY = 'erza-mails-ui';
+const ML_SORTS = [['newest', 'חדש ← ישן'], ['oldest', 'ישן ← חדש'], ['account', 'לפי שם החשבון (א-ת)'], ['mine', 'ממתינים לתגובה שלי קודם']];
+const mlCloseState = s => s === 'closing' || s === 'closed';
+
+function mlNorm(d) {
+  d = d && typeof d === 'object' ? d : {};
+  const items = (Array.isArray(d.items) ? d.items : []).filter(i => i && i.id)
+    .map(i => ({ ...i, thread: Array.isArray(i.thread) ? i.thread.filter(e => e && typeof e === 'object') : [], links: Array.isArray(i.links) ? i.links : [] }));
+  return { ...d, accounts: d.accounts && typeof d.accounts === 'object' ? d.accounts : {},
+    prefs: d.prefs && typeof d.prefs === 'object' ? d.prefs : {}, items };
+}
+function mlLoadUi() {
+  try {
+    const u = JSON.parse(localStorage.getItem(ML_UI_KEY) || 'null');
+    if (u && typeof u === 'object') {
+      if (u.view === 'archive' || u.view === 'active') ML.ui.view = u.view;
+      if (ML_SORTS.some(([k]) => k === u.sort)) ML.ui.sort = u.sort;
+      if (Array.isArray(u.accts)) ML.ui.accts = u.accts.filter(x => typeof x === 'string');
+    }
+  } catch {}
+}
+function mlSaveUi() { try { localStorage.setItem(ML_UI_KEY, JSON.stringify({ view: ML.ui.view, sort: ML.ui.sort, accts: ML.ui.accts })); } catch {} }
+
+// ---- small helpers ----
+const mlTime = iso => Date.parse(iso || '') || 0;
+function mlFromName(from) {
+  const s = String(from || '').trim(); if (!s) return '—';
+  const m = s.match(/^"?(.*?)"?\s*<([^>]*)>\s*$/);
+  if (m) return m[1].trim() || m[2].split('@')[0];
+  return s.includes('@') ? s.split('@')[0] : s;
+}
+function mlAge(iso) {
+  const t = mlTime(iso); if (!t) return '';
+  const min = Math.round((Date.now() - t) / 60000);
+  if (min < 1) return 'עכשיו';
+  if (min < 60) return `לפני ${min} דק׳`;
+  const h = Math.round(min / 60); if (h < 24) return `לפני ${h} שע׳`;
+  const d = Math.round(h / 24); if (d === 1) return 'אתמול'; if (d < 7) return `לפני ${d} ימים`;
+  try { return new Date(t).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }); } catch { return fmtDate(iso); }
+}
+function mlFull(iso) {
+  const t = mlTime(iso); if (!t) return '—';
+  try { return new Date(t).toLocaleString('he-IL', { dateStyle: 'medium', timeStyle: 'short' }); } catch { return String(iso); }
+}
+// Link targets come from e-mail bodies — only real web/mail links may become clickable.
+function mlSafeUrl(u) {
+  try { const x = new URL(String(u || '')); return ['https:', 'http:', 'mailto:'].includes(x.protocol) ? x.href : null; } catch { return null; }
+}
+function mlAcct(id) {
+  const a = (ML.data.accounts || {})[id];
+  if (a && typeof a === 'object') return { id, name: a.name || a.address || 'חשבון', address: a.address || '', family: !!a.family, stale: !!a.stale };
+  return { id, name: 'חשבון לא מזוהה', address: '', family: false, stale: false };
+}
+const mlB64 = s => { const b = new TextEncoder().encode(s); let bin = ''; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(bin); };
+const mlUnB64 = b64 => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\s/g, '')), c => c.charCodeAt(0)));
+
+// Full account order: saved prefs first, then every other known account (by name).
+function mlOrder() {
+  const saved = Array.isArray(ML.data.prefs.accountOrder) ? ML.data.prefs.accountOrder.filter(x => typeof x === 'string') : [];
+  const all = new Set([...Object.keys(ML.data.accounts || {}), ...ML.data.items.map(i => i.account).filter(Boolean)]);
+  const rest = [...all].filter(id => !saved.includes(id)).sort((a, b) => mlAcct(a).name.localeCompare(mlAcct(b).name, 'he'));
+  return [...new Set([...saved, ...rest])];
+}
+
+// ---- thread ----
+const ML_ST = { pending: ['⏳', 'ממתין ל-ERZA'], done: ['✓', 'בוצע'], failed: ['⚠', 'נכשל'] };
+function mlEntryIco(e) {
+  if (e.kind === 'instruction') return '🗣';
+  if (e.kind === 'action') return '↩︎';
+  if (e.kind === 'system') return 'ℹ️';
+  return '🤖';
+}
+function mlEntryWho(e) {
+  if (e.kind === 'instruction') return 'ההוראה שלך';
+  if (e.kind === 'action') return 'ERZA ביצעה';
+  if (e.kind === 'system') return 'מערכת';
+  return 'סיכום ERZA';
+}
+function mlStateHtml(e) {
+  if (e.kind !== 'instruction' && e.state !== 'failed') return '';
+  const s = ML_ST[e.state] || ML_ST.pending;
+  return ` <span class="ml-st ${e.state in ML_ST ? e.state : 'pending'}">${s[0]} ${s[1]}</span>`;
+}
+// Latest relevant entry for the one-line preview: the newest instruction-or-answer (so a
+// pending instruction newer than ERZA's last answer is what shows), else the newest summary.
+function mlFeatured(th) {
+  for (let i = th.length - 1; i >= 0; i--) if (th[i].kind === 'action' || th[i].kind === 'instruction') return i;
+  for (let i = th.length - 1; i >= 0; i--) if (th[i].kind === 'summary') return i;
+  return -1;
+}
+function mlEntryHtml(e, depth) {
+  return `<div class="ml-te${depth ? ' reply' : ''}"><span class="ml-te-ico" aria-hidden="true">${mlEntryIco(e)}</span><div class="ml-te-body" dir="auto">${esc(e.text || '')}<span class="ml-te-meta">${esc(mlEntryWho(e))} · ${esc(mlFull(e.at))}${mlStateHtml(e)}</span></div></div>`;
+}
+// Chronological; ERZA answers (replyTo = index of the instruction) indented under their instruction.
+function mlThreadHtml(th, excludeIdx = -1) {
+  const kids = {}, roots = [];
+  const byAt = (a, b) => (mlTime(th[a].at) - mlTime(th[b].at)) || (a - b);
+  th.forEach((e, i) => {
+    if (i === excludeIdx) return;
+    const r = e.replyTo === undefined || e.replyTo === null || e.replyTo === '' ? NaN : Number(e.replyTo);
+    if (Number.isInteger(r) && r >= 0 && r < th.length && r !== i && r !== excludeIdx) (kids[r] = kids[r] || []).push(i);
+    else roots.push(i);
+  });
+  const seen = new Set();
+  const walk = (i, depth) => {
+    if (seen.has(i)) return ''; seen.add(i);
+    return mlEntryHtml(th[i], depth) + (kids[i] || []).sort(byAt).map(k => walk(k, Math.min(depth + 1, 1))).join('');
+  };
+  let html = roots.sort(byAt).map(i => walk(i, 0)).join('');
+  th.forEach((_, i) => { if (i !== excludeIdx && !seen.has(i)) html += walk(i, 0); });   // reply cycles — never drop an entry
+  return html;
+}
+// "Waiting for MY reply" rank: 0 = ball is with Erez (nothing asked yet, or ERZA answered last),
+// 1 = otherwise, 2 = an instruction of his is still pending with ERZA.
+function mlMineRank(it) {
+  const th = it.thread;
+  if (th.some(e => e.by === 'erez' && e.kind === 'instruction' && (e.state || 'pending') === 'pending')) return 2;
+  let lastI = -1, lastA = -1;
+  th.forEach((e, i) => { if (e.by === 'erez' && e.kind === 'instruction') lastI = i; if (e.kind === 'action') lastA = i; });
+  return lastI < 0 || lastA > lastI ? 0 : 1;
+}
+
+// ---- view model ----
+function mlMatches(it, q) {
+  if (!q) return true;
+  const a = mlAcct(it.account);
+  const hay = [it.subject, it.from, it.title, it.recommendation, it.snippet, a.name, a.address, ...it.thread.map(e => e.text)].join('\n').toLowerCase();
+  return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
+}
+const mlInView = (it, view) => view === 'archive' ? mlCloseState(it.status) : !mlCloseState(it.status);
+const mlClosedT = it => mlTime(it.closedAt) || (it.status === 'closing' ? Date.now() : 0);
+function mlVisible(view) {
+  const q = ML.ui.q.trim(), acc = ML.ui.accts;
+  return ML.data.items.filter(it => mlInView(it, view) && (!acc.length || acc.includes(it.account)) && mlMatches(it, q));
+}
+function mlSortItems(list, view) {
+  const t = view === 'archive' ? mlClosedT : (it => mlTime(it.receivedAt));
+  const s = ML.ui.sort;
+  return list.slice().sort((a, b) => {
+    if (s === 'mine' && view === 'active') { const d = mlMineRank(a) - mlMineRank(b); if (d) return d; }
+    return s === 'oldest' ? t(a) - t(b) : t(b) - t(a);
+  });
+}
+
+// ---- render ----
+function mlLinksHtml(links, max) {
+  const ok = links.map(l => ({ label: (l && (l.label || l.url)) || 'קישור', url: mlSafeUrl(l && l.url) })).filter(l => l.url);
+  if (!ok.length) return '';
+  const shown = max ? ok.slice(0, max) : ok;
+  return `<span class="ml-links">${shown.map(l => `<a class="ml-link" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" title="${esc(l.label)} — נפתח בלשונית חדשה"><span dir="auto">🔗<span class="ml-lt"> ${esc(l.label)}</span></span></a>`).join('')}${max && ok.length > max ? `<span class="ml-age">+${ok.length - max}</span>` : ''}</span>`;
+}
+function mlRowHtml(it, view) {
+  const th = it.thread, fi = mlFeatured(th);
+  const pend = th.some(e => e.kind === 'instruction' && (e.state || 'pending') === 'pending');
+  const failed = th.some(e => e.state === 'failed');
+  let last;
+  if (view === 'archive') last = it.status === 'closing' ? '<b>נסגר</b> — מסומן כנקרא בקרוב' : `<b>נסגר</b> ${esc(mlFull(it.closedAt))}`;
+  else if (fi >= 0) { const e = th[fi]; last = `<span aria-hidden="true">${mlEntryIco(e)}</span> ${e.kind === 'instruction' ? '<b>ההוראה שלך:</b> ' : e.kind === 'action' ? '<b>ERZA:</b> ' : ''}${esc(e.text || '')}${mlStateHtml(e)}`; }
+  else last = it.recommendation ? `💡 ${esc(it.recommendation)}` : `<span dir="auto">${esc(it.snippet || '')}</span>`;
+  const histN = view === 'archive' ? th.length : th.length - (fi >= 0 ? 1 : 0);
+  const histOpen = ML.openHist.has(it.id);
+  const flag = it.category === 'apple-account' ? '<span class="ml-flag" title="מייל חשבון מאפל — רק אתה מטפל">🍎</span>' : '';
+  const stFlag = pend ? '<span class="ml-flag" title="הוראה שלך ממתינה ל-ERZA">⏳</span>' : failed ? '<span class="ml-flag" title="פעולה נכשלה — פתח לפרטים">⚠</span>' : '';
+  return `<article class="ml-row" data-mlid="${esc(it.id)}">
+    <div class="ml-line">
+      <button type="button" class="ml-main" data-mlopen="${esc(it.id)}" aria-label="${esc((it.title || it.subject || '') + ' — מאת ' + mlFromName(it.from))}">
+        ${flag}<span class="ml-from" dir="auto">${esc(mlFromName(it.from))}</span><span class="ml-title" dir="auto">${esc(it.title || it.subject || '(ללא נושא)')}</span>${stFlag}<span class="ml-age">${esc(mlAge(it.receivedAt))}</span>
+      </button>${mlLinksHtml(it.links, 2)}
+    </div>
+    <div class="ml-last">${last}</div>
+    ${histN > 0 ? `<details class="ml-hist" data-mlhist="${esc(it.id)}"${histOpen ? ' open' : ''}><summary>היסטוריה (${histN})</summary><div class="ml-hist-body">${mlThreadHtml(th, view === 'archive' ? -1 : fi)}</div></details>` : ''}
+  </article>`;
+}
+function mailsRender() {
+  const root = document.getElementById('mlList'); if (!root) return;
+  const items = ML.data.items;
+  const openN = items.filter(i => !mlCloseState(i.status)).length;
+  const archN = items.length - openN;
+  // badge = open items
+  { const b = document.getElementById('tabBadgeMails'); if (b) { b.textContent = openN; b.hidden = !openN; } }
+  // header stats (last run + today's automatic handling)
+  { const el = document.getElementById('mlStats'); if (el) {
+      const w = ML.data.watermark || {}, st = (ML.data.stats || {})[new Date().toISOString().slice(0, 10)];
+      const parts = [];
+      if (w.lastRunAt) parts.push(`נבדק ${mlAge(w.lastRunAt)}`);
+      if (st) parts.push(`היום סומנו כנקראו: ${(st.readApple || 0)} מאפל · ${(st.readPromo || 0)} פרסומות`);
+      el.textContent = parts.join(' · '); el.hidden = !parts.length; } }
+  // segmented counts
+  document.querySelectorAll('#mlSeg button').forEach(b => {
+    b.setAttribute('aria-pressed', String(b.dataset.view === ML.ui.view));
+    const n = b.querySelector('.ml-segn'); if (n) n.textContent = b.dataset.view === 'archive' ? archN : openN;
+  });
+  // account chips — only accounts that have something in either view
+  const order = mlOrder();
+  const withItems = order.filter(id => items.some(i => i.account === id));
+  ML.ui.accts = ML.ui.accts.filter(id => withItems.includes(id));
+  const viewItems = items.filter(i => mlInView(i, ML.ui.view));
+  const chips = document.getElementById('mlChips');
+  chips.innerHTML = withItems.length > 1 || ML.ui.accts.length ? `<button type="button" class="chip${ML.ui.accts.length ? '' : ' on'}" data-mlacct="" aria-pressed="${!ML.ui.accts.length}">הכל</button>` +
+    withItems.map(id => { const a = mlAcct(id), on = ML.ui.accts.includes(id), n = viewItems.filter(i => i.account === id).length;
+      return `<button type="button" class="chip${on ? ' on' : ''}" data-mlacct="${esc(id)}" aria-pressed="${on}" title="${esc(a.address)}"><span class="ml-chipname">${esc(a.name)}</span><span class="ml-cn">${n}</span></button>`; }).join('') : '';
+
+  if (!items.length) {
+    root.innerHTML = `<div class="ml-empty"><span class="ml-empty-ico">📭</span>אין כרגע מיילים שדורשים את תשומת ליבך.<br>ERZA עוברת על כל תיבות הדואר כל חצי שעה ותציג כאן רק את מה שחשוב.</div>`;
+    return;
+  }
+  const view = ML.ui.view;
+  const vis = mlVisible(view);
+  const other = view === 'archive' ? 'active' : 'archive';
+  const otherN = ML.ui.q.trim() ? mlVisible(other).length : 0;
+  const moreBtn = otherN ? `<button type="button" class="ml-more" data-mlview="${other}">עוד ${otherN} תוצאות ב${other === 'archive' ? 'ארכיון' : 'פעילים'} — הצג</button>` : '';
+  if (!vis.length) {
+    const filtered = ML.ui.q.trim() || ML.ui.accts.length;
+    root.innerHTML = moreBtn + (filtered
+      ? `<div class="ml-empty"><span class="ml-empty-ico">🔍</span>לא נמצאו מיילים שתואמים לחיפוש או לסינון.<br><button type="button" data-mlclear="1">נקה חיפוש וסינון</button></div>`
+      : view === 'archive'
+        ? `<div class="ml-empty"><span class="ml-empty-ico">🗂️</span>הארכיון ריק — מיילים שתסמן כ״טופל״ יופיעו כאן.</div>`
+        : `<div class="ml-empty"><span class="ml-empty-ico">✅</span>אין מיילים פתוחים — הכל טופל.</div>`);
+    return;
+  }
+  const byAcct = new Map();
+  for (const it of mlSortItems(vis, view)) { if (!byAcct.has(it.account)) byAcct.set(it.account, []); byAcct.get(it.account).push(it); }
+  let groups = order.filter(id => byAcct.has(id));
+  for (const id of byAcct.keys()) if (!groups.includes(id)) groups.push(id);
+  const alpha = ML.ui.sort === 'account';
+  if (alpha) groups = groups.slice().sort((a, b) => mlAcct(a).name.localeCompare(mlAcct(b).name, 'he'));
+  const canMove = !alpha && groups.length > 1;
+  root.innerHTML = groups.map((id, gi) => {
+    const a = mlAcct(id), list = byAcct.get(id);
+    const openCount = items.filter(i => i.account === id && !mlCloseState(i.status)).length;
+    const cnt = view === 'archive' ? list.length : openCount;
+    return `<section class="ml-group" aria-label="${esc(a.name)}">
+      <header class="ml-gh">
+        <div class="ml-gtxt">
+          <div class="ml-gname"><span dir="auto">${esc(a.name)}</span>${a.family ? '<span class="ml-tag" style="--bc:var(--violet)">משפחה</span>' : ''}${a.stale ? '<button type="button" class="ml-tag" style="--bc:var(--yellow)" title="התחבר מחדש בחשבון הזה ב-Mail" aria-label="לא מסונכרן — התחבר מחדש בחשבון הזה ב-Mail" data-mlstale="1">⚠ לא מסונכרן</button>' : ''}</div>
+          ${a.address ? `<div class="ml-gaddr">${esc(a.address)}</div>` : ''}
+        </div>
+        <span class="ml-gcount${cnt ? '' : ' zero'}" title="${view === 'archive' ? 'בארכיון' : 'פתוחים'}">${cnt}</span>
+        ${canMove ? `<button type="button" class="ml-mv" data-mlmove="${esc(id)}" data-dir="-1" ${gi === 0 ? 'disabled' : ''} aria-label="הזז את ${esc(a.name)} למעלה" title="הזז למעלה">▲</button><button type="button" class="ml-mv" data-mlmove="${esc(id)}" data-dir="1" ${gi === groups.length - 1 ? 'disabled' : ''} aria-label="הזז את ${esc(a.name)} למטה" title="הזז למטה">▼</button>` : ''}
+      </header>
+      ${list.map(it => mlRowHtml(it, view)).join('')}
+    </section>`;
+  }).join('') + moreBtn;
+  if (ML.dlgId) mlDlgRefresh();
+}
+
+// ---- writes ----
+function mlToast(msg, err) {
+  let t = document.getElementById('mlToast');
+  if (!t) { t = document.createElement('div'); t.id = 'mlToast'; t.className = 'ml-toast'; t.setAttribute('role', 'status'); t.setAttribute('aria-live', 'polite'); document.body.appendChild(t); }
+  t.textContent = msg; t.classList.toggle('err', !!err); t.hidden = false;
+  clearTimeout(mlToast._t); mlToast._t = setTimeout(() => { t.hidden = true; }, err ? 6000 : 3200);
+}
+async function mlReadFresh() {
+  const meta = await gh('registry/mails.json', undefined, { headers: { Accept: 'application/vnd.github+json' } });
+  // the contents API omits `content` for files > 1 MB — fall back to the raw media type
+  const data = meta.content && meta.content.trim() ? JSON.parse(mlUnB64(meta.content)) : await gh('registry/mails.json');
+  return { data, sha: meta.sha };
+}
+// mutate(rawData) → false = nothing to change (already applied); throws to abort.
+async function mlWrite(mutate, message) {
+  if (!pat()) { const e = new Error('no token'); e.code = 'token'; throw e; }
+  ML.writing++;
+  try {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const { data, sha } = await mlReadFresh();
+      if (mutate(data) === false) { ML.data = mlNorm(data); ML.live = true; return; }
+      try {
+        await gh('registry/mails.json', undefined, { method: 'PUT', body: JSON.stringify({ message, branch: 'main', sha,
+          content: mlB64(JSON.stringify(data, null, 2) + '\n') }) });
+        ML.data = mlNorm(data); ML.live = true; return;
+      } catch (e) {
+        if (e.status === 409 || e.status === 422) { await new Promise(r => setTimeout(r, 500 * (attempt + 1))); continue; }   // concurrent writer — re-read, re-apply
+        throw e;
+      }
+    }
+    const e = new Error('conflict'); e.status = 409; throw e;
+  } finally { ML.writing--; }
+}
+const mlErrText = e => e && e.code === 'token' ? 'כדי לשמור צריך טוקן GitHub — לחץ ⚙️ למעלה'
+  : e && e.code === 'gone' ? 'המייל הזה כבר לא קיים ברשימה'
+  : e && e.code === 'closed' ? 'המייל כבר נסגר — אי אפשר להוסיף הוראה'
+  : e && e.status === 404 ? 'קובץ המיילים עוד לא נוצר — נסה שוב אחרי הסבב הבא'
+  : e && (e.status === 401 || e.status === 403) ? 'הטוקן לא תקין — לחץ ⚙️ והדבק טוקן חדש'
+  : 'השמירה נכשלה — נסה שוב';
+// Optimistic: apply locally, render, persist; on failure roll back to the snapshot.
+async function mlApply(mutate, message, okMsg) {
+  const snap = JSON.parse(JSON.stringify(ML.data));
+  try { const local = JSON.parse(JSON.stringify(ML.data)); if (mutate(local) !== false) { ML.data = mlNorm(local); mailsRender(); } }
+  catch (e) { mlToast(mlErrText(e), true); return false; }
+  try { await mlWrite(mutate, message); mailsRender(); if (okMsg) mlToast(okMsg); return true; }
+  catch (e) { ML.data = snap; mailsRender(); mlToast(mlErrText(e), true); return false; }
+}
+const mlFind = (data, id) => { const it = (data.items || []).find(i => i && i.id === id); if (!it) { const e = new Error('gone'); e.code = 'gone'; throw e; } return it; };
+function mlSendInstruction(id, text) {
+  const entry = { at: new Date().toISOString(), by: 'erez', kind: 'instruction', text, state: 'pending' };
+  return mlApply(data => {
+    const it = mlFind(data, id);
+    if (mlCloseState(it.status)) { const e = new Error('closed'); e.code = 'closed'; throw e; }
+    if (!Array.isArray(it.thread)) it.thread = [];
+    if (it.thread.some(e => e && e.by === 'erez' && e.at === entry.at && e.text === entry.text)) return false;
+    it.thread.push({ ...entry });
+  }, 'מיילים: הוראה ל-ERZA מהדשבורד', 'ההוראה נשלחה ✓ — ERZA תטפל בסבב הקרוב');
+}
+function mlClose(id) {
+  return mlApply(data => {
+    const it = mlFind(data, id);
+    if (mlCloseState(it.status)) return false;
+    it.status = 'closing';
+  }, 'מיילים: סומן כטופל מהדשבורד', 'סומן כטופל ✓ — המייל יסומן כנקרא ויעבור לארכיון');
+}
+function mlMoveGroup(id, dir) {
+  // visible group order as rendered, then splice into the FULL saved order
+  const visible = [...document.querySelectorAll('#mlList [data-mlmove][data-dir="-1"]')].map(b => b.dataset.mlmove);
+  const i = visible.indexOf(id), j = i + dir;
+  if (i < 0 || j < 0 || j >= visible.length) return;
+  const full = mlOrder().filter(x => x !== id);
+  const anchor = full.indexOf(visible[j]);
+  full.splice(dir < 0 ? anchor : anchor + 1, 0, id);
+  mlApply(data => { data.prefs = data.prefs && typeof data.prefs === 'object' ? data.prefs : {}; data.prefs.accountOrder = full; },
+    'מיילים: סדר חשבונות מהדשבורד', 'הסדר נשמר ✓').then(() => {
+    const b = document.querySelector(`#mlList [data-mlmove="${CSS.escape(id)}"][data-dir="${dir}"]`) || document.querySelector(`#mlList [data-mlmove="${CSS.escape(id)}"]`);
+    if (b && !b.disabled) b.focus();
+  });
+}
+
+// ---- floating panel ----
+function mlFocusables(root) {
+  return [...root.querySelectorAll('a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), summary, [tabindex]:not([tabindex="-1"])')]
+    .filter(el => el.offsetParent !== null || el === document.activeElement);
+}
+function mlDlgHtml(it) {
+  const a = mlAcct(it.account), ro = mlCloseState(it.status), canWrite = !!pat();
+  const status = it.status === 'closing' ? 'נסגר — מסומן כנקרא בקרוב' : it.status === 'closed' ? `נסגר ${mlFull(it.closedAt)}` : 'פתוח';
+  return `<div class="ml-dlg-top"><h3 id="mlDlgTitle" dir="auto">${it.category === 'apple-account' ? '🍎 ' : ''}${esc(it.subject || it.title || '(ללא נושא)')}</h3><button type="button" class="ml-x" data-mlclose="1" aria-label="סגור חלון">✕</button></div>
+    ${it.title && it.title !== it.subject ? `<div style="font-size:14px;font-weight:700;margin-bottom:10px" dir="auto">${esc(it.title)}</div>` : ''}
+    <dl class="ml-meta">
+      <dt>מאת</dt><dd dir="auto">${esc(it.from || '—')}</dd>
+      <dt>חשבון</dt><dd>${esc(a.name)}${a.address ? ` · <bdi>${esc(a.address)}</bdi>` : ''}${a.stale ? ' <span class="ml-tag" style="--bc:var(--yellow)" title="התחבר מחדש בחשבון הזה ב-Mail">⚠ לא מסונכרן</span>' : ''}</dd>
+      <dt>התקבל</dt><dd>${esc(mlFull(it.receivedAt))}</dd>
+      <dt>מצב</dt><dd>${esc(status)}</dd>
+    </dl>
+    ${it.snippet ? `<div class="ml-snip" dir="auto">${esc(it.snippet)}</div>` : ''}
+    ${it.recommendation ? `<div class="ml-rec">💡 <b>ההמלצה:</b> <span dir="auto">${esc(it.recommendation)}</span></div>` : ''}
+    ${mlLinksHtml(it.links, 0) ? `<div class="ml-sec">קישורים</div>${mlLinksHtml(it.links, 0)}` : ''}
+    <div class="ml-sec">היסטוריה</div>
+    <div id="mlDlgThread">${it.thread.length ? mlThreadHtml(it.thread) : '<div class="ml-te" style="color:var(--muted)">עוד אין הוראות או פעולות.</div>'}</div>
+    <div id="mlDlgCompose">${ro ? `<div class="ml-note">${it.status === 'closing' ? 'המייל נסגר — ERZA תסמן אותו כנקרא ב-Mail בסבב הקרוב.' : 'המייל נסגר ונמצא בארכיון — קריאה בלבד.'}</div>`
+      : `<div class="ml-compose"><label for="mlInstr">הוראה ל-ERZA</label>
+        <textarea id="mlInstr" dir="auto" placeholder="למשל: תכין טיוטת תשובה שאנחנו מאשרים · תבדוק אם כבר שילמנו"${canWrite ? '' : ' disabled'}></textarea>
+        <div class="ml-actions"><button type="button" class="ml-btn primary" id="mlSend"${canWrite ? '' : ' disabled'}>שלח</button><button type="button" class="ml-btn done" id="mlDone"${canWrite ? '' : ' disabled'}>✓ טופל — סגור</button></div>
+        ${canWrite ? '' : '<div class="ml-note">כדי לשלוח הוראות או לסגור צריך טוקן GitHub — לחץ ⚙️ למעלה.</div>'}
+        <div class="ml-note" style="background:none;padding:6px 0 0">ERZA מכינה טיוטות בלבד ולעולם לא שולחת מייל בשמך.</div></div>`}</div>`;
+}
+function mlDlgOpen(id) {
+  const it = ML.data.items.find(i => i.id === id); if (!it) return;
+  const dlg = document.getElementById('mlDlg'), card = dlg.querySelector('.ml-dlg-card');
+  if (!ML.dlgId) ML.lastFocus = document.activeElement;
+  ML.dlgId = id; ML.dlgStatus = it.status;
+  card.innerHTML = mlDlgHtml(it);
+  dlg.hidden = false;
+  document.documentElement.style.overflow = 'hidden';
+  card.scrollTop = 0;
+  card.focus();
+}
+function mlDlgClose() {
+  const dlg = document.getElementById('mlDlg'); if (!dlg || dlg.hidden) return;
+  const ta = document.getElementById('mlInstr');
+  if (ta && ta.value.trim() && !confirm('יש הוראה שלא נשלחה — לסגור בלי לשלוח?')) return;
+  dlg.hidden = true; ML.dlgId = null;
+  document.documentElement.style.overflow = '';
+  const back = ML.lastFocus; ML.lastFocus = null;
+  if (back && document.contains(back)) back.focus();
+  else { const b = document.querySelector('#tabbar .tab-btn[data-tab="mails"]'); if (b) b.focus(); }
+}
+// Live refresh while open: thread always; header/compose only when the status changed
+// (keeps a half-typed instruction intact).
+function mlDlgRefresh() {
+  const it = ML.data.items.find(i => i.id === ML.dlgId);
+  if (!it) return;
+  if (it.status !== ML.dlgStatus) {
+    const ta = document.getElementById('mlInstr'); const draft = ta ? ta.value : '';
+    const card = document.querySelector('#mlDlg .ml-dlg-card'); card.innerHTML = mlDlgHtml(it); ML.dlgStatus = it.status;
+    const nt = document.getElementById('mlInstr'); if (nt && draft) nt.value = draft;
+    card.focus(); return;
+  }
+  const th = document.getElementById('mlDlgThread');
+  if (th) th.innerHTML = it.thread.length ? mlThreadHtml(it.thread) : '<div class="ml-te" style="color:var(--muted)">עוד אין הוראות או פעולות.</div>';
+}
+
+// ---- live load (machine-room refresh) ----
+async function mailsLoadLive() {
+  if (!pat() || ML.writing) return;
+  try {
+    const data = await gh('registry/mails.json');
+    if (ML.writing) return;                       // a write landed meanwhile — it holds the fresher copy
+    ML.data = mlNorm(data); ML.live = true; mailsRender();
+  } catch (e) { /* 404 = the mail engine hasn't written yet → keep the embedded copy / empty state */ }
+}
+
+function mailsInit() {
+  if (ML.inited) return; ML.inited = true;
+  ML.data = mlNorm(window.ERZA_DATA && window.ERZA_DATA.mails);
+  mlLoadUi();
+  const sort = document.getElementById('mlSort');
+  sort.innerHTML = ML_SORTS.map(([k, l]) => `<option value="${k}">${l}</option>`).join('');
+  sort.value = ML.ui.sort;
+  sort.onchange = () => { ML.ui.sort = sort.value; mlSaveUi(); mailsRender(); };
+  const q = document.getElementById('mlSearch');
+  let qt; q.oninput = () => { clearTimeout(qt); qt = setTimeout(() => { ML.ui.q = q.value; mailsRender(); }, 120); };
+  document.querySelectorAll('#mlSeg button').forEach(b => { b.onclick = () => { ML.ui.view = b.dataset.view; mlSaveUi(); mailsRender(); }; });
+  const panel = document.querySelector('.tab-panel[data-tab="mails"]');
+  panel.addEventListener('click', e => {
+    const t = e.target;
+    if (t.closest('a.ml-link')) return;            // link chips open in a new tab, never the panel
+    const chip = t.closest('[data-mlacct]');
+    if (chip) {
+      const id = chip.dataset.mlacct;
+      if (!id) ML.ui.accts = [];
+      else ML.ui.accts = ML.ui.accts.includes(id) ? ML.ui.accts.filter(x => x !== id) : [...ML.ui.accts, id];
+      mlSaveUi(); mailsRender(); return;
+    }
+    const mv = t.closest('[data-mlmove]'); if (mv) { mlMoveGroup(mv.dataset.mlmove, Number(mv.dataset.dir)); return; }
+    const vw = t.closest('[data-mlview]'); if (vw) { ML.ui.view = vw.dataset.mlview; mlSaveUi(); mailsRender(); return; }
+    if (t.closest('[data-mlclear]')) { ML.ui.q = ''; ML.ui.accts = []; q.value = ''; mlSaveUi(); mailsRender(); return; }
+    if (t.closest('[data-mlstale]')) { mlToast('החשבון לא מסונכרן — התחבר מחדש בחשבון הזה ב-Mail'); return; }
+    if (t.closest('summary') || t.closest('.ml-hist-body')) return;   // accordion handles itself
+    const row = t.closest('[data-mlid]'); if (row) mlDlgOpen(row.dataset.mlid);
+  });
+  panel.addEventListener('toggle', e => {
+    const d = e.target; if (!d.matches || !d.matches('[data-mlhist]')) return;
+    d.open ? ML.openHist.add(d.dataset.mlhist) : ML.openHist.delete(d.dataset.mlhist);
+  }, true);
+  // floating panel
+  const dlg = document.createElement('div');
+  dlg.id = 'mlDlg'; dlg.className = 'ml-dlg'; dlg.hidden = true;
+  dlg.innerHTML = '<div class="ml-dlg-bd"></div><div class="ml-dlg-card" role="dialog" aria-modal="true" aria-labelledby="mlDlgTitle" tabindex="-1"></div>';
+  document.body.appendChild(dlg);
+  dlg.querySelector('.ml-dlg-bd').onclick = mlDlgClose;
+  dlg.addEventListener('click', async e => {
+    if (e.target.closest('[data-mlclose]')) { mlDlgClose(); return; }
+    const id = ML.dlgId; if (!id) return;
+    if (e.target.closest('#mlSend')) {
+      const ta = document.getElementById('mlInstr'), text = ta.value.trim();
+      if (!text) { ta.focus(); return; }
+      const btn = e.target.closest('#mlSend'); btn.disabled = true;
+      ta.value = '';                               // optimistic — restored on failure
+      const ok = await mlSendInstruction(id, text);
+      const nt = document.getElementById('mlInstr');
+      if (!ok && nt && !nt.value) nt.value = text;
+      const nb = document.getElementById('mlSend'); if (nb) nb.disabled = false;
+      return;
+    }
+    if (e.target.closest('#mlDone')) {
+      if (!confirm('לסמן את המייל כטופל?\nERZA תסמן אותו כנקרא ב-Mail והוא יעבור לארכיון.')) return;
+      const ta = document.getElementById('mlInstr'); if (ta) ta.value = '';
+      const ok = await mlClose(id);
+      if (ok) mlDlgClose();
+    }
+  });
+  dlg.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.preventDefault(); mlDlgClose(); return; }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && e.target.id === 'mlInstr') { e.preventDefault(); document.getElementById('mlSend')?.click(); return; }
+    if (e.key !== 'Tab') return;
+    const card = dlg.querySelector('.ml-dlg-card'), f = mlFocusables(card);
+    if (!f.length) { e.preventDefault(); card.focus(); return; }
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && (document.activeElement === first || document.activeElement === card)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  mailsRender();
 }
 
 init();
