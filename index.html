@@ -1249,6 +1249,40 @@ button.ml-tag { font: inherit; font-size: 11px; font-weight: 700; cursor: help; 
 }
 @media (pointer: coarse) { .ml-chips .chip, .ml-seg button { min-height: 44px; } .ml-hist summary { min-height: 44px; } }
 @media (prefers-reduced-motion: reduce) { .ml-dlg-card { animation: none; } .ml-hist summary::before, .ml-row { transition: none; } }
+
+/* 📧 Mails rows v3 (Erez 2026-10-06): exactly 4 lines — title / sender+date / one-line detail / account+actions. Lines wrap, never ellipsise. */
+.ml-row { padding: 8px 12px 6px; }
+.ml-main { display: block; width: 100%; min-height: 0; padding: 0; text-align: right; border: none; background: transparent; color: var(--ink-1); font: inherit; cursor: pointer; }
+.ml-l1, .ml-l2, .ml-l3 { display: block; min-width: 0; overflow-wrap: anywhere; word-break: normal; }
+.ml-l1 { font-size: 14.5px; font-weight: 700; line-height: 1.4; }
+.ml-l2 { font-size: 12.5px; color: var(--ink-2); line-height: 1.5; }
+.ml-fr { font-weight: 700; }
+.ml-dt { color: var(--muted); }
+.ml-l3 { font-size: 12.5px; color: var(--ink-1); line-height: 1.5; }
+.ml-clip { font-size: 12px; }
+.ml-sub { margin-top: 2px; min-height: 40px; }
+.ml-acc { align-items: flex-start; line-height: 1.35; }
+.ml-acc .ml-dot { margin-top: 5px; }
+.ml-acc .ml-accn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ml-acc.long { font-size: 10.5px; }
+.ml-sub .ml-act { padding: 0 11px; min-height: 38px; font-size: 12px; }
+.ml-ckw { width: 40px; height: 40px; }
+/* attachments in the popup */
+.ml-sumbox { font-size: 13.5px; border: 1px solid color-mix(in srgb, var(--violet) 30%, transparent); background: color-mix(in srgb, var(--violet) 7%, transparent); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; overflow-wrap: anywhere; }
+.ml-att { border: 1px solid var(--grid); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; background: var(--page); }
+.ml-att-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 13.5px; }
+.ml-att-h b { min-width: 0; overflow-wrap: anywhere; }
+.ml-att-meta { font-size: 11.5px; color: var(--muted); }
+.ml-att-host { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.ml-att-sum { font-size: 13.5px; margin-top: 6px; line-height: 1.55; overflow-wrap: anywhere; }
+.ml-att-act { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ml-att-act .ml-btn { min-height: 40px; padding: 0 14px; font-size: 13px; }
+.ml-att-view { margin-top: 8px; }
+.ml-att-view:empty { display: none; }
+.ml-att-frame { width: 100%; height: 62vh; min-height: 320px; border: 1px solid var(--grid); border-radius: 8px; background: #fff; }
+.ml-att-img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--grid); display: block; }
+.ml-att-msg { font-size: 12.5px; color: var(--ink-2); background: var(--tint); border-radius: 8px; padding: 8px 10px; }
+.ml-att-msg.err { color: var(--red); }
 </style>
 </head>
 <body>
@@ -1434,10 +1468,10 @@ button.ml-tag { font: inherit; font-size: 11px; font-weight: 700; cursor: help; 
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_UI_VER='55ada2a87074'</script>
+<script>window.ERZA_UI_VER='b4735463a8f8'</script>
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=5c13f68d"></script>
+<script src="data.enc.js?v=e312ff67"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1476,7 +1510,9 @@ async function decryptWithBits(bits) {
   const E = window.ERZA_ENC;
   const key = await crypto.subtle.importKey('raw', bits, 'AES-GCM', false, ['decrypt']);
   const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(E.iv) }, key, b64(E.ct));
-  return JSON.parse(new TextDecoder().decode(pt));
+  const data = JSON.parse(new TextDecoder().decode(pt));
+  window.ERZA_KEYBITS = bits;   // same key decrypts the mail attachments (att/<id>.bin) on demand — kept in memory only
+  return data;
 }
 async function deriveBits(pw) {
   const E = window.ERZA_ENC;
@@ -4493,7 +4529,7 @@ const mlSection = it => it.section || (it.category === 'normal' ? 'regular' : 'u
 function mlNorm(d) {
   d = d && typeof d === 'object' ? d : {};
   const items = (Array.isArray(d.items) ? d.items : []).filter(i => i && i.id)
-    .map(i => ({ ...i, thread: Array.isArray(i.thread) ? i.thread.filter(e => e && typeof e === 'object') : [], links: Array.isArray(i.links) ? i.links : [] }));
+    .map(i => ({ ...i, thread: Array.isArray(i.thread) ? i.thread.filter(e => e && typeof e === 'object') : [], links: Array.isArray(i.links) ? i.links : [], attachments: Array.isArray(i.attachments) ? i.attachments.filter(a => a && typeof a === 'object') : [] }));
   return { ...d, accounts: d.accounts && typeof d.accounts === 'object' ? d.accounts : {},
     prefs: d.prefs && typeof d.prefs === 'object' ? d.prefs : {}, items };
 }
@@ -4612,7 +4648,7 @@ function mlMineRank(it) {
 function mlMatches(it, q) {
   if (!q) return true;
   const a = mlAcct(it.account);
-  const hay = [it.subject, it.from, it.title, it.recommendation, it.snippet, a.name, a.address, ...it.thread.map(e => e.text)].join('\n').toLowerCase();
+  const hay = [it.subject, it.from, it.title, it.titleHe, it.line3, it.recommendation, it.snippet, a.name, a.address, ...it.thread.map(e => e.text), ...(it.attachments || []).flatMap(x => [x && x.name, x && x.summary])].join('\n').toLowerCase();
   return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
 }
 const mlInView = (it, view) => view === 'archive' ? it.status === 'closed' : it.status !== 'closed';
@@ -4643,33 +4679,44 @@ function mlHue(id) {
 }
 const mlAccStyle = id => { const c = mlHue(id); return `--h:${c.h};--s:${c.s}%`; };
 const ML_CLOSED_BY = { 'user-read': 'סומן כנקרא', 'user-delete': 'נמחק (הועבר לפח)', 'read-elsewhere': 'נקרא במקום אחר', gone: 'כבר לא קיים ב-Mail' };
+// One row = exactly 4 lines (Erez 2026-10-06): 1 Hebrew summary title · 2 sender + date · 3 one-line detail · 4 account + actions.
+// Nothing is truncated: lines wrap instead of ellipsising, and the AI is asked to keep lines 1/3 short enough for a 390px phone.
+function mlFit(s, max) {
+  const t = String(s || '').replace(/\s+/g, ' ').trim(); if (t.length <= max) return t;
+  const c = t.slice(0, max), sp = c.lastIndexOf(' ');
+  return (sp > max * 0.5 ? c.slice(0, sp) : c).replace(/[\s,;:.\-–—(]+$/, '');
+}
+function mlDateShort(iso) {
+  const t = mlTime(iso); if (!t) return '';
+  const d = new Date(t), n = new Date();
+  const hm = d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  if (d.toDateString() === n.toDateString()) return `היום ${hm}`;
+  return `${d.getDate()}.${d.getMonth() + 1}${d.getFullYear() !== n.getFullYear() ? '.' + String(d.getFullYear()).slice(2) : ''} ${hm}`;
+}
 function mlRowHtml(it, view) {
-  const th = it.thread, fi = mlFeatured(th), urgent = mlSection(it) === 'urgent';
+  const th = it.thread;
   const pending = mlPending(it.status), closed = it.status === 'closed';
   const pend = th.some(e => e.kind === 'instruction' && (e.state || 'pending') === 'pending');
   const failed = th.some(e => e.state === 'failed') || !!it.actionError;
-  let last = '';
-  if (closed) last = `<b>${esc(ML_CLOSED_BY[it.closedBy] || 'נסגר')}</b> ${esc(mlFull(it.closedAt))}`;
-  else if (urgent && fi >= 0) { const e = th[fi]; last = `<span aria-hidden="true">${mlEntryIco(e)}</span> ${e.kind === 'instruction' ? '<b>ההוראה שלך:</b> ' : e.kind === 'action' ? '<b>ERZA:</b> ' : ''}${esc(e.text || '')}${mlStateHtml(e)}`; }
-  else if (urgent) last = it.recommendation ? `💡 ${esc(it.recommendation)}` : `<span dir="auto">${esc(it.snippet || '')}</span>`;
-  const histN = urgent || closed ? th.length - (fi >= 0 && !closed ? 1 : 0) : 0;
-  const histOpen = ML.openHist.has(it.id);
-  const flag = it.category === 'apple-account' ? '<span class="ml-flag" title="מייל חשבון מאפל — רק אתה מטפל">🍎</span>' : '';
-  const stFlag = pend ? '<span class="ml-flag" title="הוראה שלך ממתינה ל-ERZA">⏳</span>' : failed ? `<span class="ml-flag" title="${esc(it.actionError || 'פעולה נכשלה — פתח לפרטים')}">⚠</span>` : '';
+  const flag = it.category === 'apple-account' ? '<span class="ml-flag" title="מייל חשבון מאפל — רק אתה מטפל">🍎</span> ' : '';
+  const stFlag = pend ? ' <span class="ml-flag" title="הוראה שלך ממתינה ל-ERZA">⏳</span>' : failed ? ` <span class="ml-flag" title="${esc(it.actionError || 'פעולה נכשלה — פתח לפרטים')}">⚠</span>` : '';
+  const n = it.count > 1 ? ` (×${it.count})` : '';
+  const title = (it.titleHe || String(it.title || it.subject || '').replace(/\s*\(×\d+\)$/, '') || '(ללא נושא)') + n;
+  const atts = (it.attachments || []).filter(a => a && (a.status === 'ok' || a.status === 'toolarge'));
+  const detail = closed ? `<b>${esc(ML_CLOSED_BY[it.closedBy] || 'נסגר')}</b> ${esc(mlDateShort(it.closedAt))}`
+    : esc(it.line3 || mlFit(it.recommendation || it.snippet || it.subject || '', 46));
   const a = mlAcct(it.account), sel = ML.sel.has(it.id);
   const ctl = closed ? '' : pending
     ? `<span class="ml-pendtag">⏳ ממתין לביצוע${it.action === 'delete' || it.status === 'deleting' ? ' · מחיקה' : ' · סימון כנקרא'}</span>`
-    : ML.selMode ? '' : `<button type="button" class="ml-act" data-mlact="read" data-mlact-id="${esc(it.id)}">נקרא</button><button type="button" class="ml-act del" data-mlact="delete" data-mlact-id="${esc(it.id)}">מחק</button>`;
-  const ck = ML.selMode && !closed && !pending ? `<label class="ml-ckw"><input type="checkbox" class="ml-ck" data-mlck="${esc(it.id)}"${sel ? ' checked' : ''} aria-label="בחר: ${esc(it.title || it.subject || '')}"></label>` : '';
+    : ML.selMode ? `<label class="ml-ckw"><input type="checkbox" class="ml-ck" data-mlck="${esc(it.id)}"${sel ? ' checked' : ''} aria-label="בחר: ${esc(title)}"></label>`
+    : `<button type="button" class="ml-act" data-mlact="read" data-mlact-id="${esc(it.id)}">נקרא</button><button type="button" class="ml-act del" data-mlact="delete" data-mlact-id="${esc(it.id)}">מחק</button>`;
   return `<article class="ml-row${pending ? ' pend' : ''}${sel ? ' sel' : ''}" data-mlid="${esc(it.id)}"${pending ? ' aria-busy="true"' : ''}>
-    <div class="ml-line">${ck}
-      <button type="button" class="ml-main" data-mlopen="${esc(it.id)}" aria-label="${esc((it.title || it.subject || '') + ' — מאת ' + mlFromName(it.from))}">
-        ${flag}<span class="ml-from" dir="auto">${esc(mlFromName(it.from))}</span><span class="ml-title" dir="auto">${esc(it.title || it.subject || '(ללא נושא)')}</span>${stFlag}<span class="ml-age">${esc(mlAge(closed ? it.closedAt : it.receivedAt))}</span>
-      </button>${urgent ? mlLinksHtml(it.links, 2) : ''}
-    </div>
-    ${last ? `<div class="ml-last">${last}</div>` : ''}
-    ${histN > 0 ? `<details class="ml-hist" data-mlhist="${esc(it.id)}"${histOpen ? ' open' : ''}><summary>היסטוריה (${histN})</summary><div class="ml-hist-body">${mlThreadHtml(th, closed || fi < 0 ? -1 : fi)}</div></details>` : ''}
-    <div class="ml-sub"><span class="ml-acc" style="${mlAccStyle(it.account)}" title="${esc(a.address || a.name)}"><i class="ml-dot" aria-hidden="true"></i><span class="ml-accn" dir="auto">${esc(a.name)}</span></span>${ctl}</div>
+    <button type="button" class="ml-main" data-mlopen="${esc(it.id)}" aria-label="${esc(title + ' — מאת ' + mlFromName(it.from))}">
+      <span class="ml-l1" dir="rtl">${flag}${esc(title)}${stFlag}</span>
+      <span class="ml-l2" dir="rtl"><bdi class="ml-fr">${esc(mlFromName(it.from))}</bdi> · <span class="ml-dt">${esc(mlDateShort(closed ? it.closedAt : it.receivedAt))}</span></span>
+      <span class="ml-l3" dir="rtl">${atts.length ? '<span class="ml-clip" title="יש קובץ מצורף">📎</span> ' : ''}${detail}</span>
+    </button>
+    <div class="ml-sub"><span class="ml-acc${a.name.length > 22 ? ' long' : ''}" style="${mlAccStyle(it.account)}" title="${esc(a.address || a.name)}"><i class="ml-dot" aria-hidden="true"></i><span class="ml-accn" dir="auto">${esc(a.name)}</span></span>${ctl}</div>
   </article>`;
 }
 function mlSectionHtml(cls, title, list, emptyMsg) {
@@ -4855,6 +4902,58 @@ function mlFocusables(root) {
   return [...root.querySelectorAll('a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), summary, [tabindex]:not([tabindex="-1"])')]
     .filter(el => el.offsetParent !== null || el === document.activeElement);
 }
+// ---- attachments (encrypted blobs att/<id>.bin, decrypted here with the same key as data.enc.js) ----
+const ML_BLOB = new Map();   // blob id → {url, mime, name}   (object URLs, revoked when the popup closes)
+const mlSize = n => !n ? '' : n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1048576).toFixed(1)} MB`;
+const mlAttIco = m => /^image\//.test(m || '') ? '🖼️' : /pdf/.test(m || '') ? '📕' : /sheet|excel|csv/.test(m || '') ? '📊' : '📄';
+function mlAttHtml(it) {
+  const list = it.status === 'closed' ? [] : (it.attachments || []).filter(a => a && (a.status === 'ok' || a.status === 'toolarge'));
+  if (!list.length) return '';
+  return `<div class="ml-sec">קבצים מצורפים (${list.length})</div>` + list.map(a => {
+    const link = a.source === 'link';
+    const body = a.status === 'toolarge' || !/^[0-9a-f]{32}$/.test(a.id || '')
+      ? '<div class="ml-att-msg">קובץ גדול מדי — פתח במייל</div>'
+      : `<div class="ml-att-act"><button type="button" class="ml-btn" data-mlattview="${esc(a.id)}">הצג</button><button type="button" class="ml-btn" data-mlattdl="${esc(a.id)}">הורד</button></div><div class="ml-att-view" id="mlav-${esc(a.id)}"></div>`;
+    return `<div class="ml-att" data-mlatt="${esc(a.id || '')}">
+      <div class="ml-att-h"><span aria-hidden="true">${mlAttIco(a.mime)}</span><b dir="auto">${esc(a.name || 'קובץ')}</b><span class="ml-att-meta">${esc(mlSize(a.size))}</span>${link ? '<span class="ml-tag" style="--bc:var(--violet)">קובץ מצורף מתוך קישור</span>' : ''}</div>
+      ${link && a.host ? `<div class="ml-att-host">הורד מתוך קישור: <bdi>${esc(a.host)}</bdi></div>` : ''}
+      ${a.summary ? `<div class="ml-att-sum" dir="auto"><b>סיכום המסמך:</b> ${esc(a.summary)}</div>` : ''}${body}</div>`;
+  }).join('');
+}
+async function mlAttLoad(id) {
+  if (ML_BLOB.has(id)) return ML_BLOB.get(id);
+  if (!window.ERZA_KEYBITS) throw new Error('nokey');
+  const res = await fetch(`att/${id}.bin`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(res.status === 404 ? 'notpublished' : 'http' + res.status);
+  const buf = new Uint8Array(await res.arrayBuffer());
+  const key = await crypto.subtle.importKey('raw', window.ERZA_KEYBITS, 'AES-GCM', false, ['decrypt']);
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: buf.subarray(0, 12) }, key, buf.subarray(12));
+  const meta = ML.data.items.flatMap(i => i.attachments || []).find(a => a && a.id === id) || {};
+  const mime = meta.mime || 'application/octet-stream';
+  const ent = { url: URL.createObjectURL(new Blob([plain], { type: mime })), mime, name: meta.name || 'file' };
+  ML_BLOB.set(id, ent); return ent;
+}
+const mlAttErr = e => ({ nokey: 'אין מפתח פענוח בדפדפן — היכנס מחדש עם הסיסמה של הלוח.', notpublished: 'הקובץ עדיין לא פורסם באתר — יופיע בפריסה הבאה (כמה דקות).' }[e && e.message] || 'הקובץ לא נפתח — נסה שוב.');
+async function mlAttView(id) {
+  const box = document.getElementById('mlav-' + id); if (!box) return;
+  if (box.firstChild) { box.innerHTML = ''; return; }   // second tap hides it
+  box.innerHTML = '<div class="ml-att-msg">מפענח…</div>';
+  try {
+    const f = await mlAttLoad(id);
+    if (/^image\//.test(f.mime)) box.innerHTML = `<img class="ml-att-img" alt="${esc(f.name)}" src="${f.url}">`;
+    else if (/pdf/.test(f.mime)) box.innerHTML = `<iframe class="ml-att-frame" title="${esc(f.name)}" src="${f.url}"></iframe><div class="ml-att-act"><a class="ml-btn" style="display:inline-flex;align-items:center;text-decoration:none" href="${f.url}" target="_blank" rel="noopener">פתח בלשונית</a></div>`;
+    else box.innerHTML = '<div class="ml-att-msg">אין תצוגה מקדימה לסוג הקובץ הזה — לחץ "הורד".</div>';
+  } catch (e) { box.innerHTML = `<div class="ml-att-msg err">${esc(mlAttErr(e))}</div>`; }
+}
+async function mlAttDownload(id) {
+  const box = document.getElementById('mlav-' + id);
+  try {
+    const f = await mlAttLoad(id);
+    const a = document.createElement('a'); a.href = f.url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) { if (box) box.innerHTML = `<div class="ml-att-msg err">${esc(mlAttErr(e))}</div>`; }
+}
+function mlAttRelease() { for (const f of ML_BLOB.values()) { try { URL.revokeObjectURL(f.url); } catch {} } ML_BLOB.clear(); }
+
 function mlDlgHtml(it) {
   const a = mlAcct(it.account), ro = mlCloseState(it.status), canWrite = !!pat();
   const status = it.status === 'closing' ? 'ממתין לביצוע — יסומן כנקרא בקרוב' : it.status === 'deleting' ? 'ממתין לביצוע — יימחק (יועבר לפח) בקרוב' : it.status === 'closed' ? `${ML_CLOSED_BY[it.closedBy] || 'נסגר'} ${mlFull(it.closedAt)}` : 'לא נקרא';
@@ -4866,6 +4965,8 @@ function mlDlgHtml(it) {
       <dt>התקבל</dt><dd>${esc(mlFull(it.receivedAt))}</dd>
       <dt>מצב</dt><dd>${esc(status)}</dd>
     </dl>
+    ${it.line3 ? `<div class="ml-sumbox">📝 <b>תקציר:</b> <span dir="auto">${esc(it.line3)}</span></div>` : ''}
+    ${mlAttHtml(it)}
     ${it.snippet ? `<div class="ml-snip" dir="auto">${esc(it.snippet)}</div>` : ''}
     ${it.recommendation ? `<div class="ml-rec">💡 <b>ההמלצה:</b> <span dir="auto">${esc(it.recommendation)}</span></div>` : ''}
     ${mlLinksHtml(it.links, 0) ? `<div class="ml-sec">קישורים</div>${mlLinksHtml(it.links, 0)}` : ''}
@@ -4893,7 +4994,7 @@ function mlDlgClose() {
   const dlg = document.getElementById('mlDlg'); if (!dlg || dlg.hidden) return;
   const ta = document.getElementById('mlInstr');
   if (ta && ta.value.trim() && !confirm('יש הוראה שלא נשלחה — לסגור בלי לשלוח?')) return;
-  dlg.hidden = true; ML.dlgId = null;
+  dlg.hidden = true; ML.dlgId = null; mlAttRelease();
   document.documentElement.style.overflow = '';
   const back = ML.lastFocus; ML.lastFocus = null;
   if (back && document.contains(back)) back.focus();
@@ -4995,6 +5096,8 @@ function mailsInit() {
   dlg.querySelector('.ml-dlg-bd').onclick = mlDlgClose;
   dlg.addEventListener('click', async e => {
     if (e.target.closest('[data-mlclose]')) { mlDlgClose(); return; }
+    const av = e.target.closest('[data-mlattview]'); if (av) { mlAttView(av.dataset.mlattview); return; }
+    const ad = e.target.closest('[data-mlattdl]'); if (ad) { mlAttDownload(ad.dataset.mlattdl); return; }
     const id = ML.dlgId; if (!id) return;
     if (e.target.closest('#mlSend')) {
       const ta = document.getElementById('mlInstr'), text = ta.value.trim();
