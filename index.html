@@ -1181,6 +1181,57 @@ button.ml-tag { font: inherit; font-size: 11px; font-weight: 700; cursor: help; 
   box-shadow: 0 8px 30px rgba(0,0,0,.3); }
 .ml-toast[hidden] { display: none; }
 .ml-toast.err { background: var(--red); color: #fff; }
+
+/* 📧 Mails desk v2 (Erez 2026-10-06): urgent/regular sections, per-account colour line, row actions, selection mode */
+.ml-sec2 { margin-bottom: 16px; }
+.ml-sh { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800; margin: 4px 2px 6px; }
+.ml-sec2.urgent .ml-sh { color: var(--red); }
+.ml-card { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 14px; overflow: hidden; }
+.ml-sec2.urgent .ml-card { border-color: color-mix(in srgb, var(--red) 40%, var(--ring)); }
+.ml-sempty { padding: 14px; font-size: 13px; color: var(--muted); text-align: center; }
+.ml-sub { display: flex; align-items: center; gap: 8px; margin-top: 2px; min-width: 0; }
+.ml-acc { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: hsl(var(--h) var(--s) 36%); }
+.ml-acc .ml-accn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ml-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+:root[data-theme="dark"] .ml-acc { color: hsl(var(--h) var(--s) 70%); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ml-acc { color: hsl(var(--h) var(--s) 70%); } }
+.ml-act { flex: none; min-height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--grid); background: var(--surface-1); color: var(--ink-1); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.ml-act:hover { background: var(--tint); }
+.ml-act.del { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+.ml-pendtag { flex: none; font-size: 12px; font-weight: 700; color: var(--yellow); }
+.ml-row.pend { opacity: .55; cursor: default; }
+.ml-row.sel { background: color-mix(in srgb, var(--blue) 10%, transparent); }
+.ml-ckw { flex: none; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.ml-ck { width: 20px; height: 20px; accent-color: var(--blue); }
+.ml-acct { position: relative; flex: none; }
+.ml-acctbtn { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; max-width: 100%; }
+.ml-acctbtn .ml-ab-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 190px; }
+.ml-acct-panel { position: absolute; z-index: 40; top: calc(100% + 4px); inset-inline-start: 0; width: min(320px, 92vw); max-height: min(60vh, 420px); overflow-y: auto;
+  background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; box-shadow: 0 8px 28px var(--ring); padding: 4px; }
+.ml-acct-panel[hidden] { display: none; }
+.ml-ao { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 10px; border-radius: 8px; cursor: pointer; font-size: 13.5px; }
+.ml-ao:hover { background: var(--tint); }
+.ml-ao.all { border-bottom: 1px solid var(--grid); border-radius: 8px 8px 0 0; }
+.ml-ao input { width: 18px; height: 18px; accent-color: var(--blue); flex: none; }
+.ml-ao .ml-acc { font-size: 13px; }
+.ml-ao .ml-cn { flex: none; font-size: 11.5px; color: var(--muted); }
+.ml-selbtn { min-height: 44px; padding: 0 14px; }
+.ml-selbtn[aria-pressed="true"] { background: var(--ink-1); color: var(--page); }
+.ml-bulk { position: sticky; bottom: 10px; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 10px; padding: 8px 10px;
+  background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; box-shadow: 0 6px 22px var(--ring); }
+.ml-bulk[hidden] { display: none; }
+.ml-bulk .ml-seln { flex: 1 1 100px; font-size: 13.5px; font-weight: 800; }
+.ml-bulk .ml-btn { min-height: 40px; padding: 0 14px; }
+.ml-btn.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, transparent); }
+.ml-cf { z-index: 240; }
+.ml-cf-t { font-size: 15px; line-height: 1.6; margin: 4px 0 8px; }
+.ml-cf .ml-dlg-card { width: min(380px, 94vw); }
+@media (max-width: 640px) {
+  .ml-acct { flex: 1 1 100%; } .ml-acctbtn { width: 100%; justify-content: space-between; } .ml-acctbtn .ml-ab-t { max-width: none; }
+  .ml-acct-panel { width: 100%; }
+  .ml-search { flex: 1 1 100%; } .ml-selbtn { flex: 1 1 auto; }
+  .ml-act { min-height: 40px; padding: 0 16px; }
+}
 @media (max-width: 640px) {
   .ml-chips .chip { min-height: 44px; }
   .ml-seg button { min-height: 44px; }
@@ -1270,17 +1321,22 @@ button.ml-tag { font: inherit; font-size: 11px; font-weight: 700; cursor: help; 
 
     <!-- 📧 Mails desk (Erez 2026-10-05) — mails ERZA flagged for Erez, per account; rendered by mailsRender() -->
     <section class="tab-panel" data-tab="mails" hidden>
-      <div class="tab-h">📧 מיילים שדורשים אותך</div>
+      <div class="tab-h">📧 מיילים שלא נקראו</div>
       <div class="ml-head-stats" id="mlStats" hidden></div>
       <div class="ml-toolbar">
         <div class="ml-seg" id="mlSeg" role="group" aria-label="תצוגה">
           <button type="button" data-view="active" aria-pressed="true">פעילים<span class="ml-segn"></span></button>
           <button type="button" data-view="archive" aria-pressed="false">ארכיון<span class="ml-segn"></span></button>
         </div>
+        <div class="ml-acct">
+          <button type="button" id="mlAcctBtn" class="ml-sort ml-acctbtn" aria-haspopup="true" aria-expanded="false" aria-controls="mlAcctPanel"><span class="ml-ab-t">חשבונות: הכל</span><span aria-hidden="true">▾</span></button>
+          <div id="mlAcctPanel" class="ml-acct-panel" role="group" aria-label="בחירת חשבונות להצגה" hidden></div>
+        </div>
+        <button type="button" id="mlSelBtn" class="ml-btn ml-selbtn" aria-pressed="false">☑ בחירה</button>
         <input id="mlSearch" class="ml-search" type="search" placeholder="חיפוש בנושא, שולח, המלצה או היסטוריה…" aria-label="חיפוש במיילים (פעילים וארכיון)">
         <select id="mlSort" class="ml-sort" aria-label="מיון"></select>
       </div>
-      <div class="ml-chips" id="mlChips" role="group" aria-label="סינון לפי חשבון"></div>
+      <div class="ml-bulk" id="mlBulk" hidden><span id="mlSelN" class="ml-seln">בחר מיילים</span><button type="button" class="ml-btn" data-mlbulk="all">בחר הכל</button><button type="button" class="ml-btn" data-mlbulk="read" disabled>נקרא</button><button type="button" class="ml-btn danger" data-mlbulk="delete" disabled>מחק</button><button type="button" class="ml-btn" data-mlbulk="off">סיום</button></div>
       <div id="mlList"></div>
     </section>
 
@@ -1378,10 +1434,10 @@ button.ml-tag { font: inherit; font-size: 11px; font-weight: 700; cursor: help; 
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_UI_VER='e2805a2040ef'</script>
+<script>window.ERZA_UI_VER='55ada2a87074'</script>
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=bc537940"></script>
+<script src="data.enc.js?v=e760a7dc"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -4425,10 +4481,14 @@ const ML = {
   data: { accounts: {}, prefs: {}, items: [] }, live: false, writing: 0,
   ui: { view: 'active', sort: 'newest', accts: [], q: '' },
   openHist: new Set(), dlgId: null, lastFocus: null, inited: false,
+  sel: new Set(), selMode: false, acctOpen: false,
 };
 const ML_UI_KEY = 'erza-mails-ui';
-const ML_SORTS = [['newest', 'חדש ← ישן'], ['oldest', 'ישן ← חדש'], ['account', 'לפי שם החשבון (א-ת)'], ['mine', 'ממתינים לתגובה שלי קודם']];
-const mlCloseState = s => s === 'closing' || s === 'closed';
+const ML_SORTS = [['newest', 'חדש ← ישן'], ['oldest', 'ישן ← חדש']];
+const mlCloseState = s => s === 'closing' || s === 'deleting' || s === 'closed';
+const mlPending = s => s === 'closing' || s === 'deleting';
+// urgent = attention / apple-account (and every row from before the split); regular = everything else unread
+const mlSection = it => it.section || (it.category === 'normal' ? 'regular' : 'urgent');
 
 function mlNorm(d) {
   d = d && typeof d === 'object' ? d : {};
@@ -4555,120 +4615,139 @@ function mlMatches(it, q) {
   const hay = [it.subject, it.from, it.title, it.recommendation, it.snippet, a.name, a.address, ...it.thread.map(e => e.text)].join('\n').toLowerCase();
   return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
 }
-const mlInView = (it, view) => view === 'archive' ? mlCloseState(it.status) : !mlCloseState(it.status);
-const mlClosedT = it => mlTime(it.closedAt) || (it.status === 'closing' ? Date.now() : 0);
+const mlInView = (it, view) => view === 'archive' ? it.status === 'closed' : it.status !== 'closed';
+const mlClosedT = it => mlTime(it.closedAt);
 function mlVisible(view) {
   const q = ML.ui.q.trim(), acc = ML.ui.accts;
   return ML.data.items.filter(it => mlInView(it, view) && (!acc.length || acc.includes(it.account)) && mlMatches(it, q));
 }
+// chronological by the latest message date (archive: by when it was closed)
 function mlSortItems(list, view) {
   const t = view === 'archive' ? mlClosedT : (it => mlTime(it.receivedAt));
-  const s = ML.ui.sort;
-  return list.slice().sort((a, b) => {
-    if (s === 'mine' && view === 'active') { const d = mlMineRank(a) - mlMineRank(b); if (d) return d; }
-    return s === 'oldest' ? t(a) - t(b) : t(b) - t(a);
-  });
+  return list.slice().sort((a, b) => ML.ui.sort === 'oldest' ? t(a) - t(b) : t(b) - t(a));
 }
 
 // ---- render ----
 function mlLinksHtml(links, max) {
-  const ok = links.map(l => ({ label: (l && (l.label || l.url)) || 'קישור', url: mlSafeUrl(l && l.url) })).filter(l => l.url);
+  const ok = (links || []).map(l => ({ label: (l && (l.label || l.url)) || 'קישור', url: mlSafeUrl(l && l.url) })).filter(l => l.url);
   if (!ok.length) return '';
   const shown = max ? ok.slice(0, max) : ok;
   return `<span class="ml-links">${shown.map(l => `<a class="ml-link" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" title="${esc(l.label)} — נפתח בלשונית חדשה"><span dir="auto">🔗<span class="ml-lt"> ${esc(l.label)}</span></span></a>`).join('')}${max && ok.length > max ? `<span class="ml-age">+${ok.length - max}</span>` : ''}</span>`;
 }
+// Stable per-account colour: FNV-1a of the account id → hue (+ one of 3 saturations). Lightness comes from CSS
+// per theme (dark/light) so every hue stays readable in both.
+function mlHue(id) {
+  let h = 2166136261; const s = String(id || '');
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return { h: h % 360, s: [58, 72, 86][(h >>> 9) % 3] };
+}
+const mlAccStyle = id => { const c = mlHue(id); return `--h:${c.h};--s:${c.s}%`; };
+const ML_CLOSED_BY = { 'user-read': 'סומן כנקרא', 'user-delete': 'נמחק (הועבר לפח)', 'read-elsewhere': 'נקרא במקום אחר', gone: 'כבר לא קיים ב-Mail' };
 function mlRowHtml(it, view) {
-  const th = it.thread, fi = mlFeatured(th);
+  const th = it.thread, fi = mlFeatured(th), urgent = mlSection(it) === 'urgent';
+  const pending = mlPending(it.status), closed = it.status === 'closed';
   const pend = th.some(e => e.kind === 'instruction' && (e.state || 'pending') === 'pending');
-  const failed = th.some(e => e.state === 'failed');
-  let last;
-  if (view === 'archive') last = it.status === 'closing' ? '<b>נסגר</b> — מסומן כנקרא בקרוב' : `<b>נסגר</b> ${esc(mlFull(it.closedAt))}`;
-  else if (fi >= 0) { const e = th[fi]; last = `<span aria-hidden="true">${mlEntryIco(e)}</span> ${e.kind === 'instruction' ? '<b>ההוראה שלך:</b> ' : e.kind === 'action' ? '<b>ERZA:</b> ' : ''}${esc(e.text || '')}${mlStateHtml(e)}`; }
-  else last = it.recommendation ? `💡 ${esc(it.recommendation)}` : `<span dir="auto">${esc(it.snippet || '')}</span>`;
-  const histN = view === 'archive' ? th.length : th.length - (fi >= 0 ? 1 : 0);
+  const failed = th.some(e => e.state === 'failed') || !!it.actionError;
+  let last = '';
+  if (closed) last = `<b>${esc(ML_CLOSED_BY[it.closedBy] || 'נסגר')}</b> ${esc(mlFull(it.closedAt))}`;
+  else if (urgent && fi >= 0) { const e = th[fi]; last = `<span aria-hidden="true">${mlEntryIco(e)}</span> ${e.kind === 'instruction' ? '<b>ההוראה שלך:</b> ' : e.kind === 'action' ? '<b>ERZA:</b> ' : ''}${esc(e.text || '')}${mlStateHtml(e)}`; }
+  else if (urgent) last = it.recommendation ? `💡 ${esc(it.recommendation)}` : `<span dir="auto">${esc(it.snippet || '')}</span>`;
+  const histN = urgent || closed ? th.length - (fi >= 0 && !closed ? 1 : 0) : 0;
   const histOpen = ML.openHist.has(it.id);
   const flag = it.category === 'apple-account' ? '<span class="ml-flag" title="מייל חשבון מאפל — רק אתה מטפל">🍎</span>' : '';
-  const stFlag = pend ? '<span class="ml-flag" title="הוראה שלך ממתינה ל-ERZA">⏳</span>' : failed ? '<span class="ml-flag" title="פעולה נכשלה — פתח לפרטים">⚠</span>' : '';
-  return `<article class="ml-row" data-mlid="${esc(it.id)}">
-    <div class="ml-line">
+  const stFlag = pend ? '<span class="ml-flag" title="הוראה שלך ממתינה ל-ERZA">⏳</span>' : failed ? `<span class="ml-flag" title="${esc(it.actionError || 'פעולה נכשלה — פתח לפרטים')}">⚠</span>` : '';
+  const a = mlAcct(it.account), sel = ML.sel.has(it.id);
+  const ctl = closed ? '' : pending
+    ? `<span class="ml-pendtag">⏳ ממתין לביצוע${it.action === 'delete' || it.status === 'deleting' ? ' · מחיקה' : ' · סימון כנקרא'}</span>`
+    : ML.selMode ? '' : `<button type="button" class="ml-act" data-mlact="read" data-mlact-id="${esc(it.id)}">נקרא</button><button type="button" class="ml-act del" data-mlact="delete" data-mlact-id="${esc(it.id)}">מחק</button>`;
+  const ck = ML.selMode && !closed && !pending ? `<label class="ml-ckw"><input type="checkbox" class="ml-ck" data-mlck="${esc(it.id)}"${sel ? ' checked' : ''} aria-label="בחר: ${esc(it.title || it.subject || '')}"></label>` : '';
+  return `<article class="ml-row${pending ? ' pend' : ''}${sel ? ' sel' : ''}" data-mlid="${esc(it.id)}"${pending ? ' aria-busy="true"' : ''}>
+    <div class="ml-line">${ck}
       <button type="button" class="ml-main" data-mlopen="${esc(it.id)}" aria-label="${esc((it.title || it.subject || '') + ' — מאת ' + mlFromName(it.from))}">
-        ${flag}<span class="ml-from" dir="auto">${esc(mlFromName(it.from))}</span><span class="ml-title" dir="auto">${esc(it.title || it.subject || '(ללא נושא)')}</span>${stFlag}<span class="ml-age">${esc(mlAge(it.receivedAt))}</span>
-      </button>${mlLinksHtml(it.links, 2)}
+        ${flag}<span class="ml-from" dir="auto">${esc(mlFromName(it.from))}</span><span class="ml-title" dir="auto">${esc(it.title || it.subject || '(ללא נושא)')}</span>${stFlag}<span class="ml-age">${esc(mlAge(closed ? it.closedAt : it.receivedAt))}</span>
+      </button>${urgent ? mlLinksHtml(it.links, 2) : ''}
     </div>
-    <div class="ml-last">${last}</div>
-    ${histN > 0 ? `<details class="ml-hist" data-mlhist="${esc(it.id)}"${histOpen ? ' open' : ''}><summary>היסטוריה (${histN})</summary><div class="ml-hist-body">${mlThreadHtml(th, view === 'archive' ? -1 : fi)}</div></details>` : ''}
+    ${last ? `<div class="ml-last">${last}</div>` : ''}
+    ${histN > 0 ? `<details class="ml-hist" data-mlhist="${esc(it.id)}"${histOpen ? ' open' : ''}><summary>היסטוריה (${histN})</summary><div class="ml-hist-body">${mlThreadHtml(th, closed || fi < 0 ? -1 : fi)}</div></details>` : ''}
+    <div class="ml-sub"><span class="ml-acc" style="${mlAccStyle(it.account)}" title="${esc(a.address || a.name)}"><i class="ml-dot" aria-hidden="true"></i><span class="ml-accn" dir="auto">${esc(a.name)}</span></span>${ctl}</div>
   </article>`;
+}
+function mlSectionHtml(cls, title, list, emptyMsg) {
+  return `<section class="ml-sec2 ${cls}" aria-label="${esc(title)}"><h4 class="ml-sh"><span>${title}</span><span class="ml-gcount${list.length ? '' : ' zero'}">${list.length}</span></h4>
+    <div class="ml-card">${list.length ? list.map(it => mlRowHtml(it, 'active')).join('') : `<div class="ml-sempty">${emptyMsg}</div>`}</div></section>`;
+}
+// account dropdown (multi-select, persisted per viewer): empty selection = "הצג הכל"
+function mlAcctRender(order, viewItems) {
+  const btn = document.getElementById('mlAcctBtn'), panel = document.getElementById('mlAcctPanel'); if (!btn || !panel) return;
+  const counts = new Map(); for (const i of viewItems) counts.set(i.account, (counts.get(i.account) || 0) + 1);
+  const ids = order.filter(id => counts.has(id) || ML.ui.accts.includes(id));
+  const sig = ids.join('|') + '#' + ids.map(id => mlAcct(id).name).join('|');
+  if (panel.dataset.sig !== sig) {
+    panel.dataset.sig = sig;
+    panel.innerHTML = `<label class="ml-ao all"><input type="checkbox" data-mlacct=""><b>הצג הכל</b></label>` +
+      ids.map(id => { const a = mlAcct(id); return `<label class="ml-ao" title="${esc(a.address)}"><input type="checkbox" data-mlacct="${esc(id)}"><span class="ml-acc" style="${mlAccStyle(id)}"><i class="ml-dot"></i><span class="ml-accn" dir="auto">${esc(a.name)}</span></span><span class="ml-cn" data-mlcn="${esc(id)}"></span></label>`; }).join('');
+  }
+  panel.querySelectorAll('input[data-mlacct]').forEach(c => { const id = c.dataset.mlacct; c.checked = id ? ML.ui.accts.includes(id) : !ML.ui.accts.length; });
+  panel.querySelectorAll('[data-mlcn]').forEach(s => { s.textContent = counts.get(s.dataset.mlcn) || 0; });
+  const n = ML.ui.accts.length;
+  btn.querySelector('.ml-ab-t').textContent = !n ? `חשבונות: הכל (${ids.length})` : n === 1 ? mlAcct(ML.ui.accts[0]).name : `${n} חשבונות נבחרו`;
+  btn.setAttribute('aria-expanded', String(!!ML.acctOpen)); panel.hidden = !ML.acctOpen;
+}
+function mlBulkRender(visibleIds) {
+  const bar = document.getElementById('mlBulk'), tg = document.getElementById('mlSelBtn');
+  if (tg) { tg.setAttribute('aria-pressed', String(ML.selMode)); tg.hidden = ML.ui.view === 'archive'; }
+  if (!bar) return;
+  bar.hidden = !ML.selMode || ML.ui.view === 'archive';
+  const n = ML.sel.size;
+  bar.querySelector('#mlSelN').textContent = n ? `נבחרו ${n}` : 'בחר מיילים';
+  bar.querySelectorAll('[data-mlbulk="read"],[data-mlbulk="delete"]').forEach(b => { b.disabled = !n; });
+  const all = bar.querySelector('[data-mlbulk="all"]'); all.textContent = visibleIds.length && visibleIds.every(id => ML.sel.has(id)) ? 'בטל בחירה' : `בחר הכל (${visibleIds.length})`;
 }
 function mailsRender() {
   const root = document.getElementById('mlList'); if (!root) return;
   const items = ML.data.items;
-  const openN = items.filter(i => !mlCloseState(i.status)).length;
+  const openN = items.filter(i => i.status !== 'closed').length;
   const archN = items.length - openN;
-  // badge = open items
   { const b = document.getElementById('tabBadgeMails'); if (b) { b.textContent = openN; b.hidden = !openN; } }
-  // header stats (last run + today's automatic handling)
   { const el = document.getElementById('mlStats'); if (el) {
       const w = ML.data.watermark || {}, st = (ML.data.stats || {})[new Date().toISOString().slice(0, 10)];
       const parts = [];
       if (w.lastRunAt) parts.push(`נבדק ${mlAge(w.lastRunAt)}`);
       if (st) parts.push(`היום סומנו כנקראו: ${(st.readApple || 0)} מאפל · ${(st.readPromo || 0)} פרסומות`);
       el.textContent = parts.join(' · '); el.hidden = !parts.length; } }
-  // segmented counts
   document.querySelectorAll('#mlSeg button').forEach(b => {
     b.setAttribute('aria-pressed', String(b.dataset.view === ML.ui.view));
     const n = b.querySelector('.ml-segn'); if (n) n.textContent = b.dataset.view === 'archive' ? archN : openN;
   });
-  // account chips — only accounts that have something in either view
-  const order = mlOrder();
-  const withItems = order.filter(id => items.some(i => i.account === id));
-  ML.ui.accts = ML.ui.accts.filter(id => withItems.includes(id));
-  const viewItems = items.filter(i => mlInView(i, ML.ui.view));
-  const chips = document.getElementById('mlChips');
-  chips.innerHTML = withItems.length > 1 || ML.ui.accts.length ? `<button type="button" class="chip${ML.ui.accts.length ? '' : ' on'}" data-mlacct="" aria-pressed="${!ML.ui.accts.length}">הכל</button>` +
-    withItems.map(id => { const a = mlAcct(id), on = ML.ui.accts.includes(id), n = viewItems.filter(i => i.account === id).length;
-      return `<button type="button" class="chip${on ? ' on' : ''}" data-mlacct="${esc(id)}" aria-pressed="${on}" title="${esc(a.address)}"><span class="ml-chipname">${esc(a.name)}</span><span class="ml-cn">${n}</span></button>`; }).join('') : '';
-
+  const order = mlOrder(), view = ML.ui.view;
+  const viewItems = items.filter(i => mlInView(i, view));
+  mlAcctRender(order, viewItems);
+  // selection only ever holds rows that still exist, are open and are not pending
+  for (const id of [...ML.sel]) { const it = items.find(i => i.id === id); if (!it || it.status !== 'open') ML.sel.delete(id); }
   if (!items.length) {
-    root.innerHTML = `<div class="ml-empty"><span class="ml-empty-ico">📭</span>אין כרגע מיילים שדורשים את תשומת ליבך.<br>ERZA עוברת על כל תיבות הדואר כל חצי שעה ותציג כאן רק את מה שחשוב.</div>`;
-    return;
+    root.innerHTML = `<div class="ml-empty"><span class="ml-empty-ico">📭</span>אין כרגע מיילים שלא נקראו.<br>ERZA עוברת על כל תיבות הדואר ומציגה כאן כל מייל שעוד לא קראת.</div>`;
+    mlBulkRender([]); return;
   }
-  const view = ML.ui.view;
-  const vis = mlVisible(view);
+  const vis = mlSortItems(mlVisible(view), view);
   const other = view === 'archive' ? 'active' : 'archive';
   const otherN = ML.ui.q.trim() ? mlVisible(other).length : 0;
   const moreBtn = otherN ? `<button type="button" class="ml-more" data-mlview="${other}">עוד ${otherN} תוצאות ב${other === 'archive' ? 'ארכיון' : 'פעילים'} — הצג</button>` : '';
+  const selectable = vis.filter(i => i.status === 'open').map(i => i.id);
   if (!vis.length) {
     const filtered = ML.ui.q.trim() || ML.ui.accts.length;
     root.innerHTML = moreBtn + (filtered
       ? `<div class="ml-empty"><span class="ml-empty-ico">🔍</span>לא נמצאו מיילים שתואמים לחיפוש או לסינון.<br><button type="button" data-mlclear="1">נקה חיפוש וסינון</button></div>`
       : view === 'archive'
-        ? `<div class="ml-empty"><span class="ml-empty-ico">🗂️</span>הארכיון ריק — מיילים שתסמן כ״טופל״ יופיעו כאן.</div>`
-        : `<div class="ml-empty"><span class="ml-empty-ico">✅</span>אין מיילים פתוחים — הכל טופל.</div>`);
-    return;
+        ? `<div class="ml-empty"><span class="ml-empty-ico">🗂️</span>הארכיון ריק — מיילים שתסמן כנקראו או תמחק יופיעו כאן.</div>`
+        : `<div class="ml-empty"><span class="ml-empty-ico">✅</span>אין מיילים שלא נקראו — הכל טופל.</div>`);
+    mlBulkRender(selectable); return;
   }
-  const byAcct = new Map();
-  for (const it of mlSortItems(vis, view)) { if (!byAcct.has(it.account)) byAcct.set(it.account, []); byAcct.get(it.account).push(it); }
-  let groups = order.filter(id => byAcct.has(id));
-  for (const id of byAcct.keys()) if (!groups.includes(id)) groups.push(id);
-  const alpha = ML.ui.sort === 'account';
-  if (alpha) groups = groups.slice().sort((a, b) => mlAcct(a).name.localeCompare(mlAcct(b).name, 'he'));
-  const canMove = !alpha && groups.length > 1;
-  root.innerHTML = groups.map((id, gi) => {
-    const a = mlAcct(id), list = byAcct.get(id);
-    const openCount = items.filter(i => i.account === id && !mlCloseState(i.status)).length;
-    const cnt = view === 'archive' ? list.length : openCount;
-    return `<section class="ml-group" aria-label="${esc(a.name)}">
-      <header class="ml-gh">
-        <div class="ml-gtxt">
-          <div class="ml-gname"><span dir="auto">${esc(a.name)}</span>${a.family ? '<span class="ml-tag" style="--bc:var(--violet)">משפחה</span>' : ''}${a.stale ? '<button type="button" class="ml-tag" style="--bc:var(--yellow)" title="התחבר מחדש בחשבון הזה ב-Mail" aria-label="לא מסונכרן — התחבר מחדש בחשבון הזה ב-Mail" data-mlstale="1">⚠ לא מסונכרן</button>' : ''}</div>
-          ${a.address ? `<div class="ml-gaddr">${esc(a.address)}</div>` : ''}
-        </div>
-        <span class="ml-gcount${cnt ? '' : ' zero'}" title="${view === 'archive' ? 'בארכיון' : 'פתוחים'}">${cnt}</span>
-        ${canMove ? `<button type="button" class="ml-mv" data-mlmove="${esc(id)}" data-dir="-1" ${gi === 0 ? 'disabled' : ''} aria-label="הזז את ${esc(a.name)} למעלה" title="הזז למעלה">▲</button><button type="button" class="ml-mv" data-mlmove="${esc(id)}" data-dir="1" ${gi === groups.length - 1 ? 'disabled' : ''} aria-label="הזז את ${esc(a.name)} למטה" title="הזז למטה">▼</button>` : ''}
-      </header>
-      ${list.map(it => mlRowHtml(it, view)).join('')}
-    </section>`;
-  }).join('') + moreBtn;
+  if (view === 'archive') root.innerHTML = `<section class="ml-sec2"><div class="ml-card">${vis.map(it => mlRowHtml(it, 'archive')).join('')}</div></section>` + moreBtn;
+  else {
+    const urgent = vis.filter(i => mlSection(i) === 'urgent'), regular = vis.filter(i => mlSection(i) !== 'urgent');
+    root.innerHTML = mlSectionHtml('urgent', '🔴 דחוף', urgent, 'אין מיילים דחופים ✓') + mlSectionHtml('regular', 'רגיל', regular, 'אין מיילים רגילים') + moreBtn;
+  }
+  mlBulkRender(selectable);
   if (ML.dlgId) mlDlgRefresh();
 }
 
@@ -4730,26 +4809,45 @@ function mlSendInstruction(id, text) {
     it.thread.push({ ...entry });
   }, 'מיילים: הוראה ל-ERZA מהדשבורד', 'ההוראה נשלחה ✓ — ERZA תטפל בסבב הקרוב');
 }
-function mlClose(id) {
+// Intent (Erez 2026-10-06): the dashboard only WRITES an intent — action 'read' | 'delete', actionAt and status
+// closing | deleting — and the engine performs it in Mail.app (read flag / move to Trash) and archives the row.
+// Merely opening or viewing a mail NEVER reaches this function.
+function mlSetAction(ids, action) {
+  const at = new Date().toISOString(), st = action === 'delete' ? 'deleting' : 'closing';
+  const n = ids.length;
   return mlApply(data => {
-    const it = mlFind(data, id);
-    if (mlCloseState(it.status)) return false;
-    it.status = 'closing';
-  }, 'מיילים: סומן כטופל מהדשבורד', 'סומן כטופל ✓ — המייל יסומן כנקרא ויעבור לארכיון');
+    const byId = new Map((data.items || []).filter(Boolean).map(i => [i.id, i]));
+    let changed = 0;
+    for (const id of ids) {
+      const it = byId.get(id);
+      if (!it || it.status === 'closed' || (it.status === st && it.action === action)) continue;
+      it.status = st; it.action = action; it.actionAt = at; changed++;
+    }
+    if (!changed) return false;
+  }, action === 'delete' ? `מיילים: מחיקה מהדשבורד (${n})` : `מיילים: סימון כנקרא מהדשבורד (${n})`,
+    action === 'delete' ? (n > 1 ? `${n} מיילים יימחקו (יועברו לפח) בסבב הקרוב` : 'המייל יימחק (יועבר לפח) בסבב הקרוב') : (n > 1 ? `${n} מיילים יסומנו כנקראו בסבב הקרוב` : 'המייל יסומן כנקרא בסבב הקרוב'));
 }
-function mlMoveGroup(id, dir) {
-  // visible group order as rendered, then splice into the FULL saved order
-  const visible = [...document.querySelectorAll('#mlList [data-mlmove][data-dir="-1"]')].map(b => b.dataset.mlmove);
-  const i = visible.indexOf(id), j = i + dir;
-  if (i < 0 || j < 0 || j >= visible.length) return;
-  const full = mlOrder().filter(x => x !== id);
-  const anchor = full.indexOf(visible[j]);
-  full.splice(dir < 0 ? anchor : anchor + 1, 0, id);
-  mlApply(data => { data.prefs = data.prefs && typeof data.prefs === 'object' ? data.prefs : {}; data.prefs.accountOrder = full; },
-    'מיילים: סדר חשבונות מהדשבורד', 'הסדר נשמר ✓').then(() => {
-    const b = document.querySelector(`#mlList [data-mlmove="${CSS.escape(id)}"][data-dir="${dir}"]`) || document.querySelector(`#mlList [data-mlmove="${CSS.escape(id)}"]`);
-    if (b && !b.disabled) b.focus();
+// delete always asks first — one confirmation, with the count for bulk
+function mlConfirmDelete(n) {
+  return new Promise(resolve => {
+    const el = document.getElementById('mlConfirm'); const card = el.querySelector('.ml-dlg-card');
+    card.innerHTML = `<div class="ml-dlg-top"><h3 id="mlCfTitle">מחיקה</h3></div><p class="ml-cf-t">האם אתה בטוח שברצונך למחוק?${n > 1 ? `<br><b>${n} מיילים</b> יועברו לפח.` : ''}</p>
+      <div class="ml-actions"><button type="button" class="ml-btn danger" data-cf="yes">מחק</button><button type="button" class="ml-btn" data-cf="no">ביטול</button></div>`;
+    const back = document.activeElement;
+    const done = v => { el.hidden = true; el.onclick = null; el.onkeydown = null; if (back && document.contains(back)) back.focus(); resolve(v); };
+    el.hidden = false;
+    el.onclick = e => { const b = e.target.closest('[data-cf]'); if (b) done(b.dataset.cf === 'yes'); else if (e.target.classList.contains('ml-dlg-bd')) done(false); };
+    el.onkeydown = e => { if (e.key === 'Escape') { e.preventDefault(); done(false); } else if (e.key === 'Tab') { e.preventDefault(); const bs = [...card.querySelectorAll('button')]; bs[(bs.indexOf(document.activeElement) + 1) % bs.length].focus(); } };
+    card.querySelector('[data-cf="no"]').focus();
   });
+}
+async function mlDoAction(ids, action) {
+  if (!ids.length) return false;
+  if (action === 'delete' && !(await mlConfirmDelete(ids.length))) return false;
+  const ok = await mlSetAction(ids, action);
+  if (ok) for (const id of ids) ML.sel.delete(id);
+  mailsRender();
+  return ok;
 }
 
 // ---- floating panel ----
@@ -4759,7 +4857,7 @@ function mlFocusables(root) {
 }
 function mlDlgHtml(it) {
   const a = mlAcct(it.account), ro = mlCloseState(it.status), canWrite = !!pat();
-  const status = it.status === 'closing' ? 'נסגר — מסומן כנקרא בקרוב' : it.status === 'closed' ? `נסגר ${mlFull(it.closedAt)}` : 'פתוח';
+  const status = it.status === 'closing' ? 'ממתין לביצוע — יסומן כנקרא בקרוב' : it.status === 'deleting' ? 'ממתין לביצוע — יימחק (יועבר לפח) בקרוב' : it.status === 'closed' ? `${ML_CLOSED_BY[it.closedBy] || 'נסגר'} ${mlFull(it.closedAt)}` : 'לא נקרא';
   return `<div class="ml-dlg-top"><h3 id="mlDlgTitle" dir="auto">${it.category === 'apple-account' ? '🍎 ' : ''}${esc(it.subject || it.title || '(ללא נושא)')}</h3><button type="button" class="ml-x" data-mlclose="1" aria-label="סגור חלון">✕</button></div>
     ${it.title && it.title !== it.subject ? `<div style="font-size:14px;font-weight:700;margin-bottom:10px" dir="auto">${esc(it.title)}</div>` : ''}
     <dl class="ml-meta">
@@ -4773,10 +4871,10 @@ function mlDlgHtml(it) {
     ${mlLinksHtml(it.links, 0) ? `<div class="ml-sec">קישורים</div>${mlLinksHtml(it.links, 0)}` : ''}
     <div class="ml-sec">היסטוריה</div>
     <div id="mlDlgThread">${it.thread.length ? mlThreadHtml(it.thread) : '<div class="ml-te" style="color:var(--muted)">עוד אין הוראות או פעולות.</div>'}</div>
-    <div id="mlDlgCompose">${ro ? `<div class="ml-note">${it.status === 'closing' ? 'המייל נסגר — ERZA תסמן אותו כנקרא ב-Mail בסבב הקרוב.' : 'המייל נסגר ונמצא בארכיון — קריאה בלבד.'}</div>`
+    <div id="mlDlgCompose">${ro ? `<div class="ml-note">${it.status === 'closing' ? 'הפעולה ממתינה לביצוע — ERZA תבצע אותה ב-Mail בסבב הקרוב.' : 'המייל בארכיון — קריאה בלבד.'}</div>`
       : `<div class="ml-compose"><label for="mlInstr">הוראה ל-ERZA</label>
         <textarea id="mlInstr" dir="auto" placeholder="למשל: תכין טיוטת תשובה שאנחנו מאשרים · תבדוק אם כבר שילמנו"${canWrite ? '' : ' disabled'}></textarea>
-        <div class="ml-actions"><button type="button" class="ml-btn primary" id="mlSend"${canWrite ? '' : ' disabled'}>שלח</button><button type="button" class="ml-btn done" id="mlDone"${canWrite ? '' : ' disabled'}>✓ טופל — סגור</button></div>
+        <div class="ml-actions"><button type="button" class="ml-btn primary" id="mlSend"${canWrite ? '' : ' disabled'}>שלח</button><button type="button" class="ml-btn done" id="mlDone"${canWrite ? '' : ' disabled'}>נקרא</button><button type="button" class="ml-btn danger" id="mlDel"${canWrite ? '' : ' disabled'}>מחק</button></div>
         ${canWrite ? '' : '<div class="ml-note">כדי לשלוח הוראות או לסגור צריך טוקן GitHub — לחץ ⚙️ למעלה.</div>'}
         <div class="ml-note" style="background:none;padding:6px 0 0">ERZA מכינה טיוטות בלבד ולעולם לא שולחת מייל בשמך.</div></div>`}</div>`;
 }
@@ -4836,24 +4934,50 @@ function mailsInit() {
   sort.onchange = () => { ML.ui.sort = sort.value; mlSaveUi(); mailsRender(); };
   const q = document.getElementById('mlSearch');
   let qt; q.oninput = () => { clearTimeout(qt); qt = setTimeout(() => { ML.ui.q = q.value; mailsRender(); }, 120); };
-  document.querySelectorAll('#mlSeg button').forEach(b => { b.onclick = () => { ML.ui.view = b.dataset.view; mlSaveUi(); mailsRender(); }; });
+  document.querySelectorAll('#mlSeg button').forEach(b => { b.onclick = () => { ML.ui.view = b.dataset.view; if (ML.ui.view === 'archive') { ML.selMode = false; ML.sel.clear(); } mlSaveUi(); mailsRender(); }; });
   const panel = document.querySelector('.tab-panel[data-tab="mails"]');
+  const setAccts = ids => { ML.ui.accts = ids; mlSaveUi(); mailsRender(); };
+  panel.addEventListener('change', e => {
+    const c = e.target.closest && e.target.closest('input[data-mlacct]');
+    if (c) {                                   // account dropdown: "" = הצג הכל; unchecking the last account = all
+      const id = c.dataset.mlacct;
+      if (!id) { setAccts([]); return; }
+      setAccts(c.checked ? [...new Set([...ML.ui.accts, id])] : ML.ui.accts.filter(x => x !== id));
+      return;
+    }
+    const k = e.target.closest && e.target.closest('input[data-mlck]');
+    if (k) { k.checked ? ML.sel.add(k.dataset.mlck) : ML.sel.delete(k.dataset.mlck); mailsRender(); }
+  });
+  document.addEventListener('click', e => {      // outside click closes the account dropdown
+    if (ML.acctOpen && !e.target.closest('.ml-acct')) { ML.acctOpen = false; mailsRender(); }
+  });
+  panel.addEventListener('keydown', e => { if (e.key === 'Escape' && ML.acctOpen) { ML.acctOpen = false; mailsRender(); document.getElementById('mlAcctBtn').focus(); } });
   panel.addEventListener('click', e => {
     const t = e.target;
     if (t.closest('a.ml-link')) return;            // link chips open in a new tab, never the panel
-    const chip = t.closest('[data-mlacct]');
-    if (chip) {
-      const id = chip.dataset.mlacct;
-      if (!id) ML.ui.accts = [];
-      else ML.ui.accts = ML.ui.accts.includes(id) ? ML.ui.accts.filter(x => x !== id) : [...ML.ui.accts, id];
-      mlSaveUi(); mailsRender(); return;
+    if (t.closest('#mlAcctBtn')) { ML.acctOpen = !ML.acctOpen; mailsRender(); return; }
+    if (t.closest('#mlAcctPanel')) return;         // checkbox changes are handled by the change listener
+    if (t.closest('#mlSelBtn')) { ML.selMode = !ML.selMode; if (!ML.selMode) ML.sel.clear(); mailsRender(); return; }
+    const bulk = t.closest('[data-mlbulk]');
+    if (bulk) {
+      const kind = bulk.dataset.mlbulk;
+      if (kind === 'off') { ML.selMode = false; ML.sel.clear(); mailsRender(); }
+      else if (kind === 'all') {
+        const ids = mlVisible('active').filter(i => i.status === 'open').map(i => i.id);
+        if (ids.length && ids.every(id => ML.sel.has(id))) ML.sel.clear(); else ids.forEach(id => ML.sel.add(id));
+        mailsRender();
+      } else mlDoAction([...ML.sel], kind);
+      return;
     }
-    const mv = t.closest('[data-mlmove]'); if (mv) { mlMoveGroup(mv.dataset.mlmove, Number(mv.dataset.dir)); return; }
+    const act = t.closest('[data-mlact]'); if (act) { mlDoAction([act.dataset.mlactId], act.dataset.mlact); return; }
     const vw = t.closest('[data-mlview]'); if (vw) { ML.ui.view = vw.dataset.mlview; mlSaveUi(); mailsRender(); return; }
     if (t.closest('[data-mlclear]')) { ML.ui.q = ''; ML.ui.accts = []; q.value = ''; mlSaveUi(); mailsRender(); return; }
-    if (t.closest('[data-mlstale]')) { mlToast('החשבון לא מסונכרן — התחבר מחדש בחשבון הזה ב-Mail'); return; }
-    if (t.closest('summary') || t.closest('.ml-hist-body')) return;   // accordion handles itself
-    const row = t.closest('[data-mlid]'); if (row) mlDlgOpen(row.dataset.mlid);
+    if (t.closest('summary') || t.closest('.ml-hist-body') || t.closest('.ml-ckw')) return;   // accordion / checkbox handle themselves
+    const row = t.closest('[data-mlid]');
+    if (row) {
+      if (ML.selMode) { const it = ML.data.items.find(i => i.id === row.dataset.mlid); if (it && it.status === 'open') { ML.sel.has(it.id) ? ML.sel.delete(it.id) : ML.sel.add(it.id); mailsRender(); } return; }
+      mlDlgOpen(row.dataset.mlid);   // view only — opening a mail never changes anything (no read, no intent)
+    }
   });
   panel.addEventListener('toggle', e => {
     const d = e.target; if (!d.matches || !d.matches('[data-mlhist]')) return;
@@ -4864,6 +4988,10 @@ function mailsInit() {
   dlg.id = 'mlDlg'; dlg.className = 'ml-dlg'; dlg.hidden = true;
   dlg.innerHTML = '<div class="ml-dlg-bd"></div><div class="ml-dlg-card" role="dialog" aria-modal="true" aria-labelledby="mlDlgTitle" tabindex="-1"></div>';
   document.body.appendChild(dlg);
+  const cf = document.createElement('div');
+  cf.id = 'mlConfirm'; cf.className = 'ml-dlg ml-cf'; cf.hidden = true;
+  cf.innerHTML = '<div class="ml-dlg-bd"></div><div class="ml-dlg-card" role="alertdialog" aria-modal="true" aria-labelledby="mlCfTitle" tabindex="-1"></div>';
+  document.body.appendChild(cf);
   dlg.querySelector('.ml-dlg-bd').onclick = mlDlgClose;
   dlg.addEventListener('click', async e => {
     if (e.target.closest('[data-mlclose]')) { mlDlgClose(); return; }
@@ -4880,10 +5008,16 @@ function mailsInit() {
       return;
     }
     if (e.target.closest('#mlDone')) {
-      if (!confirm('לסמן את המייל כטופל?\nERZA תסמן אותו כנקרא ב-Mail והוא יעבור לארכיון.')) return;
       const ta = document.getElementById('mlInstr'); if (ta) ta.value = '';
-      const ok = await mlClose(id);
+      const ok = await mlDoAction([id], 'read');
       if (ok) mlDlgClose();
+      return;
+    }
+    if (e.target.closest('#mlDel')) {
+      const ta = document.getElementById('mlInstr'); const draft = ta ? ta.value : '';
+      if (ta) ta.value = '';
+      const ok = await mlDoAction([id], 'delete');
+      if (ok) mlDlgClose(); else { const nt = document.getElementById('mlInstr'); if (nt && draft) nt.value = draft; }
     }
   });
   dlg.addEventListener('keydown', e => {
