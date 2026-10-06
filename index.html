@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
+<!-- CSP (security audit 2026-10): GitHub Pages cannot send headers, so the policy rides in a meta tag. Network
+     reach is limited to this origin + the GitHub API, so even an injected script cannot ship the token/key
+     elsewhere via fetch/XHR; no plugins, no <base> hijack, no form posts. 'unsafe-inline' is required by the
+     inline handlers and the deploy-time stamp scripts. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self' data:; connect-src 'self' https://api.github.com; frame-src blob:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>ERZA · לוח בקרה — פורטפוליו ERezult</title>
 <!-- ERZA app icon + PWA (Add to Dock / Home Screen shows the ERZA conductor icon) -->
 <link rel="icon" type="image/png" sizes="192x192" href="icons/erza-192.png">
@@ -1468,10 +1473,10 @@ button.ml-tag { font: inherit; font-size: 11px; font-weight: 700; cursor: help; 
   <footer>ERZA Orchestrator · ERezult · <span id="footDate"></span> · <a href="https://github.com/Erezults/ERZA_Orchestrator" rel="noopener">registry</a></footer>
 </div>
 
-<script>window.ERZA_UI_VER='b4735463a8f8'</script>
+<script>window.ERZA_UI_VER='ab3af242be9c'</script>
 <script>window.ERZA_DEPLOY_VER='1.23.1'</script>
 <script>window.ERZA_ICONV='e1286bbf'</script>
-<script src="data.enc.js?v=c3f336c6"></script>
+<script src="data.enc.js?v=90ca1b06"></script>
 <script>
 /* ---------- constants ---------- */
 const STAGES = {
@@ -1506,24 +1511,49 @@ themeBtn.onclick = () => {
 
 /* ---------- crypto (lock) ---------- */
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-async function decryptWithBits(bits) {
+// The AES key lives only as a NON-extractable CryptoKey (security audit 2026-10): script on the page can use it
+// but can never read its bytes back, and "remember me" stores that CryptoKey in IndexedDB — never raw key bytes
+// in localStorage (the pre-2026-10 'erza-k' entry is migrated once and deleted).
+const importAesKey = bits => crypto.subtle.importKey('raw', bits, 'AES-GCM', false, ['decrypt']);
+async function decryptWithKey(key) {
   const E = window.ERZA_ENC;
-  const key = await crypto.subtle.importKey('raw', bits, 'AES-GCM', false, ['decrypt']);
   const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(E.iv) }, key, b64(E.ct));
   const data = JSON.parse(new TextDecoder().decode(pt));
-  window.ERZA_KEYBITS = bits;   // same key decrypts the mail attachments (att/<id>.bin) on demand — kept in memory only
+  window.ERZA_KEY = key;   // same key decrypts the mail attachments (att/<id>.bin) on demand — kept in memory only
   return data;
 }
+function keyStore(mode, fn) {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open('erza', 1);
+    open.onupgradeneeded = () => open.result.createObjectStore('k');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const tx = open.result.transaction('k', mode), req = fn(tx.objectStore('k'));
+      tx.oncomplete = () => { open.result.close(); resolve(req && req.result); };
+      tx.onerror = tx.onabort = () => { open.result.close(); reject(tx.error); };
+    };
+  });
+}
+const keyGet = () => keyStore('readonly', s => s.get('aes'));
+const keyPut = key => keyStore('readwrite', s => s.put(key, 'aes'));
+const keyDel = () => keyStore('readwrite', s => s.delete('aes')).catch(() => {});
 async function deriveBits(pw) {
   const E = window.ERZA_ENC;
   const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveBits']);
   return crypto.subtle.deriveBits({ name: 'PBKDF2', salt: b64(E.salt), iterations: E.iter, hash: 'SHA-256' }, km, 256);
 }
 async function tryStoredKey() {
-  const k = localStorage.getItem('erza-k');
-  if (!k) return null;
-  try { return await decryptWithBits(b64(k).buffer); }
-  catch { localStorage.removeItem('erza-k'); return null; }
+  const legacy = localStorage.getItem('erza-k');
+  if (legacy) {   // one-time migration off the raw-bytes localStorage entry
+    localStorage.removeItem('erza-k');
+    try { const key = await importAesKey(b64(legacy).buffer); const data = await decryptWithKey(key); await keyPut(key).catch(() => {}); return data; }
+    catch { return null; }
+  }
+  let key = null;
+  try { key = await keyGet(); } catch { return null; }
+  if (!key) return null;
+  try { return await decryptWithKey(key); }
+  catch { await keyDel(); return null; }   // password changed (new salt) — forget the stale key
 }
 function showLock() {
   document.getElementById('lock').hidden = false;
@@ -1533,10 +1563,9 @@ function showLock() {
     const btn = document.getElementById('unlockBtn'), err = document.getElementById('lockErr');
     btn.disabled = true; err.textContent = '';
     try {
-      const bits = await deriveBits(document.getElementById('pw').value);
-      const data = await decryptWithBits(bits);
-      if (document.getElementById('rememberMe').checked)
-        localStorage.setItem('erza-k', btoa(String.fromCharCode(...new Uint8Array(bits))));
+      const key = await importAesKey(await deriveBits(document.getElementById('pw').value));
+      const data = await decryptWithKey(key);
+      if (document.getElementById('rememberMe').checked) await keyPut(key).catch(() => {});
       document.getElementById('lock').hidden = true;
       boot(data, true);
     } catch {
@@ -1567,7 +1596,9 @@ function boot(D, locked) {
   if (locked) {
     const lb = document.getElementById('lockBtn');
     lb.hidden = false;
-    lb.onclick = () => { localStorage.removeItem('erza-k'); location.reload(); };
+    // 🔒 = sign out of this device: forget the decryption key AND the GitHub token (audit 2026-10 — the token
+    // used to survive the lock, so a "locked" device still held write access to the repo the cron executes).
+    lb.onclick = async () => { ['erza-k', 'erza-pat'].forEach(k => localStorage.removeItem(k)); await keyDel(); location.reload(); };
   }
   const apps = D.apps || [];
   const byDir = Object.fromEntries(apps.map(a => [a.dir, a]));
@@ -1652,7 +1683,7 @@ function boot(D, locked) {
     const s = byDir[a.marketingSite] || {};
     const label = (a.marketingSiteUrl || '').replace('https://', '') || a.marketingSite;
     const link = a.marketingSiteUrl
-      ? `<a class="sitelink" href="${esc(a.marketingSiteUrl)}" target="_blank" rel="noopener">${esc(label)}</a>`
+      ? `<a class="sitelink" href="${esc(mlSafeUrl(a.marketingSiteUrl) || "#")}" target="_blank" rel="noopener">${esc(label)}</a>`
       : `<span class="cat" dir="ltr">${esc(label)}</span>`;
     return `${link}<br>${stageBadge(s, true)}`;
   };
@@ -1683,7 +1714,7 @@ function boot(D, locked) {
         <div class="kv">
           <div><b>שלב:</b> ${esc((STAGES[site.stage] || {}).he || site.stage)} · <b>עודכן:</b> ${fmtDate(site.gitLastCommitDate)}</div>
           ${(site.remaining || []).length ? `<div><b>נותרו באתר:</b> ${site.remaining.length} משימות</div>` : ''}
-          ${a.marketingSiteUrl ? `<div><a class="sitelink" href="${esc(a.marketingSiteUrl)}" target="_blank" rel="noopener">${esc(a.marketingSiteUrl)}</a></div>` : ''}
+          ${a.marketingSiteUrl ? `<div><a class="sitelink" href="${esc(mlSafeUrl(a.marketingSiteUrl) || "#")}" target="_blank" rel="noopener">${esc(a.marketingSiteUrl)}</a></div>` : ''}
         </div>` : ''}
       </div>
     </div>`;
@@ -2146,7 +2177,7 @@ function storePanelBody() {
         <td>${stageBadge(a)}</td>
         <td class="num" dir="ltr" style="text-align:right" title="${esc(a.version || '')}">${esc(a.versionShort || '—')}</td>
         <td class="num">${fmtDate(a.gitLastCommitDate)}</td>
-        <td>${a.siteUrl ? `<a class="sitelink" href="${esc(a.siteUrl)}" target="_blank" rel="noopener">${esc(a.siteUrl.replace('https://', ''))}</a>` : '<span class="cat">—</span>'}</td>
+        <td>${a.siteUrl ? `<a class="sitelink" href="${esc(mlSafeUrl(a.siteUrl) || "#")}" target="_blank" rel="noopener">${esc(a.siteUrl.replace('https://', ''))}</a>` : '<span class="cat">—</span>'}</td>
         <td class="num">${(a.remaining || []).length}</td>
       </tr>
       <tr class="detail" hidden><td colspan="7">${detailHTML(a)}</td></tr>`).join('');
@@ -2176,7 +2207,7 @@ function storePanelBody() {
           <span dir="ltr">${esc((a.versions && a.versions.prod) || a.versionShort || '')}</span><span>עודכן ${fmtDate(a.gitLastCommitDate)}</span>
           ${c.total ? `<span>סקילים ${c.pct}%</span>` : ''}<span>נותרו ${(a.remaining || []).length}</span>
         </div>
-        ${a.role === 'native' && a.marketingSiteUrl ? `<div class="meta" style="margin-top:6px"><a class="sitelink" href="${esc(a.marketingSiteUrl)}" target="_blank" rel="noopener">🌐 ${esc(a.marketingSiteUrl.replace('https://', ''))}</a></div>` : ''}
+        ${a.role === 'native' && a.marketingSiteUrl ? `<div class="meta" style="margin-top:6px"><a class="sitelink" href="${esc(mlSafeUrl(a.marketingSiteUrl) || "#")}" target="_blank" rel="noopener">🌐 ${esc(a.marketingSiteUrl.replace('https://', ''))}</a></div>` : ''}
         <details><summary>פירוט מלא</summary>${detailHTML(a)}</details>
       </div>`;
     };
@@ -2357,7 +2388,8 @@ async function matrixAction(app, skill) {
 
 async function gh(pathName, ref, opts = {}) {
   const url = `https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${pathName}${ref ? `?ref=${ref}` : ''}`;
-  const r = await fetch(url, { cache: 'no-store', ...opts,
+  // bounded (audit 2026-10): a stalled request on a flaky mobile link used to hang the save/refresh forever
+  const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(opts.method ? 120000 : 30000), ...opts,
     headers: { Authorization: 'Bearer ' + pat(), Accept: opts.method ? 'application/vnd.github+json' : 'application/vnd.github.raw+json', ...(opts.headers || {}) } });
   if (!r.ok) { const e = new Error('GH ' + r.status); e.status = r.status; throw e; }
   return r.status === 204 ? null : r.json();
@@ -2419,6 +2451,7 @@ async function saveApprovals() {
   };
   try { await put(); }
   catch (e) {
+    if (e?.status !== 409 && e?.status !== 422) throw e;   // only a stale sha is worth a rebase — 401/offline must surface
     // stale sha — the registry moves every ~5 min and userBusy pauses the refresher while
     // typing, so the cached sha 409s (this used to deadlock rejection feedback forever).
     // Refetch fresh content+sha and REBASE the local edits onto it by id: only the fields
@@ -2510,9 +2543,19 @@ function bindApprovals() {
     el.querySelectorAll('[data-file]').forEach(a => a.onclick = async e => {
       e.preventDefault();
       try {
-        const r = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${a.dataset.file}`,
+        // audit 2026-10: the path comes from registry data and goes into an authenticated API URL — only
+        // our own upload dirs, no '..' (it would normalise to any api.github.com GET carrying the token).
+        const p = a.dataset.file || '';
+        if (!/^archive\/(feedback|inbox-files)\/[\w.\-]+\/[\w.\-א-ת]+$/.test(p) || p.split('/').includes('..')) throw 0;
+        const r = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${encodeURI(p)}`,
           { headers: { Authorization: 'Bearer ' + pat(), Accept: 'application/vnd.github.raw+json' } });
-        window.open(URL.createObjectURL(await r.blob()), '_blank');
+        if (!r.ok) throw 0;
+        // render only inert types (an uploaded .svg/.html must never become a same-origin document)
+        const ext = (p.split('.').pop() || '').toLowerCase();
+        const type = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', pdf: 'application/pdf', txt: 'text/plain' }[ext] || 'application/octet-stream';
+        const u = URL.createObjectURL(new Blob([await r.arrayBuffer()], { type }));
+        window.open(u, '_blank', 'noopener');
+        setTimeout(() => URL.revokeObjectURL(u), 60000);
       } catch { alert('שגיאה בפתיחת הקובץ'); }
     });
     if (it.status !== 'pending') return;
@@ -2727,7 +2770,8 @@ async function chatSendMsg() {
   }
 }
 async function chatPoll() {
-  if (!pat()) return;
+  if (!pat() || chatPoll.busy) return;   // 8s poll: never stack requests on a slow link
+  chatPoll.busy = true;
   try {
     const c = await gh('registry/chat.json');
     if (c && Array.isArray(c.messages)) {
@@ -2739,7 +2783,7 @@ async function chatPoll() {
       const sig = JSON.stringify(merged.map(m => m.id));
       if (sig !== mrChatSig) { mrChatSig = sig; mrChat = { ...c, messages: merged }; updateChatLog(); }
     }
-  } catch { /* transient */ }
+  } catch { /* transient */ } finally { chatPoll.busy = false; }
 }
 function bindChat() {
   const ta = document.getElementById('chatText'), send = document.getElementById('chatSend');
@@ -3162,7 +3206,7 @@ function renderStats() {
     const mainRow = `<tr class="stats-mainrow">
         <td><div class="stats-appcell-inner">
           <button class="stats-chevron-btn"${hasSub ? ` onclick="toggleStatsApp(${bi})"` : ' style="visibility:hidden"'} aria-label="הצג פירוט" title="הצג פירוט">▸</button>
-          <button class="stats-app" onclick="openStatsModal(${bi})"><img src="icons/${b.app.dir || b.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'"><span>${nm}</span></button>
+          <button class="stats-app" onclick="openStatsModal(${bi})"><img src="icons/${encodeURIComponent(b.app.dir || b.app.name)}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'"><span>${esc(nm)}</span></button>
         </div></td>
         <td>${b.sub && b.sub.paidMonthly ? `<b class="stats-sub-paid">${b.sub.paidMonthly}</b>` : dash}</td>
         <td>${b.sub && b.sub.paidYearly ? `<b class="stats-sub-paid">${b.sub.paidYearly}</b>` : dash}</td>
@@ -3212,7 +3256,7 @@ function openStatsModal(bi) {
     return `<div class="stats-modal-sub" style="margin-top:8px">${label}</div>
       <div style="overflow-x:auto"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${bars}${lbl(0)}${lbl(Math.floor(days.length / 2))}${lbl(days.length - 1)}</svg></div>`;
   };
-  let body = `<h4><img src="icons/${b.app.dir || b.app.name}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'">${nm}</h4>`;
+  let body = `<h4><img src="icons/${encodeURIComponent(b.app.dir || b.app.name)}.png?v=${window.ERZA_ICONV || '1'}" onerror="this.style.visibility='hidden'">${esc(nm)}</h4>`;
   for (const r of b.subs) {
     const platLabel = r.plat === 'mac' ? '💻 macOS' : '📱 iOS';
     body += chart(r.d.series, `${platLabel} · הורדות יומיות`, 'var(--blue)');
@@ -3529,7 +3573,7 @@ function mrRender(live) {
       ${a.probe && a.probe.at ? `<div class="cat" style="margin-top:3px">🔬 נבדק אמפירית ${esc(String(a.probe.at).slice(11, 16))}Z${a.probe.session ? ' · חשבון הסשן' : a.probe.evidence ? ' · ' + esc(a.probe.evidence) : ''}</div>` : ''}
     </div>`; }).join('');
   const r = live.resource;
-  const erzaLine = `<div class="mr-erzaline">🧠 <b>ERZA (סשן אינטראקטיבי)</b> על: <b>${esc(live.erza?.session?.label || '—')}</b>${live.erza?.brain?.label ? ` · 🤖 המוח האוטונומי על: <b>${esc(live.erza.brain.label)}</b>` : ''}${r ? ` · 💻 עומס ${r.perCore5}/ליבה (${r.state}) · זיכרון ${r.memFreePct}% פנוי · ${r.claudeProcs} תהליכים` : ''}</div>`;
+  const erzaLine = `<div class="mr-erzaline">🧠 <b>ERZA (סשן אינטראקטיבי)</b> על: <b>${esc(live.erza?.session?.label || '—')}</b>${live.erza?.brain?.label ? ` · 🤖 המוח האוטונומי על: <b>${esc(live.erza.brain.label)}</b>` : ''}${r ? ` · 💻 עומס ${r.perCore5}/ליבה (${esc(r.state)}) · זיכרון ${r.memFreePct}% פנוי · ${r.claudeProcs} תהליכים` : ''}</div>`;
 
   const icon = app => `<img class="appicon" src="icons/${esc(app)}.png?v=${ICONV}" onerror="this.hidden=true" alt="">`;
   // Display name without the "Native"/"_New" suffix (the id keeps the full key for routing).
@@ -4459,8 +4503,9 @@ async function mrTick() {
 
 function mrInit() {
   document.getElementById('patBtn').onclick = () => {
-    const v = prompt('הדבק GitHub Fine-grained token (Contents: Read&Write על ERZA_Orchestrator):', pat());
-    if (v !== null) { localStorage.setItem('erza-pat', v.trim()); mrDirty = false; mrTick(); }
+    // never echo the stored token back on screen (audit 2026-10); an empty answer keeps the current one
+    const v = prompt('הדבק GitHub Fine-grained token (Contents: Read&Write על ERZA_Orchestrator בלבד, עם תאריך תפוגה):' + (pat() ? '\n(קיים טוקן שמור — השאר ריק כדי לשמור עליו)' : ''), '');
+    if (v !== null && v.trim()) { localStorage.setItem('erza-pat', v.trim()); mrDirty = false; mrTick(); }
   };
   document.getElementById('mrSaveBtn').onclick = savePriorities;
   // Coin Lovable-doc copy button (delegated — items re-render on refresh). Download uses a
@@ -4920,16 +4965,21 @@ function mlAttHtml(it) {
       ${a.summary ? `<div class="ml-att-sum" dir="auto"><b>סיכום המסמך:</b> ${esc(a.summary)}</div>` : ''}${body}</div>`;
   }).join('');
 }
+const ML_SAFE_IMG = /^image\/(png|jpeg|gif|webp)$/;
+const ML_SAFE_MIME = /^(application\/pdf|image\/(png|jpeg|gif|webp))$/;
 async function mlAttLoad(id) {
   if (ML_BLOB.has(id)) return ML_BLOB.get(id);
-  if (!window.ERZA_KEYBITS) throw new Error('nokey');
+  if (!window.ERZA_KEY) throw new Error('nokey');
+  if (!/^[0-9a-f]{32}$/.test(id)) throw new Error('badid');
   const res = await fetch(`att/${id}.bin`, { cache: 'no-store' });
   if (!res.ok) throw new Error(res.status === 404 ? 'notpublished' : 'http' + res.status);
   const buf = new Uint8Array(await res.arrayBuffer());
-  const key = await crypto.subtle.importKey('raw', window.ERZA_KEYBITS, 'AES-GCM', false, ['decrypt']);
-  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: buf.subarray(0, 12) }, key, buf.subarray(12));
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: buf.subarray(0, 12) }, window.ERZA_KEY, buf.subarray(12));
   const meta = ML.data.items.flatMap(i => i.attachments || []).find(a => a && a.id === id) || {};
-  const mime = meta.mime || 'application/octet-stream';
+  // The mime comes from the SENDER's mail header — never trust it to render (audit 2026-10 C1: a
+  // "application/pdf+xml" / "image/svg+xml" blob is a same-origin document that could run script and
+  // read the stored GitHub token). Only inert types render; anything else becomes an opaque download.
+  const mime = ML_SAFE_MIME.test(meta.mime || '') ? meta.mime : 'application/octet-stream';
   const ent = { url: URL.createObjectURL(new Blob([plain], { type: mime })), mime, name: meta.name || 'file' };
   ML_BLOB.set(id, ent); return ent;
 }
@@ -4940,8 +4990,8 @@ async function mlAttView(id) {
   box.innerHTML = '<div class="ml-att-msg">מפענח…</div>';
   try {
     const f = await mlAttLoad(id);
-    if (/^image\//.test(f.mime)) box.innerHTML = `<img class="ml-att-img" alt="${esc(f.name)}" src="${f.url}">`;
-    else if (/pdf/.test(f.mime)) box.innerHTML = `<iframe class="ml-att-frame" title="${esc(f.name)}" src="${f.url}"></iframe><div class="ml-att-act"><a class="ml-btn" style="display:inline-flex;align-items:center;text-decoration:none" href="${f.url}" target="_blank" rel="noopener">פתח בלשונית</a></div>`;
+    if (ML_SAFE_IMG.test(f.mime)) box.innerHTML = `<img class="ml-att-img" alt="${esc(f.name)}" src="${f.url}">`;
+    else if (f.mime === 'application/pdf') box.innerHTML = `<iframe class="ml-att-frame" title="${esc(f.name)}" src="${f.url}"></iframe><div class="ml-att-act"><a class="ml-btn" style="display:inline-flex;align-items:center;text-decoration:none" href="${f.url}" target="_blank" rel="noopener">פתח בלשונית</a></div>`;
     else box.innerHTML = '<div class="ml-att-msg">אין תצוגה מקדימה לסוג הקובץ הזה — לחץ "הורד".</div>';
   } catch (e) { box.innerHTML = `<div class="ml-att-msg err">${esc(mlAttErr(e))}</div>`; }
 }
